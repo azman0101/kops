@@ -18,13 +18,13 @@ package gce
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"net"
 
 	compute "google.golang.org/api/compute/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops"
+	"k8s.io/kops/pkg/util/subnet"
 	"k8s.io/kops/upup/pkg/fi"
 )
 
@@ -38,13 +38,80 @@ func UsesIPAliases(c *kops.Cluster) bool {
 
 // PerformNetworkAssignments assigns suitable pod and service assignments for GCE,
 // in particular for IP alias support.
-func PerformNetworkAssignments(c *kops.Cluster, cloudObj fi.Cloud) error {
-	ctx := context.TODO()
-
+func PerformNetworkAssignments(ctx context.Context, c *kops.Cluster, cloudObj fi.Cloud) error {
 	if UsesIPAliases(c) {
 		return performNetworkAssignmentsIPAliases(ctx, c, cloudObj)
+	} else {
+		return performSubnetAssignments(ctx, c, cloudObj)
 	}
-	return nil
+}
+
+func buildUsed(ctx context.Context, c *kops.Cluster, cloudObj fi.Cloud) (*subnet.CIDRMap, error) {
+	networkName := c.Spec.NetworkID
+	if networkName == "" {
+		networkName = SafeClusterName(c.Name)
+	}
+
+	cloud := cloudObj.(GCECloud)
+
+	network, err := cloud.Compute().Networks().Get(cloud.Project(), networkName)
+	if err != nil {
+		if IsNotFound(err) {
+			network = nil
+		} else {
+			return nil, fmt.Errorf("error fetching network %q: %w", networkName, err)
+		}
+	}
+	used := &subnet.CIDRMap{}
+
+	if network == nil {
+		return used, nil
+	}
+
+	subnetURLs := make(map[string]bool)
+	for _, subnet := range network.Subnetworks {
+		subnetURLs[subnet] = true
+	}
+	if len(subnetURLs) == 0 {
+		return used, nil
+	}
+
+	klog.Infof("scanning regions for subnetwork CIDR allocations")
+
+	regions := make(map[string]bool)
+	for subnetURL := range subnetURLs {
+		u, err := ParseGoogleCloudURL(subnetURL)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing subnet url %q: %w", subnetURL, err)
+		}
+		regions[u.Region] = true
+	}
+
+	var subnets []*compute.Subnetwork
+	for region := range regions {
+		l, err := cloud.Compute().Subnetworks().List(ctx, cloud.Project(), region)
+		if err != nil {
+			return nil, fmt.Errorf("error listing Subnetworks in region %q: %w", region, err)
+		}
+		subnets = append(subnets, l...)
+	}
+
+	for _, subnet := range subnets {
+		if !subnetURLs[subnet.SelfLink] {
+			continue
+		}
+		if err := used.MarkInUse(subnet.IpCidrRange); err != nil {
+			return nil, err
+		}
+
+		for _, s := range subnet.SecondaryIpRanges {
+			if err := used.MarkInUse(s.IpCidrRange); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return used, nil
 }
 
 func performNetworkAssignmentsIPAliases(ctx context.Context, c *kops.Cluster, cloudObj fi.Cloud) error {
@@ -57,142 +124,79 @@ func performNetworkAssignmentsIPAliases(ctx context.Context, c *kops.Cluster, cl
 		return nil
 	}
 
-	networkName := c.Spec.NetworkID
-	if networkName == "" {
-		networkName = "default"
-	}
-
-	cloud := cloudObj.(GCECloud)
-
-	regions, err := cloud.Compute().Regions().List(ctx, cloud.Project())
+	used, err := buildUsed(ctx, c, cloudObj)
 	if err != nil {
-		return fmt.Errorf("error listing Regions: %v", err)
-	}
-
-	network, err := cloud.Compute().Networks().Get(cloud.Project(), networkName)
-	if err != nil {
-		return fmt.Errorf("error fetching network name %q: %v", networkName, err)
-	}
-
-	subnetURLs := make(map[string]bool)
-	for _, subnet := range network.Subnetworks {
-		subnetURLs[subnet] = true
-	}
-
-	klog.Infof("scanning regions for subnetwork CIDR allocations")
-
-	var subnets []*compute.Subnetwork
-	for _, r := range regions {
-		l, err := cloud.Compute().Subnetworks().List(ctx, cloud.Project(), r.Name)
-		if err != nil {
-			return fmt.Errorf("error listing Subnetworks: %v", err)
-		}
-		subnets = append(subnets, l...)
-	}
-
-	var used cidrMap
-	for _, subnet := range subnets {
-		if !subnetURLs[subnet.SelfLink] {
-			continue
-		}
-		if err := used.MarkInUse(subnet.IpCidrRange); err != nil {
-			return err
-		}
-
-		for _, s := range subnet.SecondaryIpRanges {
-			if err := used.MarkInUse(s.IpCidrRange); err != nil {
-				return err
-			}
-		}
+		return err
 	}
 
 	// CIDRs should be in the RFC1918 range, but otherwise we have no constraints
 	networkCIDR := "10.0.0.0/8"
 
-	podCIDR, err := used.Allocate(networkCIDR, 14)
+	podCIDR, err := used.Allocate(networkCIDR, net.CIDRMask(14, 32))
 	if err != nil {
 		return err
 	}
 
-	serviceCIDR, err := used.Allocate(networkCIDR, 20)
+	serviceCIDR, err := used.Allocate(networkCIDR, net.CIDRMask(20, 32))
 	if err != nil {
 		return err
 	}
 
-	nodeCIDR, err := used.Allocate(networkCIDR, 20)
+	nodeCIDR, err := used.Allocate(networkCIDR, net.CIDRMask(20, 32))
 	if err != nil {
 		return err
 	}
 
-	klog.Infof("Will use %s for Nodes, %s for Pods and %s for Services", nodeCIDR, podCIDR, serviceCIDR)
+	klog.Infof("Will use %v for Nodes, %v for Pods and %v for Services", nodeCIDR, podCIDR, serviceCIDR)
 
-	nodeSubnet.CIDR = nodeCIDR
-	c.Spec.PodCIDR = podCIDR
-	c.Spec.ServiceClusterIPRange = serviceCIDR
+	nodeSubnet.CIDR = nodeCIDR.String()
+	c.Spec.PodCIDR = podCIDR.String()
+	c.Spec.ServiceClusterIPRange = serviceCIDR.String()
 
 	return nil
 }
 
-// cidrMap is a helper structure to allocate unused CIDRs
-type cidrMap struct {
-	used []net.IPNet
-}
-
-func (c *cidrMap) MarkInUse(s string) error {
-	_, cidr, err := net.ParseCIDR(s)
-	if err != nil {
-		return fmt.Errorf("error parsing network cidr %q: %v", s, err)
+func performSubnetAssignments(ctx context.Context, c *kops.Cluster, cloudObj fi.Cloud) error {
+	needCIDR := 0
+	for i := range c.Spec.Subnets {
+		subnet := &c.Spec.Subnets[i]
+		if subnet.ProviderID != "" {
+			continue
+		}
+		if subnet.CIDR == "" {
+			needCIDR++
+		}
 	}
-	c.used = append(c.used, *cidr)
+
+	if needCIDR == 0 {
+		return nil
+	}
+
+	used, err := buildUsed(ctx, c, cloudObj)
+	if err != nil {
+		return err
+	}
+
+	// CIDRs should be in the RFC1918 range, but otherwise we have no constraints
+	networkCIDR := "10.0.0.0/8"
+
+	for i := range c.Spec.Subnets {
+		subnet := &c.Spec.Subnets[i]
+		if subnet.ProviderID != "" {
+			continue
+		}
+		if subnet.CIDR != "" {
+			continue
+		}
+
+		subnetCIDR, err := used.Allocate(networkCIDR, net.CIDRMask(20, 32))
+		if err != nil {
+			return err
+		}
+		subnet.CIDR = subnetCIDR.String()
+
+		klog.Infof("assigned %v to subnet %v", subnetCIDR, subnet.Name)
+	}
+
 	return nil
-}
-
-func (c *cidrMap) Allocate(from string, mask int) (string, error) {
-	_, cidr, err := net.ParseCIDR(from)
-	if err != nil {
-		return "", fmt.Errorf("error parsing CIDR %q: %v", from, err)
-	}
-
-	i := *cidr
-	i.Mask = net.CIDRMask(mask, 32)
-
-	for {
-
-		ip4 := i.IP.To4()
-		if ip4 == nil {
-			return "", fmt.Errorf("expected IPv4 address: %v", from)
-		}
-
-		// Note we increment first, so we won't ever use the first range (e.g. 10.0.0.0/n)
-		n := binary.BigEndian.Uint32(ip4)
-		n += 1 << uint(32-mask)
-		binary.BigEndian.PutUint32(i.IP, n)
-
-		if !cidrsOverlap(cidr, &i) {
-			break
-		}
-
-		if !c.isInUse(&i) {
-			if err := c.MarkInUse(i.String()); err != nil {
-				return "", err
-			}
-			return i.String(), nil
-		}
-	}
-
-	return "", fmt.Errorf("cannot allocate CIDR of size %d", mask)
-}
-
-func (c *cidrMap) isInUse(n *net.IPNet) bool {
-	for i := range c.used {
-		if cidrsOverlap(&c.used[i], n) {
-			return true
-		}
-	}
-	return false
-}
-
-// cidrsOverlap returns true if and only if the two CIDRs are non-disjoint
-func cidrsOverlap(l, r *net.IPNet) bool {
-	return l.Contains(r.IP) || r.Contains(l.IP)
 }

@@ -452,6 +452,10 @@ spec:
                       pulls If no pulling progress is made before this deadline, the
                       image pulling will be cancelled. (default 1m0s)
                     type: string
+                  kernelMemcgNotification:
+                    description: Integrate with the kernel memcg notification to determine
+                      if memory eviction thresholds are crossed rather than polling.
+                    type: boolean
                   kubeReserved:
                     additionalProperties:
                       type: string
@@ -760,8 +764,7 @@ spec:
                     x-kubernetes-int-or-string: true
                 type: object
               rootVolumeDeleteOnTermination:
-                description: RootVolumeDeleteOnTermination is deprecated as of kOps
-                  1.21 and has no effect
+                description: RootVolumeDeleteOnTermination is unused.
                 type: boolean
               rootVolumeEncryption:
                 description: RootVolumeEncryption enables EBS root volume encryption

@@ -25,13 +25,14 @@ import (
 	"k8s.io/klog/v2"
 	addonsapi "k8s.io/kops/channels/pkg/api"
 	"k8s.io/kops/pkg/assets"
-	"k8s.io/kops/pkg/featureflag"
 	"k8s.io/kops/pkg/kubemanifest"
 	"k8s.io/kops/pkg/model"
+	"k8s.io/kops/pkg/model/components/addonmanifests/awscloudcontrollermanager"
 	"k8s.io/kops/pkg/model/components/addonmanifests/awsebscsidriver"
 	"k8s.io/kops/pkg/model/components/addonmanifests/awsloadbalancercontroller"
 	"k8s.io/kops/pkg/model/components/addonmanifests/clusterautoscaler"
 	"k8s.io/kops/pkg/model/components/addonmanifests/dnscontroller"
+	"k8s.io/kops/pkg/model/components/addonmanifests/externaldns"
 	"k8s.io/kops/pkg/model/components/addonmanifests/nodeterminationhandler"
 	"k8s.io/kops/pkg/model/iam"
 	"k8s.io/kops/upup/pkg/fi"
@@ -82,15 +83,12 @@ func RemapAddonManifest(addon *addonsapi.AddonSpec, context *model.KopsModelCont
 }
 
 func addServiceAccountRole(context *model.KopsModelContext, objects kubemanifest.ObjectList) error {
-	if !featureflag.UseServiceAccountIAM.Enabled() {
+	if !context.UseServiceAccountExternalPermissions() {
 		return nil
 	}
 
 	for _, object := range objects {
-		if object.Kind() != "Deployment" {
-			continue
-		}
-		if object.APIVersion() != "apps/v1" {
+		if !hasPodSpecTemplate(object) {
 			continue
 		}
 		podSpec := &corev1.PodSpec{}
@@ -126,6 +124,10 @@ func getWellknownServiceAccount(name string) iam.Subject {
 		return &awsebscsidriver.ServiceAccount{}
 	case "aws-node-termination-handler":
 		return &nodeterminationhandler.ServiceAccount{}
+	case "aws-cloud-controller-manager":
+		return &awscloudcontrollermanager.ServiceAccount{}
+	case "external-dns":
+		return &externaldns.ServiceAccount{}
 	default:
 		return nil
 	}
@@ -159,4 +161,13 @@ func addLabels(addon *addonsapi.AddonSpec, objects kubemanifest.ObjectList) erro
 		object.Set(meta, "metadata")
 	}
 	return nil
+}
+
+func hasPodSpecTemplate(object *kubemanifest.Object) bool {
+	if object.Kind() == "Deployment" || object.Kind() == "DaemonSet" {
+		if object.APIVersion() == "apps/v1" {
+			return true
+		}
+	}
+	return false
 }

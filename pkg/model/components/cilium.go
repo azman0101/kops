@@ -39,7 +39,7 @@ func (b *CiliumOptionsBuilder) BuildOptions(o interface{}) error {
 	}
 
 	if c.Version == "" {
-		c.Version = "v1.10.0"
+		c.Version = "v1.10.4"
 	}
 
 	if c.EnableEndpointHealthChecking == nil {
@@ -103,10 +103,6 @@ func (b *CiliumOptionsBuilder) BuildOptions(o interface{}) error {
 		c.ToFqdnsDNSRejectResponseCode = "refused"
 	}
 
-	if c.ContainerRuntimeLabels == "" {
-		c.ContainerRuntimeLabels = "none"
-	}
-
 	if c.AgentPrometheusPort == 0 {
 		c.AgentPrometheusPort = wellknownports.CiliumPrometheusPort
 	}
@@ -120,7 +116,7 @@ func (b *CiliumOptionsBuilder) BuildOptions(o interface{}) error {
 	}
 
 	if c.Tunnel == "" {
-		if c.Ipam == "eni" {
+		if c.Ipam == "eni" || clusterSpec.IsIPv6Only() {
 			c.Tunnel = "disabled"
 		} else {
 			c.Tunnel = "vxlan"
@@ -139,6 +135,10 @@ func (b *CiliumOptionsBuilder) BuildOptions(o interface{}) error {
 		c.EnableL7Proxy = fi.Bool(true)
 	}
 
+	if c.DisableCNPStatusUpdates == nil {
+		c.DisableCNPStatusUpdates = fi.Bool(true)
+	}
+
 	if c.CPURequest == nil {
 		defaultCPURequest := resource.MustParse("25m")
 		c.CPURequest = &defaultCPURequest
@@ -147,6 +147,10 @@ func (b *CiliumOptionsBuilder) BuildOptions(o interface{}) error {
 	if c.MemoryRequest == nil {
 		defaultMemoryRequest := resource.MustParse("128Mi")
 		c.MemoryRequest = &defaultMemoryRequest
+	}
+
+	if c.EnableEncryption && c.EncryptionType == "" {
+		c.EncryptionType = kops.CiliumEncryptionTypeIPSec
 	}
 
 	hubble := c.Hubble

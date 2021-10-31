@@ -21,50 +21,142 @@ import (
 	"sort"
 	"testing"
 
+	"k8s.io/kops/dnsprovider/pkg/dnsprovider/rrstype"
 	"k8s.io/kops/pkg/apis/kops"
 )
 
 func TestPrecreateDNSNames(t *testing.T) {
-	cluster := &kops.Cluster{}
-	cluster.ObjectMeta.Name = "cluster1.example.com"
-	cluster.Spec.MasterPublicName = "api." + cluster.ObjectMeta.Name
-	cluster.Spec.MasterInternalName = "api.internal." + cluster.ObjectMeta.Name
-	cluster.Spec.EtcdClusters = []kops.EtcdClusterSpec{
+
+	grid := []struct {
+		cluster  *kops.Cluster
+		expected []recordKey
+	}{
 		{
-			Name: "main",
-			Members: []kops.EtcdMemberSpec{
-				{Name: "zone1"},
-				{Name: "zone2"},
-				{Name: "zone3"},
+			cluster: &kops.Cluster{},
+			expected: []recordKey{
+				{"api.cluster1.example.com", rrstype.A},
+				{"api.internal.cluster1.example.com", rrstype.A},
 			},
 		},
 		{
-			Name: "events",
-			Members: []kops.EtcdMemberSpec{
-				{Name: "zonea"},
-				{Name: "zoneb"},
-				{Name: "zonec"},
+			cluster: &kops.Cluster{
+				Spec: kops.ClusterSpec{
+					NonMasqueradeCIDR: "::/0",
+				},
+			},
+			expected: []recordKey{
+				{"api.cluster1.example.com", rrstype.A},
+				{"api.cluster1.example.com", rrstype.AAAA},
+				{"api.internal.cluster1.example.com", rrstype.AAAA},
+			},
+		},
+		{
+			cluster: &kops.Cluster{
+				Spec: kops.ClusterSpec{
+					API: &kops.AccessSpec{
+						LoadBalancer: &kops.LoadBalancerAccessSpec{},
+					},
+				},
+			},
+			expected: []recordKey{
+				{"api.internal.cluster1.example.com", rrstype.A},
+			},
+		},
+		{
+			cluster: &kops.Cluster{
+				Spec: kops.ClusterSpec{
+					API: &kops.AccessSpec{
+						LoadBalancer: &kops.LoadBalancerAccessSpec{},
+					},
+					NonMasqueradeCIDR: "::/0",
+				},
+			},
+			expected: []recordKey{
+				{"api.internal.cluster1.example.com", rrstype.AAAA},
+			},
+		},
+		{
+			cluster: &kops.Cluster{
+				Spec: kops.ClusterSpec{
+					API: &kops.AccessSpec{
+						LoadBalancer: &kops.LoadBalancerAccessSpec{
+							UseForInternalApi: true,
+						},
+					},
+				},
+			},
+			expected: nil,
+		},
+		{
+			cluster: &kops.Cluster{
+				Spec: kops.ClusterSpec{
+					CloudProvider:     "aws",
+					KubernetesVersion: "1.22.0",
+				},
+			},
+			expected: []recordKey{
+				{"api.cluster1.example.com", rrstype.A},
+				{"api.internal.cluster1.example.com", rrstype.A},
+				{"kops-controller.internal.cluster1.example.com", rrstype.A},
+			},
+		},
+		{
+			cluster: &kops.Cluster{
+				Spec: kops.ClusterSpec{
+					CloudProvider:     "aws",
+					KubernetesVersion: "1.22.0",
+					NonMasqueradeCIDR: "::/0",
+				},
+			},
+			expected: []recordKey{
+				{"api.cluster1.example.com", rrstype.A},
+				{"api.cluster1.example.com", rrstype.AAAA},
+				{"api.internal.cluster1.example.com", rrstype.AAAA},
+				{"kops-controller.internal.cluster1.example.com", rrstype.AAAA},
 			},
 		},
 	}
 
-	actual := buildPrecreateDNSHostnames(cluster)
+	for _, g := range grid {
+		cluster := g.cluster
 
-	expected := []string{
-		"api.cluster1.example.com",
-		"api.internal.cluster1.example.com",
-		"etcd-events-zonea.internal.cluster1.example.com",
-		"etcd-events-zoneb.internal.cluster1.example.com",
-		"etcd-events-zonec.internal.cluster1.example.com",
-		"etcd-zone1.internal.cluster1.example.com",
-		"etcd-zone2.internal.cluster1.example.com",
-		"etcd-zone3.internal.cluster1.example.com",
-	}
+		cluster.ObjectMeta.Name = "cluster1.example.com"
+		cluster.Spec.MasterPublicName = "api." + cluster.ObjectMeta.Name
+		cluster.Spec.MasterInternalName = "api.internal." + cluster.ObjectMeta.Name
+		cluster.Spec.EtcdClusters = []kops.EtcdClusterSpec{
+			{
+				Name: "main",
+				Members: []kops.EtcdMemberSpec{
+					{Name: "zone1"},
+					{Name: "zone2"},
+					{Name: "zone3"},
+				},
+			},
+			{
+				Name: "events",
+				Members: []kops.EtcdMemberSpec{
+					{Name: "zonea"},
+					{Name: "zoneb"},
+					{Name: "zonec"},
+				},
+			},
+		}
 
-	sort.Strings(actual)
-	sort.Strings(expected)
+		actual := buildPrecreateDNSHostnames(cluster)
 
-	if !reflect.DeepEqual(expected, actual) {
-		t.Fatalf("unexpected records.  expected=%v actual=%v", expected, actual)
+		expected := g.expected
+		sort.Slice(actual, func(i, j int) bool {
+			if actual[i].hostname < actual[j].hostname {
+				return true
+			}
+			if actual[i].hostname == actual[j].hostname && actual[i].rrsType < actual[j].rrsType {
+				return true
+			}
+			return false
+		})
+
+		if !reflect.DeepEqual(expected, actual) {
+			t.Errorf("unexpected records.  expected=%v actual=%v", expected, actual)
+		}
 	}
 }

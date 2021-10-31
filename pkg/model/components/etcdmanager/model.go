@@ -57,10 +57,6 @@ var _ fi.ModelBuilder = &EtcdManagerBuilder{}
 // Build creates the tasks
 func (b *EtcdManagerBuilder) Build(c *fi.ModelBuilderContext) error {
 	for _, etcdCluster := range b.Cluster.Spec.EtcdClusters {
-		if etcdCluster.Provider != kops.EtcdProviderTypeManager {
-			continue
-		}
-
 		name := etcdCluster.Name
 		version := etcdCluster.Version
 
@@ -183,7 +179,7 @@ metadata:
   namespace: kube-system
 spec:
   containers:
-  - image: k8s.gcr.io/etcdadm/etcd-manager:3.0.20210707
+  - image: k8s.gcr.io/etcdadm/etcd-manager:3.0.20211007
     name: etcd-manager
     resources:
       requests:

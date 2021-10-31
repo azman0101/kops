@@ -264,7 +264,7 @@ spec:
               topologyKey: topology.kubernetes.io/zone
       priorityClassName: system-cluster-critical
       serviceAccountName: cluster-autoscaler
-      {{ if not UseServiceAccountIAM }}
+      {{ if not UseServiceAccountExternalPermissions }}
       tolerations:
       - operator: "Exists"
         key: node-role.kubernetes.io/master
@@ -282,6 +282,9 @@ spec:
             - ./cluster-autoscaler
             - --balance-similar-node-groups={{ .BalanceSimilarNodeGroups }}
             - --cloud-provider={{ $.CloudProvider }}
+            {{ if (eq $.CloudProvider "aws") }}
+            - --aws-use-static-instance-list={{ .AWSUseStaticInstanceList }}
+            {{ end }}
             - --expander={{ .Expander }}
             {{ range $name, $spec := GetNodeInstanceGroups }}
             {{ if WithDefaultBool $spec.Autoscale true }}
@@ -293,6 +296,7 @@ spec:
             - --skip-nodes-with-system-pods={{ .SkipNodesWithSystemPods }}
             - --scale-down-delay-after-add={{ .ScaleDownDelayAfterAdd }}
             - --new-pod-scale-up-delay={{ .NewPodScaleUpDelay }}
+            - --max-node-provision-time={{ .MaxNodeProvisionTime }}
             - --stderrthreshold=info
             - --v=2
           env:

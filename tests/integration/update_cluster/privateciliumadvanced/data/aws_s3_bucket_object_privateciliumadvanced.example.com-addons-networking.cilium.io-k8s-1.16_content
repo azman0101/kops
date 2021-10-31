@@ -34,18 +34,21 @@ data:
   bpf-lb-algorithm: random
   bpf-lb-maglev-table-size: "16381"
   bpf-lb-map-max: "65536"
+  bpf-lb-sock-hostns-only: "false"
   bpf-nat-global-max: "524288"
   bpf-neigh-global-max: "524288"
   bpf-policy-map-max: "16384"
+  cgroup-root: /run/cilium/cgroupv2
   cluster-name: default
-  container-runtime: none
   debug: "false"
+  disable-cnp-status-updates: "true"
   disable-endpoint-crd: "false"
   enable-bpf-masquerade: "false"
   enable-endpoint-health-checking: "true"
   enable-endpoint-routes: "true"
   enable-ipv4: "true"
   enable-ipv6: "false"
+  enable-ipv6-masquerade: "false"
   enable-k8s-event-handover: "true"
   enable-l7-proxy: "true"
   enable-node-port: "true"
@@ -72,7 +75,6 @@ data:
   tofqdns-dns-reject-response-code: refused
   tofqdns-enable-poller: "false"
   tunnel: disabled
-  wait-bpf-mount: "false"
 kind: ConfigMap
 metadata:
   creationTimestamp: null
@@ -397,7 +399,7 @@ spec:
           value: api.internal.privateciliumadvanced.example.com
         - name: KUBERNETES_SERVICE_PORT
           value: "443"
-        image: quay.io/cilium/cilium:v1.10.0
+        image: quay.io/cilium/cilium:v1.10.4
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -442,13 +444,9 @@ spec:
             cpu: 25m
             memory: 128Mi
         securityContext:
-          capabilities:
-            add:
-            - NET_ADMIN
-            - SYS_MODULE
           privileged: true
         startupProbe:
-          failureThreshold: 24
+          failureThreshold: 105
           httpGet:
             host: 127.0.0.1
             httpHeaders:
@@ -461,6 +459,7 @@ spec:
           successThreshold: null
         volumeMounts:
         - mountPath: /sys/fs/bpf
+          mountPropagation: Bidirectional
           name: bpf-maps
         - mountPath: /var/run/cilium
           name: cilium-run
@@ -502,13 +501,7 @@ spec:
               key: clean-cilium-bpf-state
               name: cilium-config
               optional: true
-        - name: CILIUM_WAIT_BPF_MOUNT
-          valueFrom:
-            configMapKeyRef:
-              key: wait-bpf-mount
-              name: cilium-config
-              optional: true
-        image: quay.io/cilium/cilium:v1.10.0
+        image: quay.io/cilium/cilium:v1.10.4
         imagePullPolicy: IfNotPresent
         name: clean-cilium-state
         resources:
@@ -518,14 +511,13 @@ spec:
             cpu: 100m
             memory: 100Mi
         securityContext:
-          capabilities:
-            add:
-            - NET_ADMIN
           privileged: true
         volumeMounts:
         - mountPath: /sys/fs/bpf
-          mountPropagation: HostToContainer
           name: bpf-maps
+        - mountPath: /run/cilium/cgroupv2
+          mountPropagation: HostToContainer
+          name: cilium-cgroup
         - mountPath: /var/run/cilium
           name: cilium-run
       priorityClassName: system-node-critical
@@ -548,6 +540,10 @@ spec:
           path: /opt/cni/bin
           type: DirectoryOrCreate
         name: cni-path
+      - hostPath:
+          path: /run/cilium/cgroupv2
+          type: Directory
+        name: cilium-cgroup
       - hostPath:
           path: /etc/cni/net.d
           type: DirectoryOrCreate
@@ -640,7 +636,7 @@ spec:
           value: api.internal.privateciliumadvanced.example.com
         - name: KUBERNETES_SERVICE_PORT
           value: "443"
-        image: quay.io/cilium/operator:v1.10.0
+        image: quay.io/cilium/operator:v1.10.4
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:

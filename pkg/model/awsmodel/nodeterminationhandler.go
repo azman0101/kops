@@ -22,6 +22,7 @@ import (
 	"k8s.io/kops/pkg/model"
 
 	"k8s.io/kops/upup/pkg/fi/cloudup/awstasks"
+	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"k8s.io/kops/pkg/apis/kops"
@@ -37,7 +38,7 @@ const (
 				"Service": ["events.amazonaws.com", "sqs.amazonaws.com"]
 			},
 			"Action": "sqs:SendMessage",
-			"Resource": "arn:aws:sqs:{{ AWS_REGION }}:{{ ACCOUNT_ID }}:{{ SQS_QUEUE_NAME }}"
+			"Resource": "arn:{{ AWS_PARTITION }}:sqs:{{ AWS_REGION }}:{{ ACCOUNT_ID }}:{{ SQS_QUEUE_NAME }}"
 		}]
 	}`
 	DefaultMessageRetentionPeriod = 300
@@ -64,6 +65,10 @@ var (
 			name:    "RebalanceRecommendation",
 			pattern: `{"source": ["aws.ec2"],"detail-type": ["EC2 Instance Rebalance Recommendation"]}`,
 		},
+		{
+			name:    "InstanceStateChange",
+			pattern: `{"source": ["aws.ec2"],"detail-type": ["EC2 Instance State-change Notification"]}`,
+		},
 	}
 )
 
@@ -82,12 +87,7 @@ func (b *NodeTerminationHandlerBuilder) Build(c *fi.ModelBuilderContext) error {
 		}
 	}
 
-	err := b.buildSQSQueue(c)
-	if err != nil {
-		return err
-	}
-
-	err = b.buildEventBridgeRules(c)
+	err := b.build(c)
 	if err != nil {
 		return err
 	}
@@ -113,13 +113,14 @@ func (b *NodeTerminationHandlerBuilder) configureASG(c *fi.ModelBuilderContext, 
 	return nil
 }
 
-func (b *NodeTerminationHandlerBuilder) buildSQSQueue(c *fi.ModelBuilderContext) error {
+func (b *NodeTerminationHandlerBuilder) build(c *fi.ModelBuilderContext) error {
 	queueName := model.QueueNamePrefix(b.ClusterName()) + "-nth"
 	policy := strings.ReplaceAll(NTHTemplate, "{{ AWS_REGION }}", b.Region)
+	policy = strings.ReplaceAll(policy, "{{ AWS_PARTITION }}", b.AWSPartition)
 	policy = strings.ReplaceAll(policy, "{{ ACCOUNT_ID }}", b.AWSAccountID)
 	policy = strings.ReplaceAll(policy, "{{ SQS_QUEUE_NAME }}", queueName)
 
-	task := &awstasks.SQS{
+	queue := &awstasks.SQS{
 		Name:                   aws.String(queueName),
 		Lifecycle:              b.Lifecycle,
 		Policy:                 fi.NewStringResource(policy),
@@ -127,21 +128,14 @@ func (b *NodeTerminationHandlerBuilder) buildSQSQueue(c *fi.ModelBuilderContext)
 		Tags:                   b.CloudTags(queueName, false),
 	}
 
-	c.AddTask(task)
+	c.AddTask(queue)
 
-	return nil
-}
-
-func (b *NodeTerminationHandlerBuilder) buildEventBridgeRules(c *fi.ModelBuilderContext) error {
 	clusterName := b.ClusterName()
-	queueName := model.QueueNamePrefix(clusterName) + "-nth"
-	region := b.Region
-	accountID := b.AWSAccountID
-	targetArn := "arn:aws:sqs:" + region + ":" + accountID + ":" + queueName
 
+	clusterNamePrefix := awsup.GetClusterName40(clusterName)
 	for _, event := range events {
 		// build rule
-		ruleName := aws.String(clusterName + "-" + event.name)
+		ruleName := aws.String(clusterNamePrefix + "-" + event.name)
 		pattern := event.pattern
 
 		ruleTask := &awstasks.EventBridgeRule{
@@ -150,7 +144,7 @@ func (b *NodeTerminationHandlerBuilder) buildEventBridgeRules(c *fi.ModelBuilder
 			Tags:      b.CloudTags(*ruleName, false),
 
 			EventPattern: &pattern,
-			TargetArn:    &targetArn,
+			SQSQueue:     queue,
 		}
 
 		c.AddTask(ruleTask)
@@ -160,8 +154,8 @@ func (b *NodeTerminationHandlerBuilder) buildEventBridgeRules(c *fi.ModelBuilder
 			Name:      aws.String(*ruleName + "-Target"),
 			Lifecycle: b.Lifecycle,
 
-			Rule:      ruleTask,
-			TargetArn: &targetArn,
+			Rule:     ruleTask,
+			SQSQueue: queue,
 		}
 
 		c.AddTask(targetTask)

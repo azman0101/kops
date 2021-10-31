@@ -43,20 +43,18 @@ func (b *ClusterAutoscalerOptionsBuilder) BuildOptions(o interface{}) error {
 		v, err := util.ParseKubernetesVersion(clusterSpec.KubernetesVersion)
 		if err == nil {
 			switch v.Minor {
+			case 23:
+				image = "k8s.gcr.io/autoscaling/cluster-autoscaler:v1.23.0"
+			case 22:
+				image = "k8s.gcr.io/autoscaling/cluster-autoscaler:v1.22.1"
 			case 21:
-				image = "k8s.gcr.io/autoscaling/cluster-autoscaler:v1.21.0"
+				image = "k8s.gcr.io/autoscaling/cluster-autoscaler:v1.21.1"
 			case 20:
-				image = "k8s.gcr.io/autoscaling/cluster-autoscaler:v1.20.0"
+				image = "k8s.gcr.io/autoscaling/cluster-autoscaler:v1.20.1"
 			case 19:
-				image = "k8s.gcr.io/autoscaling/cluster-autoscaler:v1.19.1"
+				image = "k8s.gcr.io/autoscaling/cluster-autoscaler:v1.19.2"
 			case 18:
 				image = "k8s.gcr.io/autoscaling/cluster-autoscaler:v1.18.3"
-			case 17:
-				image = "k8s.gcr.io/autoscaling/cluster-autoscaler:v1.17.4"
-			case 16:
-				image = "k8s.gcr.io/autoscaling/cluster-autoscaler:v1.16.7"
-			case 15:
-				image = "k8s.gcr.io/autoscaling/cluster-autoscaler:v1.15.7"
 			}
 		}
 		cas.Image = fi.String(image)
@@ -78,11 +76,17 @@ func (b *ClusterAutoscalerOptionsBuilder) BuildOptions(o interface{}) error {
 	if cas.BalanceSimilarNodeGroups == nil {
 		cas.BalanceSimilarNodeGroups = fi.Bool(false)
 	}
+	if cas.AWSUseStaticInstanceList == nil {
+		cas.AWSUseStaticInstanceList = fi.Bool(false)
+	}
 	if cas.NewPodScaleUpDelay == nil {
 		cas.NewPodScaleUpDelay = fi.String("0s")
 	}
 	if cas.ScaleDownDelayAfterAdd == nil {
 		cas.ScaleDownDelayAfterAdd = fi.String("10m0s")
+	}
+	if cas.MaxNodeProvisionTime == "" {
+		cas.MaxNodeProvisionTime = "15m0s"
 	}
 
 	return nil

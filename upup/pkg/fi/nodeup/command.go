@@ -34,11 +34,13 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/kms"
 	"k8s.io/kops/nodeup/pkg/model"
+	"k8s.io/kops/nodeup/pkg/model/dns"
 	"k8s.io/kops/nodeup/pkg/model/networking"
 	api "k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/apis/kops/registry"
 	"k8s.io/kops/pkg/apis/nodeup"
 	"k8s.io/kops/pkg/assets"
+	"k8s.io/kops/pkg/bootstrap"
 	"k8s.io/kops/pkg/configserver"
 	"k8s.io/kops/pkg/kopscodecs"
 	"k8s.io/kops/upup/pkg/fi"
@@ -53,6 +55,7 @@ import (
 	"k8s.io/kops/util/pkg/vfs"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -269,6 +272,28 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 		if err != nil {
 			return err
 		}
+
+		modelContext.MachineType, err = getMachineType()
+		if err != nil {
+			return fmt.Errorf("failed to get machine type: %w", err)
+		}
+
+		// If Nvidia is enabled in the cluster, check if this instance has support for it.
+		nvidia := c.cluster.Spec.Containerd.NvidiaGPU
+		if nvidia != nil && fi.BoolValue(nvidia.Enabled) {
+			awsCloud := cloud.(awsup.AWSCloud)
+			// Get the instance type's detailed information.
+			instanceType, err := awsup.GetMachineTypeInfo(awsCloud, modelContext.MachineType)
+			if err != nil {
+				return err
+			}
+
+			if instanceType.GPU {
+				klog.Info("instance supports GPU acceleration")
+				modelContext.GPUVendor = architectures.GPUVendorNvidia
+			}
+		}
+
 	}
 
 	if err := loadKernelModules(modelContext); err != nil {
@@ -276,6 +301,7 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 	}
 
 	loader := &Loader{}
+	loader.Builders = append(loader.Builders, &dns.GossipBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.NTPBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.MiscUtilsBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.DirectoryBuilder{NodeupModelContext: modelContext})
@@ -289,10 +315,10 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 	loader.Builders = append(loader.Builders, &model.HookBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.KubeletBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.KubectlBuilder{NodeupModelContext: modelContext})
-	loader.Builders = append(loader.Builders, &model.EtcdBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.LogrotateBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.ManifestsBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.PackagesBuilder{NodeupModelContext: modelContext})
+	loader.Builders = append(loader.Builders, &model.NvidiaBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.SecretBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.FirewallBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.SysctlBuilder{NodeupModelContext: modelContext})
@@ -303,12 +329,12 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 	loader.Builders = append(loader.Builders, &model.KubeProxyBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.KopsControllerBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &model.WarmPoolBuilder{NodeupModelContext: modelContext})
+	loader.Builders = append(loader.Builders, &model.PrefixBuilder{NodeupModelContext: modelContext})
 
 	loader.Builders = append(loader.Builders, &networking.CommonBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &networking.CalicoBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &networking.CiliumBuilder{NodeupModelContext: modelContext})
 	loader.Builders = append(loader.Builders, &networking.KuberouterBuilder{NodeupModelContext: modelContext})
-	loader.Builders = append(loader.Builders, &networking.LyftVPCBuilder{NodeupModelContext: modelContext})
 
 	loader.Builders = append(loader.Builders, &model.BootstrapClientBuilder{NodeupModelContext: modelContext})
 	taskMap, err := loader.Build()
@@ -331,7 +357,10 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 	switch c.Target {
 	case "direct":
 		target = &local.LocalTarget{
-			CacheDir: c.CacheDir,
+			CacheDir:   c.CacheDir,
+			Cloud:      cloud,
+			InstanceID: modelContext.InstanceID,
+			Cluster:    c.cluster,
 		}
 	case "dryrun":
 		assetBuilder := assets.NewAssetBuilder(c.cluster, false)
@@ -373,10 +402,26 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 	return nil
 }
 
+func getMachineType() (string, error) {
+
+	config := aws.NewConfig()
+	config = config.WithCredentialsChainVerboseErrors(true)
+
+	sess := session.Must(session.NewSession(config))
+	metadata := ec2metadata.New(sess)
+
+	// Get the actual instance type by querying the EC2 instance metadata service.
+	instanceTypeName, err := metadata.GetMetadata("instance-type")
+	if err != nil {
+		return "", fmt.Errorf("failed to get instance metadata type: %w", err)
+	}
+	return instanceTypeName, err
+}
+
 func completeWarmingLifecycleAction(cloud awsup.AWSCloud, modelContext *model.NodeupModelContext) error {
 	asgName := modelContext.BootConfig.InstanceGroupName + "." + modelContext.Cluster.GetName()
 	hookName := "kops-warmpool"
-	svc := cloud.(awsup.AWSCloud).Autoscaling()
+	svc := cloud.Autoscaling()
 	hooks, err := svc.DescribeLifecycleHooks(&autoscaling.DescribeLifecycleHooksInput{
 		AutoScalingGroupName: &asgName,
 		LifecycleHookNames:   []*string{&hookName},
@@ -715,7 +760,7 @@ func seedRNG(ctx context.Context, bootConfig *nodeup.BootConfig, region string) 
 
 // getNodeConfigFromServer queries kops-controller for our node's configuration.
 func getNodeConfigFromServer(ctx context.Context, bootConfig *nodeup.BootConfig, region string) (*nodeup.BootstrapResponse, error) {
-	var authenticator fi.Authenticator
+	var authenticator bootstrap.Authenticator
 
 	switch api.CloudProviderID(bootConfig.CloudProvider) {
 	case api.CloudProviderAWS:

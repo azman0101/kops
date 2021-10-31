@@ -108,7 +108,7 @@ func (b *KubeAPIServerBuilder) Build(c *fi.ModelBuilderContext) error {
 		}
 	}
 
-	if b.UseEtcdManager() {
+	{
 		c.AddTask(&nodetasks.File{
 			Path:     filepath.Join(pathSrvKAPI, "etcd-ca.crt"),
 			Contents: fi.NewStringResource(b.NodeupConfig.CAs["etcd-clients-ca"]),
@@ -130,8 +130,6 @@ func (b *KubeAPIServerBuilder) Build(c *fi.ModelBuilderContext) error {
 		if err := issueCert.AddFileTasks(c, pathSrvKAPI, issueCert.Name, "", nil); err != nil {
 			return err
 		}
-	} else if b.UseEtcdTLS() {
-		kubeAPIServer.EtcdCAFile = filepath.Join(b.PathSrvKubernetes(), "ca.crt")
 	}
 	kubeAPIServer.EtcdCertFile = filepath.Join(pathSrvKAPI, "etcd-client.crt")
 	kubeAPIServer.EtcdKeyFile = filepath.Join(pathSrvKAPI, "etcd-client.key")
@@ -493,12 +491,7 @@ func (b *KubeAPIServerBuilder) writeStaticCredentials(c *fi.ModelBuilderContext,
 
 	// Support for basic auth was deprecated 1.16 and removed in 1.19
 	// https://github.com/kubernetes/kubernetes/pull/89069
-	if b.IsKubernetesLT("1.18") {
-		kubeAPIServer.TokenAuthFile = filepath.Join(pathSrvKAPI, "known_tokens.csv")
-		if kubeAPIServer.DisableBasicAuth == nil || !*kubeAPIServer.DisableBasicAuth {
-			kubeAPIServer.BasicAuthFile = filepath.Join(pathSrvKAPI, "basic_auth.csv")
-		}
-	} else if b.IsKubernetesLT("1.19") {
+	if b.IsKubernetesLT("1.19") {
 		if kubeAPIServer.DisableBasicAuth != nil && !*kubeAPIServer.DisableBasicAuth {
 			kubeAPIServer.BasicAuthFile = filepath.Join(pathSrvKAPI, "basic_auth.csv")
 		}
@@ -564,7 +557,7 @@ func (b *KubeAPIServerBuilder) buildPod(kubeAPIServer *kops.KubeAPIServerConfig)
 
 	// add cloud config file if needed
 	if b.Cluster.Spec.CloudConfig != nil {
-		flags = append(flags, fmt.Sprintf("--cloud-config=%s", CloudConfigFilePath))
+		flags = append(flags, fmt.Sprintf("--cloud-config=%s", InTreeCloudConfigFilePath))
 	}
 
 	pod := &v1.Pod{
@@ -679,12 +672,21 @@ func (b *KubeAPIServerBuilder) buildPod(kubeAPIServer *kops.KubeAPIServerConfig)
 	addHostPathMapping(pod, container, "logfile", "/var/log/kube-apiserver.log").ReadOnly = false
 	// We use lighter containers that don't include shells
 	// But they have richer logging support via klog
-	container.Command = []string{"/usr/local/bin/kube-apiserver"}
-	container.Args = append(
-		sortedStrings(flags),
-		"--logtostderr=false", //https://github.com/kubernetes/klog/issues/60
-		"--alsologtostderr",
-		"--log-file=/var/log/kube-apiserver.log")
+	if b.IsKubernetesGTE("1.23") {
+		container.Command = []string{"/go-runner"}
+		container.Args = []string{
+			"--log-file=/var/log/kube-apiserver.log",
+			"/usr/local/bin/kube-apiserver",
+		}
+		container.Args = append(container.Args, sortedStrings(flags)...)
+	} else {
+		container.Command = []string{"/usr/local/bin/kube-apiserver"}
+		container.Args = append(
+			sortedStrings(flags),
+			"--logtostderr=false", //https://github.com/kubernetes/klog/issues/60
+			"--alsologtostderr",
+			"--log-file=/var/log/kube-apiserver.log")
+	}
 
 	for _, path := range b.SSLHostPaths() {
 		name := strings.Replace(path, "/", "", -1)
@@ -693,7 +695,7 @@ func (b *KubeAPIServerBuilder) buildPod(kubeAPIServer *kops.KubeAPIServerConfig)
 
 	// Add cloud config file if needed
 	if b.Cluster.Spec.CloudConfig != nil {
-		addHostPathMapping(pod, container, "cloudconfig", CloudConfigFilePath)
+		addHostPathMapping(pod, container, "cloudconfig", InTreeCloudConfigFilePath)
 	}
 
 	addHostPathMapping(pod, container, "kubernetesca", filepath.Join(b.PathSrvKubernetes(), "ca.crt"))
@@ -739,6 +741,7 @@ func (b *KubeAPIServerBuilder) buildPod(kubeAPIServer *kops.KubeAPIServerConfig)
 
 func (b *KubeAPIServerBuilder) buildAnnotations() map[string]string {
 	annotations := make(map[string]string)
+	annotations["kubectl.kubernetes.io/default-container"] = "kube-apiserver"
 
 	if b.Cluster.Spec.API != nil {
 		if b.Cluster.Spec.API.LoadBalancer == nil || !b.Cluster.Spec.API.LoadBalancer.UseForInternalApi {

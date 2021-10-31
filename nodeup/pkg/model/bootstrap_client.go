@@ -23,9 +23,11 @@ import (
 	"strconv"
 
 	"k8s.io/kops/pkg/apis/kops"
+	"k8s.io/kops/pkg/bootstrap"
 	"k8s.io/kops/pkg/wellknownports"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
+	"k8s.io/kops/upup/pkg/fi/cloudup/gce/tpm/gcetpmsigner"
 	"k8s.io/kops/upup/pkg/fi/nodeup/nodetasks"
 )
 
@@ -39,11 +41,13 @@ func (b BootstrapClientBuilder) Build(c *fi.ModelBuilderContext) error {
 		return nil
 	}
 
-	var authenticator fi.Authenticator
+	var authenticator bootstrap.Authenticator
 	var err error
 	switch kops.CloudProviderID(b.Cluster.Spec.CloudProvider) {
 	case kops.CloudProviderAWS:
 		authenticator, err = awsup.NewAWSAuthenticator(b.Cloud.Region())
+	case kops.CloudProviderGCE:
+		authenticator, err = gcetpmsigner.NewTPMAuthenticator()
 	default:
 		return fmt.Errorf("unsupported cloud provider %s", b.Cluster.Spec.CloudProvider)
 	}

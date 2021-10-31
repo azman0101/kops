@@ -47,6 +47,7 @@ import (
 	"k8s.io/kops/pkg/testutils/golden"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup"
+	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
 	"sigs.k8s.io/yaml"
 )
@@ -69,7 +70,6 @@ type integrationTest struct {
 	discovery                        bool
 	lifecycleOverrides               []string
 	sshKey                           bool
-	jsonOutput                       bool
 	bastionUserData                  bool
 	ciliumEtcd                       bool
 	// nth is true if we should check for files created by nth queue processor add on
@@ -109,11 +109,6 @@ func (i *integrationTest) withoutPolicies() *integrationTest {
 
 func (i *integrationTest) withLifecycleOverrides(lco []string) *integrationTest {
 	i.lifecycleOverrides = lco
-	return i
-}
-
-func (i *integrationTest) withJSONOutput() *integrationTest {
-	i.jsonOutput = true
 	return i
 }
 
@@ -172,65 +167,125 @@ func (i *integrationTest) withAddons(addons ...string) *integrationTest {
 	return i
 }
 
+const dnsControllerAddon = "dns-controller.addons.k8s.io-k8s-1.12"
+
 // TestMinimal runs the test on a minimum configuration, similar to kops create cluster minimal.example.com --zones us-west-1a
 func TestMinimal(t *testing.T) {
-	newIntegrationTest("minimal.example.com", "minimal").runTestTerraformAWS(t)
+	newIntegrationTest("minimal.example.com", "minimal").
+		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
 	newIntegrationTest("minimal.example.com", "minimal").runTestCloudformation(t)
+}
+
+func TestNvidia(t *testing.T) {
+	newIntegrationTest("minimal.example.com", "nvidia").
+		withAddons(
+			dnsControllerAddon,
+			"nvidia.addons.k8s.io-k8s-1.16",
+		).
+		runTestTerraformAWS(t)
+	newIntegrationTest("minimal.example.com", "nvidia").runTestCloudformation(t)
 }
 
 // TestMinimal runs the test on a minimum gossip configuration
 func TestMinimalGossip(t *testing.T) {
-	newIntegrationTest("minimal.k8s.local", "minimal_gossip").runTestTerraformAWS(t)
+	newIntegrationTest("minimal.k8s.local", "minimal_gossip").
+		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
 }
 
 // TestMinimalGCE runs tests on a minimal GCE configuration
 func TestMinimalGCE(t *testing.T) {
-	newIntegrationTest("minimal-gce.example.com", "minimal_gce").runTestTerraformGCE(t)
+	newIntegrationTest("minimal-gce.example.com", "minimal_gce").
+		withAddons(dnsControllerAddon).
+		runTestTerraformGCE(t)
 }
 
 // TestMinimalGCE runs tests on a minimal GCE configuration with private topology.
 func TestMinimalGCEPrivate(t *testing.T) {
-	newIntegrationTest("minimal-gce-private.example.com", "minimal_gce_private").runTestTerraformGCE(t)
+	newIntegrationTest("minimal-gce-private.example.com", "minimal_gce_private").
+		withAddons(dnsControllerAddon).
+		runTestTerraformGCE(t)
 }
 
 // TestHA runs the test on a simple HA configuration, similar to kops create cluster minimal.example.com --zones us-west-1a,us-west-1b,us-west-1c --master-count=3
 func TestHA(t *testing.T) {
-	newIntegrationTest("ha.example.com", "ha").withZones(3).runTestTerraformAWS(t)
+	newIntegrationTest("ha.example.com", "ha").withZones(3).
+		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
 }
 
 // TestHighAvailabilityGCE runs the test on a simple HA GCE configuration, similar to kops create cluster ha-gce.example.com
 // --zones us-test1-a,us-test1-b,us-test1-c --master-count=3
 func TestHighAvailabilityGCE(t *testing.T) {
-	newIntegrationTest("ha-gce.example.com", "ha_gce").withZones(3).runTestTerraformGCE(t)
+	newIntegrationTest("ha-gce.example.com", "ha_gce").withZones(3).
+		withAddons(dnsControllerAddon).
+		runTestTerraformGCE(t)
 }
 
 // TestComplex runs the test on a more complex configuration, intended to hit more of the edge cases
 func TestComplex(t *testing.T) {
-	newIntegrationTest("complex.example.com", "complex").withoutSSHKey().runTestTerraformAWS(t)
+	newIntegrationTest("complex.example.com", "complex").withoutSSHKey().
+		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
 	newIntegrationTest("complex.example.com", "complex").withoutSSHKey().runTestCloudformation(t)
-	newIntegrationTest("complex.example.com", "complex").withoutSSHKey().withVersion("legacy-v1alpha2").runTestTerraformAWS(t)
+	newIntegrationTest("complex.example.com", "complex").withoutSSHKey().withVersion("legacy-v1alpha2").
+		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
 }
 
 // TestCompress runs a test on compressing structs in nodeus.sh user-data
 func TestCompress(t *testing.T) {
-	newIntegrationTest("compress.example.com", "compress").withoutSSHKey().runTestTerraformAWS(t)
+	newIntegrationTest("compress.example.com", "compress").withoutSSHKey().
+		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
 }
 
 // TestExternalPolicies tests external policies output
 func TestExternalPolicies(t *testing.T) {
-	newIntegrationTest("externalpolicies.example.com", "externalpolicies").runTestTerraformAWS(t)
+	newIntegrationTest("externalpolicies.example.com", "externalpolicies").
+		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
 }
 
-// TestMinimalIPv6 runs the test on a minimum IPv6 configuration, similar to kops create cluster minimal.example.com --zones us-west-1a
+// TestMinimalIPv6 runs the test on a minimum IPv6 configuration
 func TestMinimalIPv6(t *testing.T) {
-	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6").runTestTerraformAWS(t)
+	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6").
+		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
 	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6").runTestCloudformation(t)
+}
+
+// TestMinimalIPv6Calico runs the test on a minimum IPv6 configuration with Calico
+func TestMinimalIPv6Calico(t *testing.T) {
+	featureflag.ParseFlags("+AWSIPv6")
+	unsetFeatureFlags := func() {
+		featureflag.ParseFlags("-AWSIPv6")
+	}
+	defer unsetFeatureFlags()
+	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6-calico").
+		withAddons(calicoAddon, dnsControllerAddon).
+		runTestTerraformAWS(t)
+	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6-calico").runTestCloudformation(t)
+}
+
+// TestMinimalIPv6Calico runs the test on a minimum IPv6 configuration with Cilium
+func TestMinimalIPv6Cilium(t *testing.T) {
+	featureflag.ParseFlags("+AWSIPv6")
+	unsetFeatureFlags := func() {
+		featureflag.ParseFlags("-AWSIPv6")
+	}
+	defer unsetFeatureFlags()
+	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6-cilium").
+		withAddons(ciliumAddon, dnsControllerAddon).
+		runTestTerraformAWS(t)
+	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6-cilium").runTestCloudformation(t)
 }
 
 // TestMinimalWarmPool runs the test on a minimum Warm Pool configuration
 func TestMinimalWarmPool(t *testing.T) {
 	newIntegrationTest("minimal-warmpool.example.com", "minimal-warmpool").
-		withAddons(ciliumAddon, "aws-ebs-csi-driver.addons.k8s.io-k8s-1.17").
+		withAddons(ciliumAddon, "aws-ebs-csi-driver.addons.k8s.io-k8s-1.17", dnsControllerAddon).
 		runTestTerraformAWS(t)
 }
 
@@ -241,7 +296,9 @@ func TestMinimalEtcd(t *testing.T) {
 
 // TestMinimalGp3 runs the test on a minimum configuration using gp3 volumes, similar to kops create cluster minimal.example.com --zones us-west-1a
 func TestMinimalGp3(t *testing.T) {
-	newIntegrationTest("minimal.example.com", "minimal-gp3").runTestTerraformAWS(t)
+	newIntegrationTest("minimal.example.com", "minimal-gp3").
+		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
 	newIntegrationTest("minimal.example.com", "minimal-gp3").runTestCloudformation(t)
 }
 
@@ -253,23 +310,17 @@ func TestExistingIAMCloudformation(t *testing.T) {
 
 // TestExistingSG runs the test with existing Security Group, similar to kops create cluster minimal.example.com --zones us-west-1a
 func TestExistingSG(t *testing.T) {
-	newIntegrationTest("existingsg.example.com", "existing_sg").withZones(3).runTestTerraformAWS(t)
+	newIntegrationTest("existingsg.example.com", "existing_sg").withZones(3).
+		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
 }
 
 // TestBastionAdditionalUserData runs the test on passing additional user-data to a bastion instance group
 func TestBastionAdditionalUserData(t *testing.T) {
-	newIntegrationTest("bastionuserdata.example.com", "bastionadditional_user-data").withPrivate().withBastionUserData().runTestTerraformAWS(t)
-}
-
-// TestMinimalJSON runs the test on a minimal data set and outputs JSON
-func TestMinimalJSON(t *testing.T) {
-	featureflag.ParseFlags("+TerraformJSON")
-	unsetFeatureFlags := func() {
-		featureflag.ParseFlags("-TerraformJSON")
-	}
-	defer unsetFeatureFlags()
-
-	newIntegrationTest("minimal-json.example.com", "minimal-json").withJSONOutput().runTestTerraformAWS(t)
+	newIntegrationTest("bastionuserdata.example.com", "bastionadditional_user-data").withPrivate().
+		withBastionUserData().
+		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
 }
 
 const weaveAddon = "networking.weave-k8s-1.12"
@@ -278,7 +329,7 @@ const weaveAddon = "networking.weave-k8s-1.12"
 func TestPrivateWeave(t *testing.T) {
 	newIntegrationTest("privateweave.example.com", "privateweave").
 		withPrivate().
-		withAddons(weaveAddon).
+		withAddons(weaveAddon, dnsControllerAddon).
 		runTestTerraformAWS(t)
 }
 
@@ -286,15 +337,17 @@ func TestPrivateWeave(t *testing.T) {
 func TestPrivateFlannel(t *testing.T) {
 	newIntegrationTest("privateflannel.example.com", "privateflannel").
 		withPrivate().
-		withAddons("networking.flannel-k8s-1.12").
+		withAddons("networking.flannel-k8s-1.12", dnsControllerAddon).
 		runTestTerraformAWS(t)
 }
+
+const calicoAddon = "networking.projectcalico.org-k8s-1.16"
 
 // TestPrivateCalico runs the test on a configuration with private topology, calico networking
 func TestPrivateCalico(t *testing.T) {
 	newIntegrationTest("privatecalico.example.com", "privatecalico").
 		withPrivate().
-		withAddons("networking.projectcalico.org-k8s-1.16").
+		withAddons(calicoAddon, dnsControllerAddon).
 		runTestTerraformAWS(t)
 	newIntegrationTest("privatecalico.example.com", "privatecalico").
 		withPrivate().
@@ -306,7 +359,7 @@ const ciliumAddon = "networking.cilium.io-k8s-1.16"
 func TestPrivateCilium(t *testing.T) {
 	newIntegrationTest("privatecilium.example.com", "privatecilium").
 		withPrivate().
-		withAddons(ciliumAddon).
+		withAddons(ciliumAddon, dnsControllerAddon).
 		runTestTerraformAWS(t)
 	newIntegrationTest("privatecilium.example.com", "privatecilium").
 		withPrivate().
@@ -316,7 +369,7 @@ func TestPrivateCilium(t *testing.T) {
 func TestPrivateCilium2(t *testing.T) {
 	newIntegrationTest("privatecilium.example.com", "privatecilium2").
 		withPrivate().
-		withAddons("networking.cilium.io-k8s-1.12", "rbac.addons.k8s.io-k8s-1.8").
+		withAddons("networking.cilium.io-k8s-1.12", "rbac.addons.k8s.io-k8s-1.8", dnsControllerAddon).
 		withKubeDNS().
 		runTestTerraformAWS(t)
 	newIntegrationTest("privatecilium.example.com", "privatecilium2").
@@ -329,7 +382,7 @@ func TestPrivateCiliumAdvanced(t *testing.T) {
 		withPrivate().
 		withCiliumEtcd().
 		withManagedFiles("etcd-cluster-spec-cilium", "manifests-etcdmanager-cilium").
-		withAddons(ciliumAddon).
+		withAddons(ciliumAddon, dnsControllerAddon).
 		runTestTerraformAWS(t)
 	newIntegrationTest("privateciliumadvanced.example.com", "privateciliumadvanced").
 		withPrivate().
@@ -341,21 +394,24 @@ func TestPrivateCiliumAdvanced(t *testing.T) {
 func TestPrivateCanal(t *testing.T) {
 	newIntegrationTest("privatecanal.example.com", "privatecanal").
 		withPrivate().
-		withAddons("networking.projectcalico.org.canal-k8s-1.16").
+		withAddons("networking.projectcalico.org.canal-k8s-1.22", "aws-ebs-csi-driver.addons.k8s.io-k8s-1.17", dnsControllerAddon).
 		runTestTerraformAWS(t)
 }
+
+const kopeioNetworkingAddon = "networking.kope.io-k8s-1.12"
 
 // TestPrivateKopeio runs the test on a configuration with private topology, kopeio networking
 func TestPrivateKopeio(t *testing.T) {
 	newIntegrationTest("privatekopeio.example.com", "privatekopeio").
 		withPrivate().
-		withAddons(weaveAddon).
+		withAddons(kopeioNetworkingAddon, dnsControllerAddon).
 		runTestTerraformAWS(t)
 }
 
 // TestUnmanaged is a test where all the subnets opt-out of route management
 func TestUnmanaged(t *testing.T) {
 	newIntegrationTest("unmanaged.example.com", "unmanaged").
+		withAddons(dnsControllerAddon).
 		withPrivate().
 		runTestTerraformAWS(t)
 }
@@ -363,6 +419,7 @@ func TestUnmanaged(t *testing.T) {
 // TestPrivateSharedSubnet runs the test on a configuration with private topology & shared subnets
 func TestPrivateSharedSubnet(t *testing.T) {
 	newIntegrationTest("private-shared-subnet.example.com", "private-shared-subnet").
+		withAddons(dnsControllerAddon).
 		withPrivate().
 		runTestTerraformAWS(t)
 }
@@ -370,6 +427,7 @@ func TestPrivateSharedSubnet(t *testing.T) {
 // TestPrivateSharedIP runs the test on a configuration with private topology & shared subnets
 func TestPrivateSharedIP(t *testing.T) {
 	newIntegrationTest("private-shared-ip.example.com", "private-shared-ip").
+		withAddons(dnsControllerAddon).
 		withPrivate().
 		runTestTerraformAWS(t)
 	newIntegrationTest("private-shared-ip.example.com", "private-shared-ip").
@@ -381,27 +439,23 @@ func TestPrivateSharedIP(t *testing.T) {
 func TestPrivateDns1(t *testing.T) {
 	newIntegrationTest("privatedns1.example.com", "privatedns1").
 		withPrivate().
-		withAddons(weaveAddon).
+		withAddons(weaveAddon, dnsControllerAddon).
 		runTestTerraformAWS(t)
 }
 
 // TestPrivateDns2 runs the test on a configuration with private topology, private dns, extant vpc
 func TestPrivateDns2(t *testing.T) {
 	newIntegrationTest("privatedns2.example.com", "privatedns2").
+		withAddons(dnsControllerAddon).
 		withPrivate().
 		runTestTerraformAWS(t)
 }
 
-// TestDiscoveryFeatureGate runs a simple configuration, but with UseServiceAccountIAM and the ServiceAccountIssuerDiscovery feature gate enabled
+// TestDiscoveryFeatureGate runs a simple configuration, but with UseServiceAccountExternalPermissions and the ServiceAccountIssuerDiscovery feature gate enabled
 func TestDiscoveryFeatureGate(t *testing.T) {
-	featureflag.ParseFlags("+UseServiceAccountIAM")
-	unsetFeatureFlags := func() {
-		featureflag.ParseFlags("-UseServiceAccountIAM")
-	}
-	defer unsetFeatureFlags()
-
 	newIntegrationTest("minimal.example.com", "public-jwks-apiserver").
 		withServiceAccountRole("dns-controller.kube-system", true).
+		withAddons(dnsControllerAddon).
 		withOIDCDiscovery().
 		withKubeDNS().
 		runTestTerraformAWS(t)
@@ -411,25 +465,21 @@ func TestDiscoveryFeatureGate(t *testing.T) {
 func TestVFSServiceAccountIssuerDiscovery(t *testing.T) {
 
 	newIntegrationTest("minimal.example.com", "vfs-said").
+		withAddons(dnsControllerAddon).
 		withOIDCDiscovery().
 		runTestTerraformAWS(t)
 
 }
 
-// TestAWSLBController runs a simple configuration, but with AWS LB controller and UseServiceAccountIAM enabled
+// TestAWSLBController runs a simple configuration, but with AWS LB controller and UseServiceAccountExternalPermissions enabled
 func TestAWSLBController(t *testing.T) {
-	featureflag.ParseFlags("+UseServiceAccountIAM")
-	unsetFeatureFlags := func() {
-		featureflag.ParseFlags("-UseServiceAccountIAM")
-	}
-	defer unsetFeatureFlags()
-
 	newIntegrationTest("minimal.example.com", "aws-lb-controller").
 		withOIDCDiscovery().
 		withServiceAccountRole("dns-controller.kube-system", true).
 		withServiceAccountRole("aws-load-balancer-controller.kube-system", true).
 		withAddons("aws-load-balancer-controller.addons.k8s.io-k8s-1.9",
-			"certmanager.io-k8s-1.16").
+			"certmanager.io-k8s-1.16",
+			dnsControllerAddon).
 		runTestTerraformAWS(t)
 }
 
@@ -441,19 +491,76 @@ func TestManyAddons(t *testing.T) {
 			"cluster-autoscaler.addons.k8s.io-k8s-1.15",
 			"networking.amazon-vpc-routed-eni-k8s-1.16",
 			"node-termination-handler.aws-k8s-1.11",
-			"snapshot-controller.addons.k8s.io-k8s-1.20").
+			"snapshot-controller.addons.k8s.io-k8s-1.20",
+			dnsControllerAddon).
+		runTestTerraformAWS(t)
+}
+
+func TestManyAddonsCCMIRSA(t *testing.T) {
+	newIntegrationTest("minimal.example.com", "many-addons-ccm-irsa").
+		withOIDCDiscovery().
+		withServiceAccountRole("dns-controller.kube-system", true).
+		withServiceAccountRole("aws-load-balancer-controller.kube-system", true).
+		withServiceAccountRole("aws-cloud-controller-manager.kube-system", true).
+		withServiceAccountRole("cluster-autoscaler.kube-system", true).
+		withServiceAccountRole("ebs-csi-controller-sa.kube-system", true).
+		withServiceAccountRole("aws-node-termination-handler.kube-system", true).
+		withAddons(
+			"aws-ebs-csi-driver.addons.k8s.io-k8s-1.17",
+			"aws-load-balancer-controller.addons.k8s.io-k8s-1.9",
+			"certmanager.io-k8s-1.16",
+			"cluster-autoscaler.addons.k8s.io-k8s-1.15",
+			"networking.amazon-vpc-routed-eni-k8s-1.16",
+			"node-termination-handler.aws-k8s-1.11",
+			"snapshot-controller.addons.k8s.io-k8s-1.20",
+			"aws-cloud-controller.addons.k8s.io-k8s-1.18",
+			dnsControllerAddon,
+		).
+		runTestTerraformAWS(t)
+}
+
+func TestCCM(t *testing.T) {
+	newIntegrationTest("minimal.example.com", "many-addons-ccm").
+		withAddons(
+			"aws-ebs-csi-driver.addons.k8s.io-k8s-1.17",
+			"aws-load-balancer-controller.addons.k8s.io-k8s-1.9",
+			"certmanager.io-k8s-1.16",
+			"cluster-autoscaler.addons.k8s.io-k8s-1.15",
+			"networking.amazon-vpc-routed-eni-k8s-1.16",
+			"node-termination-handler.aws-k8s-1.11",
+			"snapshot-controller.addons.k8s.io-k8s-1.20",
+			"aws-cloud-controller.addons.k8s.io-k8s-1.18",
+			dnsControllerAddon,
+		).
+		runTestTerraformAWS(t)
+}
+
+func TestExternalDNS(t *testing.T) {
+	newIntegrationTest("minimal.example.com", "external_dns").
+		withAddons("external-dns.addons.k8s.io-k8s-1.12").
+		runTestTerraformAWS(t)
+	newIntegrationTest("minimal.example.com", "external_dns").runTestCloudformation(t)
+}
+
+func TestExternalDNSIRSA(t *testing.T) {
+	newIntegrationTest("minimal.example.com", "external_dns_irsa").
+		withOIDCDiscovery().
+		withAddons("external-dns.addons.k8s.io-k8s-1.12").
+		withServiceAccountRole("external-dns.kube-system", true).
 		runTestTerraformAWS(t)
 }
 
 // TestSharedSubnet runs the test on a configuration with a shared subnet (and VPC)
 func TestSharedSubnet(t *testing.T) {
 	newIntegrationTest("sharedsubnet.example.com", "shared_subnet").
+		withAddons(dnsControllerAddon).
 		runTestTerraformAWS(t)
 }
 
 // TestSharedVPC runs the test on a configuration with a shared VPC
 func TestSharedVPC(t *testing.T) {
 	newIntegrationTest("sharedvpc.example.com", "shared_vpc").
+		withAddons(dnsControllerAddon).
 		runTestTerraformAWS(t)
 }
 
@@ -464,6 +571,7 @@ func TestExistingIAM(t *testing.T) {
 		withZones(3).
 		withoutPolicies().
 		withLifecycleOverrides(lifecycleOverrides).
+		withAddons(dnsControllerAddon).
 		runTestTerraformAWS(t)
 }
 
@@ -475,6 +583,7 @@ func TestPhaseNetwork(t *testing.T) {
 
 func TestExternalLoadBalancer(t *testing.T) {
 	newIntegrationTest("externallb.example.com", "externallb").
+		withAddons(dnsControllerAddon).
 		runTestTerraformAWS(t)
 	newIntegrationTest("externallb.example.com", "externallb").
 		runTestCloudformation(t)
@@ -499,6 +608,7 @@ func TestPhaseCluster(t *testing.T) {
 func TestMixedInstancesASG(t *testing.T) {
 	newIntegrationTest("mixedinstances.example.com", "mixed_instances").
 		withZones(3).
+		withAddons(dnsControllerAddon).
 		runTestTerraformAWS(t)
 	newIntegrationTest("mixedinstances.example.com", "mixed_instances").
 		withZones(3).
@@ -509,6 +619,7 @@ func TestMixedInstancesASG(t *testing.T) {
 func TestMixedInstancesSpotASG(t *testing.T) {
 	newIntegrationTest("mixedinstances.example.com", "mixed_instances_spot").
 		withZones(3).
+		withAddons(dnsControllerAddon).
 		runTestTerraformAWS(t)
 	newIntegrationTest("mixedinstances.example.com", "mixed_instances_spot").
 		withZones(3).
@@ -547,10 +658,11 @@ func TestAPIServerNodes(t *testing.T) {
 
 // TestNTHQueueProcessor tests the output for resources required by NTH Queue Processor mode
 func TestNTHQueueProcessor(t *testing.T) {
-	newIntegrationTest("nthsqsresources.example.com", "nth_sqs_resources").
+	newIntegrationTest("nthsqsresources.longclustername.example.com", "nth_sqs_resources").
 		withNTH().
+		withAddons(dnsControllerAddon).
 		runTestTerraformAWS(t)
-	newIntegrationTest("nthsqsresources.example.com", "nth_sqs_resources").
+	newIntegrationTest("nthsqsresources.longclustername.example.com", "nth_sqs_resources").
 		runTestCloudformation(t)
 }
 
@@ -559,7 +671,19 @@ func TestCustomIRSA(t *testing.T) {
 	newIntegrationTest("minimal.example.com", "irsa").
 		withOIDCDiscovery().
 		withServiceAccountRole("myserviceaccount.default", false).
+		withServiceAccountRole("myserviceaccount.test-wildcard", false).
 		withServiceAccountRole("myotherserviceaccount.myapp", true).
+		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
+}
+
+// TestClusterNameDigit runs a configuration with a cluster name beginning with a digit
+func TestClusterNameDigit(t *testing.T) {
+	newIntegrationTest("123.example.com", "digit").
+		withOIDCDiscovery().
+		withServiceAccountRole("myserviceaccount.default", false).
+		withServiceAccountRole("myotherserviceaccount.myapp", true).
+		withAddons(dnsControllerAddon).
 		runTestTerraformAWS(t)
 }
 
@@ -676,6 +800,21 @@ func (i *integrationTest) runTest(t *testing.T, h *testutils.IntegrationTestHarn
 					t.Fatalf("failed to read actual data file: %v", err)
 				}
 				golden.AssertMatchesFile(t, string(actualDataContent), path.Join(expectedDataPath, dataFileName))
+			}
+		}
+
+		existingExpectedFiles, err := ioutil.ReadDir(expectedDataPath)
+		if err != nil {
+			t.Fatalf("failed to read data dir: %v", err)
+		}
+		existingExpectedFilenames := make([]string, len(existingExpectedFiles))
+		for i, f := range existingExpectedFiles {
+			existingExpectedFilenames[i] = f.Name()
+		}
+		for j := 0; j < len(existingExpectedFilenames) && j < len(expectedDataFilenames); j++ {
+			if existingExpectedFilenames[j] != expectedDataFilenames[j] {
+				t.Errorf("diff with source directory @%d: %q vs %q", j, existingExpectedFilenames[j], expectedDataFilenames[j])
+				break
 			}
 		}
 	}
@@ -855,13 +994,8 @@ func storeKeyset(t *testing.T, keyStore fi.Keystore, name string, testingKeyset 
 }
 
 func (i *integrationTest) runTestTerraformAWS(t *testing.T) {
-	tfFileName := ""
 	h := testutils.NewIntegrationTestHarness(t)
 	defer h.Close()
-
-	if i.jsonOutput {
-		tfFileName = "kubernetes.tf.json"
-	}
 
 	h.MockKopsVersion("1.21.0-alpha.1")
 	h.SetupMockAWS()
@@ -879,7 +1013,6 @@ func (i *integrationTest) runTestTerraformAWS(t *testing.T) {
 		"aws_s3_bucket_object_nodeupconfig-nodes_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-bootstrap_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-core.addons.k8s.io_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-dns-controller.addons.k8s.io-k8s-1.12_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-kops-controller.addons.k8s.io-k8s-1.16_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-kubelet-api.rbac.addons.k8s.io-k8s-1.9_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-limit-range.addons.k8s.io_content",
@@ -929,16 +1062,17 @@ func (i *integrationTest) runTestTerraformAWS(t *testing.T) {
 		if i.nth {
 			expectedFilenames = append(expectedFilenames, []string{
 				"aws_s3_bucket_object_" + i.clusterName + "-addons-node-termination-handler.aws-k8s-1.11_content",
-				"aws_cloudwatch_event_rule_" + i.clusterName + "-ASGLifecycle_event_pattern",
-				"aws_cloudwatch_event_rule_" + i.clusterName + "-RebalanceRecommendation_event_pattern",
-				"aws_cloudwatch_event_rule_" + i.clusterName + "-SpotInterruption_event_pattern",
+				"aws_cloudwatch_event_rule_" + awsup.GetClusterName40(i.clusterName) + "-ASGLifecycle_event_pattern",
+				"aws_cloudwatch_event_rule_" + awsup.GetClusterName40(i.clusterName) + "-RebalanceRecommendation_event_pattern",
+				"aws_cloudwatch_event_rule_" + awsup.GetClusterName40(i.clusterName) + "-SpotInterruption_event_pattern",
+				"aws_cloudwatch_event_rule_" + awsup.GetClusterName40(i.clusterName) + "-InstanceStateChange_event_pattern",
 				"aws_sqs_queue_" + strings.Replace(i.clusterName, ".", "-", -1) + "-nth_policy",
 			}...)
 		}
 	}
 	expectedFilenames = append(expectedFilenames, i.expectServiceAccountRolePolicies...)
 
-	i.runTest(t, h, expectedFilenames, tfFileName, tfFileName, nil)
+	i.runTest(t, h, expectedFilenames, "", "", nil)
 }
 
 func (i *integrationTest) runTestPhase(t *testing.T, phase cloudup.Phase) {
@@ -1010,7 +1144,6 @@ func (i *integrationTest) runTestTerraformGCE(t *testing.T) {
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-bootstrap_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-core.addons.k8s.io_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-coredns.addons.k8s.io-k8s-1.12_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-dns-controller.addons.k8s.io-k8s-1.12_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-kops-controller.addons.k8s.io-k8s-1.16_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-kubelet-api.rbac.addons.k8s.io-k8s-1.9_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-limit-range.addons.k8s.io_content",

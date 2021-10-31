@@ -18,6 +18,7 @@ package awsup
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -36,8 +37,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"k8s.io/kops/pkg/bootstrap"
 	nodeidentityaws "k8s.io/kops/pkg/nodeidentity/aws"
-	"k8s.io/kops/upup/pkg/fi"
 )
 
 type AWSVerifierOptions struct {
@@ -57,9 +58,9 @@ type awsVerifier struct {
 	client http.Client
 }
 
-var _ fi.Verifier = &awsVerifier{}
+var _ bootstrap.Verifier = &awsVerifier{}
 
-func NewAWSVerifier(opt *AWSVerifierOptions) (fi.Verifier, error) {
+func NewAWSVerifier(opt *AWSVerifierOptions) (bootstrap.Verifier, error) {
 	config := aws.NewConfig().
 		WithCredentialsChainVerboseErrors(true).
 		WithRegion(opt.Region).
@@ -120,7 +121,7 @@ type ResponseMetadata struct {
 	RequestId string `xml:"RequestId"`
 }
 
-func (a awsVerifier) VerifyToken(token string, body []byte) (*fi.VerifyResult, error) {
+func (a awsVerifier) VerifyToken(ctx context.Context, token string, body []byte) (*bootstrap.VerifyResult, error) {
 	if !strings.HasPrefix(token, AWSAuthenticationTokenPrefix) {
 		return nil, fmt.Errorf("incorrect authorization type")
 	}
@@ -232,8 +233,14 @@ func (a awsVerifier) VerifyToken(token string, body []byte) (*fi.VerifyResult, e
 
 	instance := instances.Reservations[0].Instances[0]
 
-	result := &fi.VerifyResult{
-		NodeName: aws.StringValue(instance.PrivateDnsName),
+	addrs, err := GetInstanceCertificateNames(instances)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &bootstrap.VerifyResult{
+		NodeName:         addrs[0],
+		CertificateNames: addrs,
 	}
 
 	for _, tag := range instance.Tags {

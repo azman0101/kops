@@ -44,12 +44,12 @@ var MagicTimestamp = metav1.Time{Time: time.Date(2017, 1, 1, 0, 0, 0, 0, time.UT
 
 // TestCreateClusterMinimal runs kops create cluster minimal.example.com --zones us-test-1a
 func TestCreateClusterMinimal(t *testing.T) {
-	runCreateClusterIntegrationTest(t, "../../tests/integration/create_cluster/minimal-1.17", "v1alpha2")
 	runCreateClusterIntegrationTest(t, "../../tests/integration/create_cluster/minimal-1.18", "v1alpha2")
 	runCreateClusterIntegrationTest(t, "../../tests/integration/create_cluster/minimal-1.19", "v1alpha2")
 	runCreateClusterIntegrationTest(t, "../../tests/integration/create_cluster/minimal-1.20", "v1alpha2")
 	runCreateClusterIntegrationTest(t, "../../tests/integration/create_cluster/minimal-1.21", "v1alpha2")
 	runCreateClusterIntegrationTest(t, "../../tests/integration/create_cluster/minimal-1.22", "v1alpha2")
+	runCreateClusterIntegrationTest(t, "../../tests/integration/create_cluster/minimal-1.23", "v1alpha2")
 }
 
 // TestCreateClusterOverride tests the override flag
@@ -253,6 +253,25 @@ func runCreateClusterIntegrationTest(t *testing.T, srcDir string, version string
 		actualYAMLBytes, err := kopscodecs.ToVersionedYamlWithVersion(&ig, schema.GroupVersion{Group: "kops.k8s.io", Version: version})
 		if err != nil {
 			t.Fatalf("unexpected error serializing InstanceGroup: %v", err)
+		}
+
+		actualYAML := strings.TrimSpace(string(actualYAMLBytes))
+
+		yamlAll = append(yamlAll, actualYAML)
+	}
+
+	// Compare additional objects
+	addons, err := clientset.AddonsFor(&clusters.Items[0]).List()
+	if err != nil {
+		t.Fatalf("error listing addons: %v", err)
+	}
+
+	for _, addon := range addons {
+		u := addon.ToUnstructured()
+
+		actualYAMLBytes, err := kopscodecs.ToVersionedYamlWithVersion(u, schema.GroupVersion{Group: "kops.k8s.io", Version: version})
+		if err != nil {
+			t.Fatalf("unexpected error serializing Addon: %v", err)
 		}
 
 		actualYAML := strings.TrimSpace(string(actualYAMLBytes))

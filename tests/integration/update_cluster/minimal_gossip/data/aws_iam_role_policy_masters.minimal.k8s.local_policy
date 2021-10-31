@@ -14,47 +14,11 @@
       ]
     },
     {
-      "Action": "ec2:CreateTags",
-      "Condition": {
-        "StringEquals": {
-          "ec2:CreateAction": [
-            "CreateVolume",
-            "CreateSnapshot"
-          ]
-        }
-      },
-      "Effect": "Allow",
-      "Resource": [
-        "arn:aws:ec2:*:*:volume/*",
-        "arn:aws:ec2:*:*:snapshot/*"
-      ]
-    },
-    {
-      "Action": [
-        "elasticloadbalancing:CreateLoadBalancer",
-        "elasticloadbalancing:CreateLoadBalancerPolicy",
-        "elasticloadbalancing:CreateLoadBalancerListeners",
-        "ec2:CreateSecurityGroup",
-        "ec2:CreateVolume",
-        "elasticloadbalancing:CreateListener",
-        "elasticloadbalancing:CreateTargetGroup"
-      ],
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestTag/KubernetesCluster": "minimal.k8s.local"
-        }
-      },
-      "Effect": "Allow",
-      "Resource": [
-        "*"
-      ]
-    },
-    {
       "Action": [
         "s3:Get*"
       ],
       "Effect": "Allow",
-      "Resource": "arn:aws:s3:::placeholder-read-bucket/clusters.example.com/minimal.k8s.local/*"
+      "Resource": "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/minimal.k8s.local/*"
     },
     {
       "Action": [
@@ -64,7 +28,7 @@
         "s3:PutObject"
       ],
       "Effect": "Allow",
-      "Resource": "arn:aws:s3:::placeholder-write-bucket/clusters.example.com/minimal.k8s.local/backups/etcd/main/*"
+      "Resource": "arn:aws-test:s3:::placeholder-write-bucket/clusters.example.com/minimal.k8s.local/backups/etcd/main/*"
     },
     {
       "Action": [
@@ -74,7 +38,7 @@
         "s3:PutObject"
       ],
       "Effect": "Allow",
-      "Resource": "arn:aws:s3:::placeholder-write-bucket/clusters.example.com/minimal.k8s.local/backups/etcd/events/*"
+      "Resource": "arn:aws-test:s3:::placeholder-write-bucket/clusters.example.com/minimal.k8s.local/backups/etcd/events/*"
     },
     {
       "Action": [
@@ -85,7 +49,7 @@
       ],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:s3:::placeholder-read-bucket"
+        "arn:aws-test:s3:::placeholder-read-bucket"
       ]
     },
     {
@@ -97,20 +61,8 @@
       ],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:s3:::placeholder-write-bucket"
+        "arn:aws-test:s3:::placeholder-write-bucket"
       ]
-    },
-    {
-      "Action": [
-        "ec2:CreateVolume"
-      ],
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestTag/KubernetesCluster": "minimal.k8s.local"
-        }
-      },
-      "Effect": "Allow",
-      "Resource": "*"
     },
     {
       "Action": "ec2:CreateTags",
@@ -124,8 +76,24 @@
       },
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:ec2:*:*:volume/*",
-        "arn:aws:ec2:*:*:snapshot/*"
+        "arn:aws-test:ec2:*:*:volume/*",
+        "arn:aws-test:ec2:*:*:snapshot/*"
+      ]
+    },
+    {
+      "Action": "ec2:CreateTags",
+      "Condition": {
+        "StringEquals": {
+          "ec2:CreateAction": [
+            "CreateVolume",
+            "CreateSnapshot"
+          ]
+        }
+      },
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws-test:ec2:*:*:volume/*",
+        "arn:aws-test:ec2:*:*:snapshot/*"
       ]
     },
     {
@@ -137,8 +105,8 @@
       },
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:ec2:*:*:volume/*",
-        "arn:aws:ec2:*:*:snapshot/*"
+        "arn:aws-test:ec2:*:*:volume/*",
+        "arn:aws-test:ec2:*:*:snapshot/*"
       ]
     },
     {
@@ -150,7 +118,9 @@
         "ec2:CreateSecurityGroup",
         "ec2:CreateTags",
         "ec2:DescribeAccountAttributes",
+        "ec2:DescribeInstanceTypes",
         "ec2:DescribeInstances",
+        "ec2:DescribeLaunchTemplateVersions",
         "ec2:DescribeRegions",
         "ec2:DescribeRouteTables",
         "ec2:DescribeSecurityGroups",
@@ -159,12 +129,16 @@
         "ec2:DescribeVolumes",
         "ec2:DescribeVolumesModifications",
         "ec2:DescribeVpcs",
+        "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:CreateListener",
+        "elasticloadbalancing:CreateTargetGroup",
         "elasticloadbalancing:DescribeListeners",
         "elasticloadbalancing:DescribeLoadBalancerAttributes",
         "elasticloadbalancing:DescribeLoadBalancerPolicies",
         "elasticloadbalancing:DescribeLoadBalancers",
         "elasticloadbalancing:DescribeTargetGroups",
         "elasticloadbalancing:DescribeTargetHealth",
+        "elasticloadbalancing:RegisterTargets",
         "iam:GetServerCertificate",
         "iam:ListServerCertificates",
         "kms:DescribeKey",
@@ -208,6 +182,24 @@
       "Condition": {
         "StringEquals": {
           "aws:ResourceTag/KubernetesCluster": "minimal.k8s.local"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "*"
+    },
+    {
+      "Action": [
+        "ec2:CreateSecurityGroup",
+        "ec2:CreateVolume",
+        "elasticloadbalancing:CreateListener",
+        "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:CreateLoadBalancerListeners",
+        "elasticloadbalancing:CreateLoadBalancerPolicy",
+        "elasticloadbalancing:CreateTargetGroup"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/KubernetesCluster": "minimal.k8s.local"
         }
       },
       "Effect": "Allow",

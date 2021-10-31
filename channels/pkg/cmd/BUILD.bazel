@@ -14,6 +14,7 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//channels/pkg/channels:go_default_library",
+        "//pkg/apis/kops/util:go_default_library",
         "//util/pkg/tables:go_default_library",
         "//vendor/github.com/blang/semver/v4:go_default_library",
         "//vendor/github.com/jetstack/cert-manager/pkg/client/clientset/versioned:go_default_library",
@@ -21,9 +22,12 @@ go_library(
         "//vendor/github.com/spf13/viper:go_default_library",
         "//vendor/k8s.io/api/core/v1:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
+        "//vendor/k8s.io/cli-runtime/pkg/genericclioptions:go_default_library",
+        "//vendor/k8s.io/client-go/dynamic:go_default_library",
         "//vendor/k8s.io/client-go/kubernetes:go_default_library",
         "//vendor/k8s.io/client-go/plugin/pkg/client/auth:go_default_library",
         "//vendor/k8s.io/client-go/rest:go_default_library",
-        "//vendor/k8s.io/client-go/tools/clientcmd:go_default_library",
+        "//vendor/k8s.io/client-go/restmapper:go_default_library",
+        "//vendor/k8s.io/klog/v2:go_default_library",
     ],
 )

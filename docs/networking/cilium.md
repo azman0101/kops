@@ -114,7 +114,7 @@ kops rolling-update cluster --yes
 
 This feature is in beta state.
 
-You can have Cilium provision AWS managed addresses and attach them directly to Pods much like Lyft VPC and AWS VPC. See [the Cilium docs for more information](https://docs.cilium.io/en/v1.6/concepts/ipam/eni/)
+You can have Cilium provision AWS managed addresses and attach them directly to Pods much like AWS VPC. See [the Cilium docs for more information](https://docs.cilium.io/en/v1.6/concepts/ipam/eni/)
 
 ```yaml
   networking:
@@ -136,6 +136,8 @@ Note that since Cilium Operator is the entity that interacts with the EC2 API to
 Also note that this feature has only been tested on the default kOps AMIs.
 
 #### Enabling Encryption in Cilium
+
+##### ipsec
 {{ kops_feature_table(kops_added_default='1.19', k8s_min='1.17') }}
 
 As of kOps 1.19, it is possible to enable encryption for Cilium agent.
@@ -152,6 +154,20 @@ Once the secret has been created, encryption can be enabled by setting `enableEn
     cilium:
       enableEncryption: true
 ```
+
+##### wireguard
+{{ kops_feature_table(kops_added_default='1.22', k8s_min='1.17') }}
+
+Cilium can make use of the [wireguard protocol for transparent encryption](https://docs.cilium.io/en/v1.10/gettingstarted/encryption-wireguard/). Take care to familiarise yourself with the [limitations](https://docs.cilium.io/en/v1.10/gettingstarted/encryption-wireguard/#limitations).
+
+```yaml
+  networking:
+    cilium:
+      enableEncryption: true
+      enableL7Proxy: false
+      encryptionType: wireguard
+```
+
 
 #### Resources in Cilium
 {{ kops_feature_table(kops_added_default='1.21', k8s_min='1.20') }}

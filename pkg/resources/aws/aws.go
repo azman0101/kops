@@ -394,7 +394,7 @@ func ListInstances(cloud fi.Cloud, clusterName string) ([]*resources.Resource, e
 					case "terminated", "shutting-down":
 						continue
 
-					case "running", "stopped":
+					case "running", "stopped", "pending":
 						// We need to delete
 						klog.V(4).Infof("instance %q has state=%q", id, stateName)
 
@@ -498,7 +498,7 @@ func guessSSHUser(image *ec2.Image) string {
 		return "ec2-user"
 	case awsup.WellKnownAccountCentOS:
 		return "centos"
-	case awsup.WellKnownAccountDebian9, awsup.WellKnownAccountDebian10, awsup.WellKnownAccountDebian11, awsup.WellKnownAccountKopeio:
+	case awsup.WellKnownAccountDebian, awsup.WellKnownAccountDebian9, awsup.WellKnownAccountKopeio:
 		return "admin"
 	case awsup.WellKnownAccountUbuntu:
 		return "ubuntu"
@@ -1775,7 +1775,9 @@ func ListRoute53Records(cloud fi.Cloud, clusterName string) ([]*resources.Resour
 		}
 		err := c.Route53().ListResourceRecordSetsPages(request, func(p *route53.ListResourceRecordSetsOutput, lastPage bool) bool {
 			for _, rrs := range p.ResourceRecordSets {
-				if aws.StringValue(rrs.Type) != "A" && aws.StringValue(rrs.Type) != "AAAA" {
+				if aws.StringValue(rrs.Type) != "A" &&
+					aws.StringValue(rrs.Type) != "AAAA" &&
+					aws.StringValue(rrs.Type) != "TXT" {
 					continue
 				}
 

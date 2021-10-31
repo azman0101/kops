@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -43,6 +44,10 @@ func awsValidateCluster(c *kops.Cluster) field.ErrorList {
 
 	allErrs = append(allErrs, awsValidateExternalCloudControllerManager(c)...)
 
+	if c.Spec.Authentication != nil && c.Spec.Authentication.Aws != nil {
+		allErrs = append(allErrs, awsValidateIAMAuthenticator(field.NewPath("spec", "authentication", "aws"), c.Spec.Authentication.Aws)...)
+	}
+
 	return allErrs
 }
 
@@ -53,10 +58,6 @@ func awsValidateExternalCloudControllerManager(cluster *kops.Cluster) (allErrs f
 		return allErrs
 	}
 	fldPath := field.NewPath("spec", "externalCloudControllerManager")
-	if !cluster.IsKubernetesGTE("1.18") {
-		allErrs = append(allErrs, field.Forbidden(fldPath, "AWS external CCM requires kubernetes 1.18+"))
-	}
-
 	if !hasAWSEBSCSIDriver(c) {
 		allErrs = append(allErrs, field.Forbidden(fldPath,
 			"AWS external CCM cannot be used without enabling spec.cloudConfig.AWSEBSCSIDriver."))
@@ -196,9 +197,30 @@ func awsValidateInstanceInterruptionBehavior(fieldPath *field.Path, ig *kops.Ins
 func awsValidateMixedInstancesPolicy(path *field.Path, spec *kops.MixedInstancesPolicySpec, ig *kops.InstanceGroup, cloud awsup.AWSCloud) field.ErrorList {
 	var errs field.ErrorList
 
+	mainMachineTypeInfo, err := awsup.GetMachineTypeInfo(cloud, ig.Spec.MachineType)
+	if err != nil {
+		errs = append(errs, field.Invalid(field.NewPath("spec", "machineType"), ig.Spec.MachineType, fmt.Sprintf("machine type specified is invalid: %q", ig.Spec.MachineType)))
+		return errs
+	}
+
+	hasGPU := mainMachineTypeInfo.GPU
+
 	// @step: check the instance types are valid
-	for i, instanceType := range spec.Instances {
-		errs = append(errs, awsValidateInstanceTypeAndImage(path.Child("instances").Index(i), path.Child("image"), instanceType, ig.Spec.Image, cloud)...)
+	for i, instanceTypes := range spec.Instances {
+		fld := path.Child("instances").Index(i)
+		errs = append(errs, awsValidateInstanceTypeAndImage(path.Child("instances").Index(i), path.Child("image"), instanceTypes, ig.Spec.Image, cloud)...)
+
+		for _, instanceType := range strings.Split(instanceTypes, ",") {
+			machineTypeInfo, err := awsup.GetMachineTypeInfo(cloud, instanceType)
+			if err != nil {
+				errs = append(errs, field.Invalid(field.NewPath("spec", "machineType"), ig.Spec.MachineType, fmt.Sprintf("machine type specified is invalid: %q", ig.Spec.MachineType)))
+				return errs
+			}
+			if machineTypeInfo.GPU != hasGPU {
+				errs = append(errs, field.Forbidden(fld, "Cannot mix GPU and non-GPU machine types in the same Instance Group"))
+			}
+		}
+
 	}
 
 	if spec.OnDemandBase != nil {
@@ -299,6 +321,22 @@ func awsValidateCPUCredits(fieldPath *field.Path, spec *kops.InstanceGroupSpec, 
 	allErrs := field.ErrorList{}
 
 	allErrs = append(allErrs, IsValidValue(fieldPath.Child("cpuCredits"), spec.CPUCredits, []string{"standard", "unlimited"})...)
+	return allErrs
+}
+
+func awsValidateIAMAuthenticator(fieldPath *field.Path, spec *kops.AwsAuthenticationSpec) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	if !strings.Contains(spec.BackendMode, "CRD") && len(spec.IdentityMappings) > 0 {
+		allErrs = append(allErrs, field.Forbidden(fieldPath.Child("backendMode"), "backendMode must be CRD if identityMappings is set"))
+	}
+	for i, mapping := range spec.IdentityMappings {
+		parsedARN, err := arn.Parse(mapping.ARN)
+		if err != nil || (!strings.HasPrefix(parsedARN.Resource, "role/") && !strings.HasPrefix(parsedARN.Resource, "user/")) {
+			allErrs = append(allErrs, field.Invalid(fieldPath.Child("identityMappings").Index(i).Child("arn"), mapping.ARN,
+				"arn must be a valid IAM Role or User ARN such as arn:aws:iam::123456789012:role/KopsExampleRole"))
+		}
+	}
 	return allErrs
 }
 

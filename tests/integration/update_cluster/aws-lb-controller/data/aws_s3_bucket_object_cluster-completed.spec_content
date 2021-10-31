@@ -24,33 +24,30 @@ spec:
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.9
+    version: 1.4.11
   dnsZone: Z1AFAKE1ZON3YO
   docker:
     skipInstall: true
   etcdClusters:
   - backups:
       backupStore: memfs://clusters.example.com/minimal.example.com/backups/etcd/main
-    enableEtcdTLS: true
-    enableTLSAuth: true
     etcdMembers:
     - instanceGroup: master-us-test-1a
       name: us-test-1a
     name: main
-    provider: Manager
     version: 3.4.13
   - backups:
       backupStore: memfs://clusters.example.com/minimal.example.com/backups/etcd/events
-    enableEtcdTLS: true
-    enableTLSAuth: true
     etcdMembers:
     - instanceGroup: master-us-test-1a
       name: us-test-1a
     name: events
-    provider: Manager
     version: 3.4.13
+  externalDns:
+    provider: dns-controller
   iam:
     legacy: false
+    useServiceAccountExternalPermissions: true
   keyStore: memfs://clusters.example.com/minimal.example.com/pki
   kubeAPIServer:
     allowPrivileged: true
@@ -65,7 +62,6 @@ spec:
     - NamespaceLifecycle
     - LimitRanger
     - ServiceAccount
-    - PersistentVolumeLabel
     - DefaultStorageClass
     - DefaultTolerationSeconds
     - MutatingAdmissionWebhook
@@ -117,6 +113,7 @@ spec:
     nodeLocalDNS:
       cpuRequest: 25m
       enabled: false
+      image: k8s.gcr.io/dns/k8s-dns-node-cache:1.20.0
       memoryRequest: 5Mi
     provider: CoreDNS
     replicas: 2

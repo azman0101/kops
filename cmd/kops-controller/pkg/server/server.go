@@ -33,6 +33,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kops/cmd/kops-controller/pkg/config"
 	"k8s.io/kops/pkg/apis/nodeup"
+	"k8s.io/kops/pkg/bootstrap"
 	"k8s.io/kops/pkg/pki"
 	"k8s.io/kops/pkg/rbac"
 	"k8s.io/kops/upup/pkg/fi"
@@ -44,14 +45,14 @@ type Server struct {
 	certNames  sets.String
 	keypairIDs map[string]string
 	server     *http.Server
-	verifier   fi.Verifier
+	verifier   bootstrap.Verifier
 	keystore   pki.Keystore
 
 	// configBase is the base of the configuration storage.
 	configBase vfs.Path
 }
 
-func NewServer(opt *config.Options, verifier fi.Verifier) (*Server, error) {
+func NewServer(opt *config.Options, verifier bootstrap.Verifier) (*Server, error) {
 	server := &http.Server{
 		Addr: opt.Server.Listen,
 		TLSConfig: &tls.Config{
@@ -105,7 +106,9 @@ func (s *Server) bootstrap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := s.verifier.VerifyToken(r.Header.Get("Authorization"), body)
+	ctx := r.Context()
+
+	id, err := s.verifier.VerifyToken(ctx, r.Header.Get("Authorization"), body)
 	if err != nil {
 		klog.Infof("bootstrap %s verify err: %v", r.RemoteAddr, err)
 		w.WriteHeader(http.StatusForbidden)
@@ -114,8 +117,7 @@ func (s *Server) bootstrap(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req := &nodeup.BootstrapRequest{}
-	err = json.Unmarshal(body, req)
-	if err != nil {
+	if err := json.Unmarshal(body, req); err != nil {
 		klog.Infof("bootstrap %s decode err: %v", r.RemoteAddr, err)
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(fmt.Sprintf("failed to decode: %v", err)))
@@ -168,7 +170,7 @@ func (s *Server) bootstrap(w http.ResponseWriter, r *http.Request) {
 	klog.Infof("bootstrap %s %s success", r.RemoteAddr, id.NodeName)
 }
 
-func (s *Server) issueCert(name string, pubKey string, id *fi.VerifyResult, validHours uint32, keypairIDs map[string]string) (string, error) {
+func (s *Server) issueCert(name string, pubKey string, id *bootstrap.VerifyResult, validHours uint32, keypairIDs map[string]string) (string, error) {
 	block, _ := pem.Decode([]byte(pubKey))
 	if block.Type != "RSA PUBLIC KEY" {
 		return "", fmt.Errorf("unexpected key type %q", block.Type)
@@ -203,7 +205,7 @@ func (s *Server) issueCert(name string, pubKey string, id *fi.VerifyResult, vali
 		issueReq.Subject = pkix.Name{
 			CommonName: id.NodeName,
 		}
-		issueReq.AlternateNames = []string{id.NodeName}
+		issueReq.AlternateNames = id.CertificateNames
 		issueReq.Type = "server"
 	case "kube-proxy":
 		issueReq.Subject = pkix.Name{

@@ -22,31 +22,27 @@ spec:
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.9
+    version: 1.4.11
   dnsZone: Z1AFAKE1ZON3YO
   docker:
     skipInstall: true
   etcdClusters:
   - backups:
       backupStore: memfs://clusters.example.com/privatecilium.example.com/backups/etcd/main
-    enableEtcdTLS: true
-    enableTLSAuth: true
     etcdMembers:
     - instanceGroup: master-us-test-1a
       name: us-test-1a
     name: main
-    provider: Manager
     version: 3.4.13
   - backups:
       backupStore: memfs://clusters.example.com/privatecilium.example.com/backups/etcd/events
-    enableEtcdTLS: true
-    enableTLSAuth: true
     etcdMembers:
     - instanceGroup: master-us-test-1a
       name: us-test-1a
     name: events
-    provider: Manager
     version: 3.4.13
+  externalDns:
+    provider: dns-controller
   iam:
     legacy: false
   keyStore: memfs://clusters.example.com/privatecilium.example.com/pki
@@ -63,7 +59,6 @@ spec:
     - NamespaceLifecycle
     - LimitRanger
     - ServiceAccount
-    - PersistentVolumeLabel
     - DefaultStorageClass
     - DefaultTolerationSeconds
     - MutatingAdmissionWebhook
@@ -115,6 +110,7 @@ spec:
     nodeLocalDNS:
       cpuRequest: 25m
       enabled: false
+      image: k8s.gcr.io/dns/k8s-dns-node-cache:1.20.0
       memoryRequest: 5Mi
     provider: CoreDNS
     replicas: 2
@@ -179,8 +175,8 @@ spec:
       bpfNeighGlobalMax: 524288
       bpfPolicyMapMax: 16384
       clusterName: default
-      containerRuntimeLabels: none
       cpuRequest: 25m
+      disableCNPStatusUpdates: true
       disableMasquerade: false
       enableBPFMasquerade: false
       enableEndpointHealthChecking: true
@@ -196,7 +192,7 @@ spec:
       sidecarIstioProxyImage: cilium/istio_proxy
       toFqdnsDnsRejectResponseCode: refused
       tunnel: vxlan
-      version: v1.10.0
+      version: v1.10.4
   nonMasqueradeCIDR: 100.64.0.0/10
   podCIDR: 100.96.0.0/11
   secretStore: memfs://clusters.example.com/privatecilium.example.com/secrets

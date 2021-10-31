@@ -108,8 +108,6 @@ type InstanceGroupSpec struct {
 	RootVolumeThroughput *int32 `json:"rootVolumeThroughput,omitempty"`
 	// RootVolumeOptimization enables EBS optimization for an instance
 	RootVolumeOptimization *bool `json:"rootVolumeOptimization,omitempty"`
-	// RootVolumeDeleteOnTermination is deprecated as of kOps 1.21 and has no effect
-	RootVolumeDeleteOnTermination *bool `json:"rootVolumeDeleteOnTermination,omitempty"`
 	// RootVolumeEncryption enables EBS root volume encryption for an instance
 	RootVolumeEncryption *bool `json:"rootVolumeEncryption,omitempty"`
 	// RootVolumeEncryptionKey provides the key identifier for root volume encryption
@@ -193,10 +191,17 @@ const (
 	SpotAllocationStrategyDiversified = "diversified"
 	// SpotAllocationStrategyCapacityOptimized indicates a capacity optimized strategy
 	SpotAllocationStrategyCapacityOptimized = "capacity-optimized"
+	// SpotAllocationStrategyCapacityOptimizedPrioritized indicates a capacity optimized prioritized strategy
+	SpotAllocationStrategyCapacityOptimizedPrioritized = "capacity-optimized-prioritized"
 )
 
 // SpotAllocationStrategies is a collection of supported strategies
-var SpotAllocationStrategies = []string{SpotAllocationStrategyLowestPrices, SpotAllocationStrategyDiversified, SpotAllocationStrategyCapacityOptimized}
+var SpotAllocationStrategies = []string{
+	SpotAllocationStrategyLowestPrices,
+	SpotAllocationStrategyDiversified,
+	SpotAllocationStrategyCapacityOptimized,
+	SpotAllocationStrategyCapacityOptimizedPrioritized,
+}
 
 // InstanceMetadataOptions defines the EC2 instance metadata service options (AWS Only)
 type InstanceMetadataOptions struct {

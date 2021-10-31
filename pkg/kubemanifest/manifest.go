@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
 	"k8s.io/kops/util/pkg/text"
 	"sigs.k8s.io/yaml"
@@ -34,6 +35,11 @@ type Object struct {
 // NewObject returns an Object wrapping the provided data
 func NewObject(data map[string]interface{}) *Object {
 	return &Object{data: data}
+}
+
+// ToUnstructured converts the object to an unstructured.Unstructured
+func (o *Object) ToUnstructured() *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: o.data}
 }
 
 // ObjectList describes a list of objects, allowing us to add bulk-methods
@@ -132,6 +138,44 @@ func (m *Object) Kind() string {
 		return ""
 	}
 	return s
+}
+
+// GetNamespace returns the namespace field of the object, or "" if it cannot be found or is invalid
+func (m *Object) GetNamespace() string {
+	metadata := m.metadata()
+	return getStringValue(metadata, "namespace")
+}
+
+// GetName returns the namespace field of the object, or "" if it cannot be found or is invalid
+func (m *Object) GetName() string {
+	metadata := m.metadata()
+	return getStringValue(metadata, "name")
+}
+
+// getStringValue returns the specified field of the object, or "" if it cannot be found or is invalid
+func getStringValue(m map[string]interface{}, key string) string {
+	v, found := m[key]
+	if !found {
+		return ""
+	}
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+	return s
+}
+
+// metadata returns the metadata map of the object, or nil if it cannot be found or is invalid
+func (m *Object) metadata() map[string]interface{} {
+	v, found := m.data["metadata"]
+	if !found {
+		return nil
+	}
+	metadata, ok := v.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	return metadata
 }
 
 // APIVersion returns the apiVersion field of the object, or "" if it cannot be found or is invalid

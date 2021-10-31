@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
@@ -110,9 +111,6 @@ func (s *IAMOIDCProvider) CheckChanges(a, e, changes *IAMOIDCProvider) error {
 	}
 
 	if a != nil {
-		if changes.ClientIDs != nil {
-			return fi.CannotChangeField("ClientIDs")
-		}
 		if changes.URL != nil {
 			return fi.CannotChangeField("URL")
 		}
@@ -178,6 +176,38 @@ func (p *IAMOIDCProvider) RenderAWS(t *awsup.AWSAPITarget, a, e, changes *IAMOID
 				}
 			}
 		}
+		if changes.ClientIDs != nil {
+			actual := sets.NewString()
+			for _, aud := range a.ClientIDs {
+				actual.Insert(*aud)
+			}
+			expected := sets.NewString()
+			for _, aud := range e.ClientIDs {
+				expected.Insert(*aud)
+			}
+			toRemove := actual.Difference(expected)
+			for _, elem := range toRemove.List() {
+				request := &iam.RemoveClientIDFromOpenIDConnectProviderInput{
+					OpenIDConnectProviderArn: a.arn,
+					ClientID:                 &elem,
+				}
+				_, err := t.Cloud.IAM().RemoveClientIDFromOpenIDConnectProvider(request)
+				if err != nil {
+					return fmt.Errorf("error removing audience %s to IAMOIDCProvider: %v", elem, err)
+				}
+			}
+			toAdd := expected.Difference(actual)
+			for _, elem := range toAdd.List() {
+				request := &iam.AddClientIDToOpenIDConnectProviderInput{
+					OpenIDConnectProviderArn: a.arn,
+					ClientID:                 &elem,
+				}
+				_, err := t.Cloud.IAM().AddClientIDToOpenIDConnectProvider(request)
+				if err != nil {
+					return fmt.Errorf("error adding audience %s to IAMOIDCProvider: %v", elem, err)
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -192,6 +222,17 @@ type terraformIAMOIDCProvider struct {
 }
 
 func (p *IAMOIDCProvider) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *IAMOIDCProvider) error {
+	err := t.AddOutputVariable("iam_openid_connect_provider_arn", e.TerraformLink())
+	if err != nil {
+		return err
+	}
+
+	issuerSubs := strings.SplitAfter(aws.StringValue(e.URL), "://")
+	issuer := issuerSubs[len(issuerSubs)-1]
+	err = t.AddOutputVariable("iam_openid_connect_provider_issuer", terraformWriter.LiteralFromStringValue(issuer))
+	if err != nil {
+		return err
+	}
 
 	tf := &terraformIAMOIDCProvider{
 		URL:            e.URL,

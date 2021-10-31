@@ -9,12 +9,14 @@ spec:
   - 10.2.0.0/16
   api:
     loadBalancer:
+      accessLog:
+        bucket: access-log-example
       additionalSecurityGroups:
       - sg-exampleid5
       - sg-exampleid6
       class: Network
       crossZoneLoadBalancing: true
-      sslCertificate: arn:aws:acm:us-test-1:000000000000:certificate/123456789012-1234-1234-1234-12345678
+      sslCertificate: arn:aws-test:acm:us-test-1:000000000000:certificate/123456789012-1234-1234-1234-12345678
       sslPolicy: ELBSecurityPolicy-2016-08
       subnets:
       - allocationId: eipalloc-012345a678b9cdefa
@@ -37,34 +39,30 @@ spec:
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.9
+    version: 1.4.11
   dnsZone: Z1AFAKE1ZON3YO
   docker:
     skipInstall: true
   etcdClusters:
   - backups:
       backupStore: memfs://clusters.example.com/complex.example.com/backups/etcd/main
-    enableEtcdTLS: true
-    enableTLSAuth: true
     etcdMembers:
     - instanceGroup: master-us-test-1a
       name: a
     name: main
-    provider: Manager
     version: 3.4.13
   - backups:
       backupStore: memfs://clusters.example.com/complex.example.com/backups/etcd/events
-    enableEtcdTLS: true
-    enableTLSAuth: true
     etcdMembers:
     - instanceGroup: master-us-test-1a
       name: a
     name: events
-    provider: Manager
     version: 3.4.13
+  externalDns:
+    provider: dns-controller
   iam:
     legacy: false
-    permissionsBoundary: arn:aws:iam:00000000000:policy/boundaries
+    permissionsBoundary: arn:aws-test:iam::000000000000:policy/boundaries
   keyStore: memfs://clusters.example.com/complex.example.com/pki
   kubeAPIServer:
     allowPrivileged: true
@@ -82,7 +80,6 @@ spec:
     - NamespaceLifecycle
     - LimitRanger
     - ServiceAccount
-    - PersistentVolumeLabel
     - DefaultStorageClass
     - DefaultTolerationSeconds
     - MutatingAdmissionWebhook
@@ -137,6 +134,7 @@ spec:
     nodeLocalDNS:
       cpuRequest: 25m
       enabled: false
+      image: k8s.gcr.io/dns/k8s-dns-node-cache:1.20.0
       memoryRequest: 5Mi
     provider: CoreDNS
     replicas: 2
@@ -215,6 +213,12 @@ spec:
     name: us-east-1a-utility
     type: Utility
     zone: us-test-1a
+  target:
+    terraform:
+      filesProviderExtraConfig:
+        profile: foo
+      providerExtraConfig:
+        max_retries: "10"
   topology:
     dns:
       type: Public

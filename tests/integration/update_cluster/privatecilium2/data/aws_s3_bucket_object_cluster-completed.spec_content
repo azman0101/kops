@@ -38,24 +38,20 @@ spec:
   etcdClusters:
   - backups:
       backupStore: memfs://clusters.example.com/privatecilium.example.com/backups/etcd/main
-    enableEtcdTLS: true
-    enableTLSAuth: true
     etcdMembers:
     - instanceGroup: master-us-test-1a
       name: us-test-1a
     name: main
-    provider: Manager
     version: 3.4.3
   - backups:
       backupStore: memfs://clusters.example.com/privatecilium.example.com/backups/etcd/events
-    enableEtcdTLS: true
-    enableTLSAuth: true
     etcdMembers:
     - instanceGroup: master-us-test-1a
       name: us-test-1a
     name: events
-    provider: Manager
     version: 3.4.3
+  externalDns:
+    provider: dns-controller
   iam:
     legacy: false
   keyStore: memfs://clusters.example.com/privatecilium.example.com/pki
@@ -70,7 +66,6 @@ spec:
     - NamespaceLifecycle
     - LimitRanger
     - ServiceAccount
-    - PersistentVolumeLabel
     - DefaultStorageClass
     - DefaultTolerationSeconds
     - MutatingAdmissionWebhook
@@ -81,7 +76,7 @@ spec:
     - https://127.0.0.1:4001
     etcdServersOverrides:
     - /events#https://127.0.0.1:4002
-    image: k8s.gcr.io/kube-apiserver:v1.17.15
+    image: k8s.gcr.io/kube-apiserver:v1.18.15
     kubeletPreferredAddressTypes:
     - InternalIP
     - Hostname
@@ -105,7 +100,7 @@ spec:
     clusterCIDR: 100.96.0.0/11
     clusterName: privatecilium.example.com
     configureCloudRoutes: false
-    image: k8s.gcr.io/kube-controller-manager:v1.17.15
+    image: k8s.gcr.io/kube-controller-manager:v1.18.15
     leaderElection:
       leaderElect: true
     logLevel: 2
@@ -120,6 +115,7 @@ spec:
     nodeLocalDNS:
       cpuRequest: 25m
       enabled: false
+      image: k8s.gcr.io/dns/k8s-dns-node-cache:1.20.0
       memoryRequest: 5Mi
     provider: KubeDNS
     replicas: 2
@@ -128,10 +124,10 @@ spec:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
     hostnameOverride: '@aws'
-    image: k8s.gcr.io/kube-proxy:v1.17.15
+    image: k8s.gcr.io/kube-proxy:v1.18.15
     logLevel: 2
   kubeScheduler:
-    image: k8s.gcr.io/kube-scheduler:v1.17.15
+    image: k8s.gcr.io/kube-scheduler:v1.18.15
     leaderElection:
       leaderElect: true
     logLevel: 2
@@ -152,7 +148,7 @@ spec:
     podManifestPath: /etc/kubernetes/manifests
   kubernetesApiAccess:
   - 0.0.0.0/0
-  kubernetesVersion: 1.17.15
+  kubernetesVersion: 1.18.15
   masterInternalName: api.internal.privatecilium.example.com
   masterKubelet:
     anonymousAuth: false
@@ -184,8 +180,8 @@ spec:
       bpfNeighGlobalMax: 524288
       bpfPolicyMapMax: 16384
       clusterName: default
-      containerRuntimeLabels: none
       cpuRequest: 25m
+      disableCNPStatusUpdates: true
       disableMasquerade: false
       enableBPFMasquerade: false
       enableEndpointHealthChecking: true

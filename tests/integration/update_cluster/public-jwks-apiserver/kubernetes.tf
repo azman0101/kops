@@ -1,5 +1,7 @@
 locals {
   cluster_name                         = "minimal.example.com"
+  iam_openid_connect_provider_arn      = aws_iam_openid_connect_provider.minimal-example-com.arn
+  iam_openid_connect_provider_issuer   = "discovery.example.com/minimal.example.com"
   kube-system-dns-controller_role_arn  = aws_iam_role.dns-controller-kube-system-sa-minimal-example-com.arn
   kube-system-dns-controller_role_name = aws_iam_role.dns-controller-kube-system-sa-minimal-example-com.name
   master_autoscaling_group_ids         = [aws_autoscaling_group.master-us-test-1a-masters-minimal-example-com.id]
@@ -20,6 +22,14 @@ locals {
 
 output "cluster_name" {
   value = "minimal.example.com"
+}
+
+output "iam_openid_connect_provider_arn" {
+  value = aws_iam_openid_connect_provider.minimal-example-com.arn
+}
+
+output "iam_openid_connect_provider_issuer" {
+  value = "discovery.example.com/minimal.example.com"
 }
 
 output "kube-system-dns-controller_role_arn" {
@@ -87,6 +97,11 @@ output "vpc_id" {
 }
 
 provider "aws" {
+  region = "us-test-1"
+}
+
+provider "aws" {
+  alias  = "files"
   region = "us-test-1"
 }
 
@@ -360,6 +375,7 @@ resource "aws_launch_template" "master-us-test-1a-masters-minimal-example-com" {
   }
   metadata_options {
     http_endpoint               = "enabled"
+    http_protocol_ipv6          = "disabled"
     http_put_response_hop_limit = 1
     http_tokens                 = "optional"
   }
@@ -441,6 +457,7 @@ resource "aws_launch_template" "nodes-minimal-example-com" {
   }
   metadata_options {
     http_endpoint               = "enabled"
+    http_protocol_ipv6          = "disabled"
     http_put_response_hop_limit = 1
     http_tokens                 = "optional"
   }
@@ -521,6 +538,7 @@ resource "aws_s3_bucket_object" "cluster-completed-spec" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_cluster-completed.spec_content")
   key                    = "clusters.example.com/minimal.example.com/cluster-completed.spec"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -528,6 +546,7 @@ resource "aws_s3_bucket_object" "discovery-json" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_discovery.json_content")
   key                    = "discovery.example.com/minimal.example.com/.well-known/openid-configuration"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -535,6 +554,7 @@ resource "aws_s3_bucket_object" "etcd-cluster-spec-events" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_etcd-cluster-spec-events_content")
   key                    = "clusters.example.com/minimal.example.com/backups/etcd/events/control/etcd-cluster-spec"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -542,6 +562,7 @@ resource "aws_s3_bucket_object" "etcd-cluster-spec-main" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_etcd-cluster-spec-main_content")
   key                    = "clusters.example.com/minimal.example.com/backups/etcd/main/control/etcd-cluster-spec"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -549,6 +570,7 @@ resource "aws_s3_bucket_object" "keys-json" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_keys.json_content")
   key                    = "discovery.example.com/minimal.example.com/openid/v1/jwks"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -556,6 +578,7 @@ resource "aws_s3_bucket_object" "kops-version-txt" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_kops-version.txt_content")
   key                    = "clusters.example.com/minimal.example.com/kops-version.txt"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -563,6 +586,7 @@ resource "aws_s3_bucket_object" "manifests-etcdmanager-events" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_manifests-etcdmanager-events_content")
   key                    = "clusters.example.com/minimal.example.com/manifests/etcd/events.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -570,6 +594,7 @@ resource "aws_s3_bucket_object" "manifests-etcdmanager-main" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_manifests-etcdmanager-main_content")
   key                    = "clusters.example.com/minimal.example.com/manifests/etcd/main.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -577,6 +602,7 @@ resource "aws_s3_bucket_object" "manifests-static-kube-apiserver-healthcheck" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_manifests-static-kube-apiserver-healthcheck_content")
   key                    = "clusters.example.com/minimal.example.com/manifests/static/kube-apiserver-healthcheck.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -584,6 +610,7 @@ resource "aws_s3_bucket_object" "minimal-example-com-addons-bootstrap" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal.example.com-addons-bootstrap_content")
   key                    = "clusters.example.com/minimal.example.com/addons/bootstrap-channel.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -591,6 +618,7 @@ resource "aws_s3_bucket_object" "minimal-example-com-addons-core-addons-k8s-io" 
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal.example.com-addons-core.addons.k8s.io_content")
   key                    = "clusters.example.com/minimal.example.com/addons/core.addons.k8s.io/v1.4.0.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -598,6 +626,7 @@ resource "aws_s3_bucket_object" "minimal-example-com-addons-dns-controller-addon
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal.example.com-addons-dns-controller.addons.k8s.io-k8s-1.12_content")
   key                    = "clusters.example.com/minimal.example.com/addons/dns-controller.addons.k8s.io/k8s-1.12.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -605,6 +634,7 @@ resource "aws_s3_bucket_object" "minimal-example-com-addons-kops-controller-addo
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal.example.com-addons-kops-controller.addons.k8s.io-k8s-1.16_content")
   key                    = "clusters.example.com/minimal.example.com/addons/kops-controller.addons.k8s.io/k8s-1.16.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -612,6 +642,7 @@ resource "aws_s3_bucket_object" "minimal-example-com-addons-kube-dns-addons-k8s-
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal.example.com-addons-kube-dns.addons.k8s.io-k8s-1.12_content")
   key                    = "clusters.example.com/minimal.example.com/addons/kube-dns.addons.k8s.io/k8s-1.12.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -619,6 +650,7 @@ resource "aws_s3_bucket_object" "minimal-example-com-addons-kubelet-api-rbac-add
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal.example.com-addons-kubelet-api.rbac.addons.k8s.io-k8s-1.9_content")
   key                    = "clusters.example.com/minimal.example.com/addons/kubelet-api.rbac.addons.k8s.io/k8s-1.9.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -626,6 +658,7 @@ resource "aws_s3_bucket_object" "minimal-example-com-addons-limit-range-addons-k
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal.example.com-addons-limit-range.addons.k8s.io_content")
   key                    = "clusters.example.com/minimal.example.com/addons/limit-range.addons.k8s.io/v1.5.0.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -633,6 +666,7 @@ resource "aws_s3_bucket_object" "minimal-example-com-addons-storage-aws-addons-k
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal.example.com-addons-storage-aws.addons.k8s.io-v1.15.0_content")
   key                    = "clusters.example.com/minimal.example.com/addons/storage-aws.addons.k8s.io/v1.15.0.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -640,6 +674,7 @@ resource "aws_s3_bucket_object" "nodeupconfig-master-us-test-1a" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_nodeupconfig-master-us-test-1a_content")
   key                    = "clusters.example.com/minimal.example.com/igconfig/master/master-us-test-1a/nodeupconfig.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -647,6 +682,7 @@ resource "aws_s3_bucket_object" "nodeupconfig-nodes" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_nodeupconfig-nodes_content")
   key                    = "clusters.example.com/minimal.example.com/igconfig/node/nodes/nodeupconfig.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -840,11 +876,12 @@ resource "aws_vpc_dhcp_options_association" "minimal-example-com" {
 }
 
 terraform {
-  required_version = ">= 0.12.26"
+  required_version = ">= 0.15.0"
   required_providers {
     aws = {
-      "source"  = "hashicorp/aws"
-      "version" = ">= 3.34.0"
+      "configuration_aliases" = [aws.files]
+      "source"                = "hashicorp/aws"
+      "version"               = ">= 3.59.0"
     }
   }
 }

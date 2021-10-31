@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
@@ -38,8 +39,9 @@ type logDumper struct {
 
 	artifactsDir string
 
-	services []string
-	files    []string
+	services     []string
+	files        []string
+	podSelectors []string
 }
 
 // NewLogDumper is the constructor for a logDumper
@@ -79,6 +81,10 @@ func NewLogDumper(sshConfig *ssh.ClientConfig, artifactsDir string) *logDumper {
 		"startupscript",
 		"kern",
 		"docker",
+	}
+	d.podSelectors = []string{
+		"k8s-app=external-dns",
+		"k8s-app=dns-controller",
 	}
 
 	return d
@@ -271,6 +277,18 @@ func (n *logDumperNode) dump(ctx context.Context) []error {
 		}
 	}
 
+	for _, selector := range n.dumper.podSelectors {
+		kv := strings.Split(selector, "=")
+		logFile := fmt.Sprintf("%v.log", kv[len(kv)-1])
+		if err := n.shellToFile(ctx, "if command -v kubectl &> /dev/null; then kubectl logs -n kube-system --all-containers -l \""+selector+"\"; fi", filepath.Join(n.dir, logFile)); err != nil {
+			errors = append(errors, err)
+		}
+	}
+
+	if err := n.shellToFile(ctx, "cat /etc/hosts", filepath.Join(n.dir, "etchosts")); err != nil {
+		errors = append(errors, err)
+	}
+
 	return errors
 }
 
@@ -398,7 +416,9 @@ var _ sshClientFactory = &sshClientFactoryImplementation{}
 // Dial implements sshClientFactory::Dial
 func (f *sshClientFactoryImplementation) Dial(ctx context.Context, host string) (sshClient, error) {
 	addr := host + ":22"
-	d := net.Dialer{}
+	d := net.Dialer{
+		Timeout: 15 * time.Second,
+	}
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, err

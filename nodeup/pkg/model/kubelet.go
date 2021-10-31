@@ -18,6 +18,8 @@ package model
 
 import (
 	"fmt"
+	"net"
+	"os"
 	"path"
 	"path/filepath"
 
@@ -25,6 +27,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -188,13 +191,6 @@ func (b *KubeletBuilder) buildSystemdEnvironmentFile(kubeletConfig *kops.Kubelet
 		kubeletConfig.BootstrapKubeconfig = ""
 	}
 
-	if kubeletConfig.ExperimentalAllowedUnsafeSysctls != nil {
-		// The ExperimentalAllowedUnsafeSysctls flag was renamed in k/k #63717
-		klog.V(1).Info("ExperimentalAllowedUnsafeSysctls was renamed in k8s 1.11+, please use AllowedUnsafeSysctls instead.")
-		kubeletConfig.AllowedUnsafeSysctls = append(kubeletConfig.ExperimentalAllowedUnsafeSysctls, kubeletConfig.AllowedUnsafeSysctls...)
-		kubeletConfig.ExperimentalAllowedUnsafeSysctls = nil
-	}
-
 	// TODO: Dump the separate file for flags - just complexity!
 	flags, err := flagbuilder.BuildFlags(kubeletConfig)
 	if err != nil {
@@ -206,7 +202,7 @@ func (b *KubeletBuilder) buildSystemdEnvironmentFile(kubeletConfig *kops.Kubelet
 	// would be a degree of freedom we don't have (we'd have to write the config to different files)
 	// We can always add this later if it is needed.
 	if b.Cluster.Spec.CloudConfig != nil {
-		flags += " --cloud-config=" + CloudConfigFilePath
+		flags += " --cloud-config=" + InTreeCloudConfigFilePath
 	}
 
 	if b.UsesSecondaryIP() {
@@ -242,6 +238,10 @@ func (b *KubeletBuilder) buildSystemdEnvironmentFile(kubeletConfig *kops.Kubelet
 	if b.UseKopsControllerForNodeBootstrap() {
 		flags += " --tls-cert-file=" + b.PathSrvKubernetes() + "/kubelet-server.crt"
 		flags += " --tls-private-key-file=" + b.PathSrvKubernetes() + "/kubelet-server.key"
+	}
+
+	if b.Cluster.Spec.IsIPv6Only() {
+		flags += " --node-ip=::"
 	}
 
 	sysconfig := "DAEMON_ARGS=\"" + flags + "\"\n"
@@ -461,29 +461,25 @@ func (b *KubeletBuilder) buildKubeletConfigSpec() (*kops.KubeletConfigSpec, erro
 			return nil, err
 		}
 
-		// Default maximum pods per node defined by KubeletConfiguration, but
-		// respect any value the user sets explicitly.
-		maxPods := int32(110)
-		if c.MaxPods != nil {
-			maxPods = *c.MaxPods
-		}
+		// Respect any MaxPods value the user sets explicitly.
+		if c.MaxPods == nil {
+			// Default maximum pods per node defined by KubeletConfiguration
+			maxPods := 110
 
-		// AWS VPC CNI plugin-specific maximum pod calculation based on:
-		// https://github.com/aws/amazon-vpc-cni-k8s/blob/f52ad45/README.md
-		//
-		// Treat the calculated value as a hard max, since networking with the CNI
-		// plugin won't work correctly once we exceed that maximum.
-		enis := instanceType.InstanceENIs
-		ips := instanceType.InstanceIPsPerENI
-		if enis > 0 && ips > 0 {
-			instanceMaxPods := enis*(ips-1) + 2
-			if int32(instanceMaxPods) < maxPods {
-				maxPods = int32(instanceMaxPods)
+			// AWS VPC CNI plugin-specific maximum pod calculation based on:
+			// https://github.com/aws/amazon-vpc-cni-k8s/blob/v1.9.3/README.md#setup
+			enis := instanceType.InstanceENIs
+			ips := instanceType.InstanceIPsPerENI
+			if enis > 0 && ips > 0 {
+				instanceMaxPods := enis*(ips-1) + 2
+				if instanceMaxPods < maxPods {
+					maxPods = instanceMaxPods
+				}
 			}
-		}
 
-		// Write back values that could have changed
-		c.MaxPods = &maxPods
+			// Write back values that could have changed
+			c.MaxPods = fi.Int32(int32(maxPods))
+		}
 	}
 
 	// Use --register-with-taints
@@ -560,7 +556,7 @@ func (b *KubeletBuilder) buildKubeletServingCertificate(c *fi.ModelBuilderContex
 		name := "kubelet-server"
 		dir := b.PathSrvKubernetes()
 
-		nodeName, err := b.NodeName()
+		names, err := b.kubeletNames()
 		if err != nil {
 			return err
 		}
@@ -594,9 +590,9 @@ func (b *KubeletBuilder) buildKubeletServingCertificate(c *fi.ModelBuilderContex
 				KeypairID: b.NodeupConfig.KeypairIDs[fi.CertificateIDCA],
 				Type:      "server",
 				Subject: nodetasks.PKIXName{
-					CommonName: nodeName,
+					CommonName: names[0],
 				},
-				AlternateNames: []string{nodeName},
+				AlternateNames: names,
 			}
 			c.AddTask(issueCert)
 			return issueCert.AddFileTasks(c, dir, name, "", nil)
@@ -604,4 +600,28 @@ func (b *KubeletBuilder) buildKubeletServingCertificate(c *fi.ModelBuilderContex
 	}
 	return nil
 
+}
+
+func (b *KubeletBuilder) kubeletNames() ([]string, error) {
+	if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) != kops.CloudProviderAWS {
+		name, err := os.Hostname()
+		if err != nil {
+			return nil, err
+		}
+
+		addrs, _ := net.LookupHost(name)
+
+		return append(addrs, name), nil
+	}
+
+	cloud := b.Cloud.(awsup.AWSCloud)
+
+	result, err := cloud.EC2().DescribeInstances(&ec2.DescribeInstancesInput{
+		InstanceIds: []*string{&b.InstanceID},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error describing instances: %v", err)
+	}
+
+	return awsup.GetInstanceCertificateNames(result)
 }

@@ -14,6 +14,87 @@
       ]
     },
     {
+      "Action": [
+        "s3:Get*"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/minimal.example.com/*"
+    },
+    {
+      "Action": [
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:PutObject"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws-test:s3:::placeholder-write-bucket/clusters.example.com/minimal.example.com/backups/etcd/main/*"
+    },
+    {
+      "Action": [
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:DeleteObjectVersion",
+        "s3:PutObject"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws-test:s3:::placeholder-write-bucket/clusters.example.com/minimal.example.com/backups/etcd/events/*"
+    },
+    {
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:GetEncryptionConfiguration",
+        "s3:ListBucket",
+        "s3:ListBucketVersions"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws-test:s3:::placeholder-read-bucket"
+      ]
+    },
+    {
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:GetEncryptionConfiguration",
+        "s3:ListBucket",
+        "s3:ListBucketVersions"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws-test:s3:::placeholder-write-bucket"
+      ]
+    },
+    {
+      "Action": [
+        "route53:ChangeResourceRecordSets",
+        "route53:ListResourceRecordSets",
+        "route53:GetHostedZone"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws-test:route53:::hostedzone/Z1AFAKE1ZON3YO"
+      ]
+    },
+    {
+      "Action": [
+        "route53:GetChange"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws-test:route53:::change/*"
+      ]
+    },
+    {
+      "Action": [
+        "route53:ListHostedZones",
+        "route53:ListTagsForResource"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "*"
+      ]
+    },
+    {
       "Action": "ec2:CreateTags",
       "Condition": {
         "StringEquals": {
@@ -25,108 +106,8 @@
       },
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:ec2:*:*:volume/*",
-        "arn:aws:ec2:*:*:snapshot/*"
-      ]
-    },
-    {
-      "Action": [
-        "elasticloadbalancing:CreateLoadBalancer",
-        "elasticloadbalancing:CreateLoadBalancerPolicy",
-        "elasticloadbalancing:CreateLoadBalancerListeners",
-        "ec2:CreateSecurityGroup",
-        "ec2:CreateVolume",
-        "elasticloadbalancing:CreateListener",
-        "elasticloadbalancing:CreateTargetGroup"
-      ],
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestTag/KubernetesCluster": "minimal.example.com"
-        }
-      },
-      "Effect": "Allow",
-      "Resource": [
-        "*"
-      ]
-    },
-    {
-      "Action": [
-        "s3:Get*"
-      ],
-      "Effect": "Allow",
-      "Resource": "arn:aws:s3:::placeholder-read-bucket/clusters.example.com/minimal.example.com/*"
-    },
-    {
-      "Action": [
-        "s3:GetObject",
-        "s3:DeleteObject",
-        "s3:DeleteObjectVersion",
-        "s3:PutObject"
-      ],
-      "Effect": "Allow",
-      "Resource": "arn:aws:s3:::placeholder-write-bucket/clusters.example.com/minimal.example.com/backups/etcd/main/*"
-    },
-    {
-      "Action": [
-        "s3:GetObject",
-        "s3:DeleteObject",
-        "s3:DeleteObjectVersion",
-        "s3:PutObject"
-      ],
-      "Effect": "Allow",
-      "Resource": "arn:aws:s3:::placeholder-write-bucket/clusters.example.com/minimal.example.com/backups/etcd/events/*"
-    },
-    {
-      "Action": [
-        "s3:GetBucketLocation",
-        "s3:GetEncryptionConfiguration",
-        "s3:ListBucket",
-        "s3:ListBucketVersions"
-      ],
-      "Effect": "Allow",
-      "Resource": [
-        "arn:aws:s3:::placeholder-read-bucket"
-      ]
-    },
-    {
-      "Action": [
-        "s3:GetBucketLocation",
-        "s3:GetEncryptionConfiguration",
-        "s3:ListBucket",
-        "s3:ListBucketVersions"
-      ],
-      "Effect": "Allow",
-      "Resource": [
-        "arn:aws:s3:::placeholder-write-bucket"
-      ]
-    },
-    {
-      "Action": [
-        "route53:ChangeResourceRecordSets",
-        "route53:ListResourceRecordSets",
-        "route53:GetHostedZone"
-      ],
-      "Effect": "Allow",
-      "Resource": [
-        "arn:aws:route53:::hostedzone/Z1AFAKE1ZON3YO"
-      ]
-    },
-    {
-      "Action": [
-        "route53:GetChange"
-      ],
-      "Effect": "Allow",
-      "Resource": [
-        "arn:aws:route53:::change/*"
-      ]
-    },
-    {
-      "Action": [
-        "route53:ListHostedZones"
-      ],
-      "Effect": "Allow",
-      "Resource": [
-        "*"
+        "arn:aws-test:ec2:*:*:volume/*",
+        "arn:aws-test:ec2:*:*:snapshot/*"
       ]
     },
     {
@@ -136,6 +117,7 @@
         "autoscaling:DescribeTags",
         "ec2:CreateSecurityGroup",
         "ec2:CreateTags",
+        "ec2:DescribeInstanceTypes",
         "ec2:DescribeInstances",
         "ec2:DescribeRegions",
         "ec2:DescribeRouteTables",
@@ -143,12 +125,16 @@
         "ec2:DescribeSubnets",
         "ec2:DescribeVolumes",
         "ec2:DescribeVpcs",
+        "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:CreateListener",
+        "elasticloadbalancing:CreateTargetGroup",
         "elasticloadbalancing:DescribeListeners",
         "elasticloadbalancing:DescribeLoadBalancerAttributes",
         "elasticloadbalancing:DescribeLoadBalancerPolicies",
         "elasticloadbalancing:DescribeLoadBalancers",
         "elasticloadbalancing:DescribeTargetGroups",
         "elasticloadbalancing:DescribeTargetHealth",
+        "elasticloadbalancing:RegisterTargets",
         "iam:GetServerCertificate",
         "iam:ListServerCertificates",
         "kms:DescribeKey",
@@ -190,6 +176,24 @@
       "Condition": {
         "StringEquals": {
           "aws:ResourceTag/KubernetesCluster": "minimal.example.com"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "*"
+    },
+    {
+      "Action": [
+        "ec2:CreateSecurityGroup",
+        "ec2:CreateVolume",
+        "elasticloadbalancing:CreateListener",
+        "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:CreateLoadBalancerListeners",
+        "elasticloadbalancing:CreateLoadBalancerPolicy",
+        "elasticloadbalancing:CreateTargetGroup"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/KubernetesCluster": "minimal.example.com"
         }
       },
       "Effect": "Allow",

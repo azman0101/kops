@@ -127,6 +127,10 @@ data:
   # backend and affinity maps. (default 65536)
   bpf-lb-map-max: "{{ .BPFLBMapMax }}"
 
+  {{ if .ChainingMode }}
+  cni-chaining-mode: "{{ .ChainingMode }}"
+  {{ end }}
+
   # enable-bpf-masquerade enables masquerading packets from endpoints leaving
   # the host with BPF instead of iptables. (default false)
   enable-bpf-masquerade: "{{ .EnableBPFMasquerade }}"
@@ -197,7 +201,6 @@ data:
   # - none
   # - auto (automatically detect the container runtime)
   #
-  container-runtime: "{{ .ContainerRuntimeLabels }}"
   masquerade: "{{- if WithDefaultBool .DisableMasquerade false -}}false{{- else -}}true{{- end -}}"
   install-iptables-rules: "{{- if .IPTablesRulesNoinstall -}}false{{- else -}}true{{- end -}}"
   auto-direct-node-routes: "{{ .AutoDirectNodeRoutes }}"
@@ -227,6 +230,8 @@ data:
 
   # enable-l7-proxy enables L7 proxy for L7 policy enforcement. (default true)
   enable-l7-proxy: "{{ .EnableL7Proxy }}"
+
+  cgroup-root: /run/cilium/cgroupv2
 
   {{ if WithDefaultBool .Hubble.Enabled false }}
   # Enable Hubble gRPC service.
@@ -549,6 +554,9 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: {{ printf "%q" .AgentPrometheusPort }}
         {{ end }}
+{{- with .AgentPodAnnotations }}
+        {{- . | nindent 8 }}
+{{- end }}
       labels:
         k8s-app: cilium
         kubernetes.io/cluster-service: "true"
@@ -648,7 +656,7 @@ spec:
         - name: CILIUM_ENABLE_POLICY
           value: {{ . }}
         {{ end }}
-        image: "quay.io/cilium/cilium:{{ .Version  }}"
+        image: "quay.io/cilium/cilium:{{ .Version }}"
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -754,6 +762,10 @@ spec:
         - mountPath: /sys/fs/bpf
           name: bpf-maps
           mountPropagation: HostToContainer
+        # Required to mount cgroup filesystem from the host to cilium agent pod
+        - mountPath: /run/cilium/cgroupv2
+          name: cilium-cgroup
+          mountPropagation: HostToContainer
         - mountPath: /var/run/cilium
           name: cilium-run
         resources:
@@ -785,7 +797,12 @@ spec:
           path:  /opt/cni/bin
           type: DirectoryOrCreate
         name: cni-path
-        # To install cilium cni configuration in the host
+      # To keep state between restarts / upgrades for cgroup2 filesystem
+      - hostPath:
+          path: /run/cilium/cgroupv2
+          type: Directory
+        name: cilium-cgroup
+      # To install cilium cni configuration in the host
       - hostPath:
           path: /etc/cni/net.d
           type: DirectoryOrCreate

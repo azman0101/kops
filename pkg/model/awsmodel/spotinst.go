@@ -53,6 +53,10 @@ const (
 	// utilized.
 	SpotInstanceGroupLabelUtilizeReservedInstances = "spotinst.io/utilize-reserved-instances"
 
+	// SpotInstanceGroupLabelUtilizeCommitments is the metadata label used
+	// on the instance group to specify whether commitments should be utilized.
+	SpotInstanceGroupLabelUtilizeCommitments = "spotinst.io/utilize-commitments"
+
 	// SpotInstanceGroupLabelFallbackToOnDemand is the metadata label used on the
 	// instance group to specify whether fallback to on-demand instances should
 	// be enabled.
@@ -214,6 +218,12 @@ func (b *SpotInstanceGroupModelBuilder) buildElastigroup(c *fi.ModelBuilderConte
 
 		case SpotInstanceGroupLabelUtilizeReservedInstances:
 			group.UtilizeReservedInstances, err = parseBool(v)
+			if err != nil {
+				return err
+			}
+
+		case SpotInstanceGroupLabelUtilizeCommitments:
+			group.UtilizeCommitments, err = parseBool(v)
 			if err != nil {
 				return err
 			}
@@ -380,6 +390,12 @@ func (b *SpotInstanceGroupModelBuilder) buildOcean(c *fi.ModelBuilderContext, ig
 				return err
 			}
 
+		case SpotInstanceGroupLabelUtilizeCommitments:
+			ocean.UtilizeCommitments, err = parseBool(v)
+			if err != nil {
+				return err
+			}
+
 		case SpotInstanceGroupLabelFallbackToOnDemand:
 			ocean.FallbackToOnDemand, err = parseBool(v)
 			if err != nil {
@@ -526,6 +542,11 @@ func (b *SpotInstanceGroupModelBuilder) buildLaunchSpec(c *fi.ModelBuilderContex
 				return err
 			}
 		}
+	}
+
+	policy := ig.Spec.MixedInstancesPolicy
+	if len(launchSpec.InstanceTypes) == 0 && policy != nil && len(policy.Instances) > 0 {
+		launchSpec.InstanceTypes = policy.Instances
 	}
 
 	// Capacity.

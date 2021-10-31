@@ -159,6 +159,8 @@ type KubeletConfigSpec struct {
 	Taints []string `json:"taints,omitempty" flag:"register-with-taints"`
 	// FeatureGates is set of key=value pairs that describe feature gates for alpha/experimental features.
 	FeatureGates map[string]string `json:"featureGates,omitempty" flag:"feature-gates"`
+	// Integrate with the kernel memcg notification to determine if memory eviction thresholds are crossed rather than polling.
+	KernelMemcgNotification *bool `json:"kernelMemcgNotification,omitempty" flag:"kernel-memcg-notification"`
 	// Resource reservation for kubernetes system daemons like the kubelet, container runtime, node problem detector, etc.
 	KubeReserved map[string]string `json:"kubeReserved,omitempty" flag:"kube-reserved"`
 	// Control group for kube daemons.
@@ -240,7 +242,7 @@ type KubeProxyConfig struct {
 	// LogLevel is the logging level of the proxy
 	LogLevel int32 `json:"logLevel,omitempty" flag:"v"`
 	// ClusterCIDR is the CIDR range of the pods in the cluster
-	ClusterCIDR string `json:"clusterCIDR,omitempty" flag:"cluster-cidr"`
+	ClusterCIDR *string `json:"clusterCIDR,omitempty" flag:"cluster-cidr"`
 	// HostnameOverride, if non-empty, will be used as the identity instead of the actual hostname.
 	HostnameOverride string `json:"hostnameOverride,omitempty" flag:"hostname-override"`
 	// BindAddress is IP address for the proxy server to serve on
@@ -695,8 +697,8 @@ type KubeSchedulerConfig struct {
 	// FeatureGates is set of key=value pairs that describe feature gates for alpha/experimental features.
 	FeatureGates map[string]string `json:"featureGates,omitempty" flag:"feature-gates"`
 	// MaxPersistentVolumes changes the maximum number of persistent volumes the scheduler will scheduler onto the same
-	// node. Only takes into affect if value is positive. This corresponds to the KUBE_MAX_PD_VOLS environment variable,
-	// which has been supported as far back as Kubernetes 1.7. The default depends on the version and the cloud provider
+	// node. Only takes effect if value is positive. This corresponds to the KUBE_MAX_PD_VOLS environment variable.
+	// The default depends on the version and the cloud provider
 	// as outlined: https://kubernetes.io/docs/concepts/storage/storage-limits/
 	MaxPersistentVolumes *int32 `json:"maxPersistentVolumes,omitempty"`
 	// Qps sets the maximum qps to send to apiserver after the burst quota is exhausted
@@ -747,14 +749,15 @@ type LeaderElectionConfiguration struct {
 
 // OpenstackLoadbalancerConfig defines the config for a neutron loadbalancer
 type OpenstackLoadbalancerConfig struct {
-	Method            *string `json:"method,omitempty"`
-	Provider          *string `json:"provider,omitempty"`
-	UseOctavia        *bool   `json:"useOctavia,omitempty"`
-	FloatingNetwork   *string `json:"floatingNetwork,omitempty"`
-	FloatingNetworkID *string `json:"floatingNetworkID,omitempty"`
-	FloatingSubnet    *string `json:"floatingSubnet,omitempty"`
-	SubnetID          *string `json:"subnetID,omitempty"`
-	ManageSecGroups   *bool   `json:"manageSecurityGroups,omitempty"`
+	Method                *string `json:"method,omitempty"`
+	Provider              *string `json:"provider,omitempty"`
+	UseOctavia            *bool   `json:"useOctavia,omitempty"`
+	FloatingNetwork       *string `json:"floatingNetwork,omitempty"`
+	FloatingNetworkID     *string `json:"floatingNetworkID,omitempty"`
+	FloatingSubnet        *string `json:"floatingSubnet,omitempty"`
+	SubnetID              *string `json:"subnetID,omitempty"`
+	ManageSecGroups       *bool   `json:"manageSecurityGroups,omitempty"`
+	EnableIngressHostname *bool   `json:"enableIngressHostname,omitempty"`
 }
 
 type OpenstackBlockStorageConfig struct {
@@ -836,6 +839,8 @@ type CloudConfiguration struct {
 	Multizone          *bool   `json:"multizone,omitempty"`
 	NodeTags           *string `json:"nodeTags,omitempty"`
 	NodeInstancePrefix *string `json:"nodeInstancePrefix,omitempty"`
+	// NodeIPFamilies controls the IP families reported for each node (AWS only).
+	NodeIPFamilies []string `json:"nodeIPFamilies,omitempty"`
 	// GCEServiceAccount specifies the service account with which the GCE VM runs
 	GCEServiceAccount string `json:"gceServiceAccount,omitempty"`
 	// AWS cloud-config options
@@ -960,6 +965,9 @@ type ClusterAutoscalerConfig struct {
 	// BalanceSimilarNodeGroups makes cluster autoscaler treat similar node groups as one.
 	// Default: false
 	BalanceSimilarNodeGroups *bool `json:"balanceSimilarNodeGroups,omitempty"`
+	// AWSUseStaticInstanceList makes cluster autoscaler to use statically defined set of AWS EC2 Instance List.
+	// Default: false
+	AWSUseStaticInstanceList *bool `json:"awsUseStaticInstanceList,omitempty"`
 	// ScaleDownUtilizationThreshold determines the utilization threshold for node scale-down.
 	// Default: 0.5
 	ScaleDownUtilizationThreshold *string `json:"scaleDownUtilizationThreshold,omitempty"`
@@ -984,6 +992,8 @@ type ClusterAutoscalerConfig struct {
 	// CPURequest of cluster autoscaler container.
 	// Default: 100m
 	CPURequest *resource.Quantity `json:"cpuRequest,omitempty"`
+	// MaxNodeProvisionTime determines how long CAS will wait for a node to join the cluster.
+	MaxNodeProvisionTime string `json:"maxNodeProvisionTime,omitempty"`
 }
 
 // MetricsServerConfig determines the metrics server configuration.

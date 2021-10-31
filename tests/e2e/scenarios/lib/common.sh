@@ -49,7 +49,7 @@ fi
 if [[ ${KOPS_IRSA-} = true ]]; then
     OVERRIDES="${OVERRIDES-} --override=cluster.spec.serviceAccountIssuerDiscovery.discoveryStore=${DISCOVERY_STORE}/${CLUSTER_NAME}/discovery"
     OVERRIDES="${OVERRIDES} --override=cluster.spec.serviceAccountIssuerDiscovery.enableAWSOIDCProvider=true"
-    KOPS_FEATURE_FLAGS="UseServiceAccountIAM,${KOPS_FEATURE_FLAGS}"
+    OVERRIDES="${OVERRIDES} --override=cluster.spec.iam.useServiceAccountExternalPermissions=true"
 fi
 
 export GO111MODULE=on
@@ -108,6 +108,9 @@ function kops-acquire-latest() {
          fi
          $KUBETEST2 --build
          KOPS="${REPO_ROOT}/.bazelbuild/dist/linux/amd64/kops"
+         KOPS_BASE_URL=$(cat "${REPO_ROOT}/.kubetest2/kops-base-url")
+         export KOPS_BASE_URL
+         echo "KOPS_BASE_URL=$KOPS_BASE_URL"
     fi
 }
 
@@ -120,6 +123,6 @@ function kops-up() {
     ${KUBETEST2} \
         --up \
         --kops-binary-path="${KOPS}" \
-        --kubernetes-version="1.21.0" \
+        --kubernetes-version="1.22.1" \
         --create-args="${create_args}"
 }

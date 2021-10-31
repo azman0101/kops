@@ -274,7 +274,7 @@
                 "Throughput": 125,
                 "DeleteOnTermination": true,
                 "Encrypted": true,
-                "KmsKeyId": "arn:aws:kms:us-test-1:000000000000:key/1234abcd-12ab-34cd-56ef-1234567890ab"
+                "KmsKeyId": "arn:aws-test:kms:us-test-1:000000000000:key/1234abcd-12ab-34cd-56ef-1234567890ab"
               }
             },
             {
@@ -447,7 +447,7 @@
                 "VolumeSize": 20,
                 "DeleteOnTermination": true,
                 "Encrypted": true,
-                "KmsKeyId": "arn:aws:kms:us-test-1:000000000000:key/1234abcd-12ab-34cd-56ef-1234567890ab"
+                "KmsKeyId": "arn:aws-test:kms:us-test-1:000000000000:key/1234abcd-12ab-34cd-56ef-1234567890ab"
               }
             }
           ],
@@ -1386,7 +1386,7 @@
       "Properties": {
         "Certificates": [
           {
-            "CertificateArn": "arn:aws:acm:us-test-1:000000000000:certificate/123456789012-1234-1234-1234-12345678"
+            "CertificateArn": "arn:aws-test:acm:us-test-1:000000000000:certificate/123456789012-1234-1234-1234-12345678"
           }
         ],
         "DefaultActions": [
@@ -1457,6 +1457,20 @@
           {
             "Key": "kubernetes.io/cluster/complex.example.com",
             "Value": "owned"
+          }
+        ],
+        "LoadBalancerAttributes": [
+          {
+            "Key": "access_logs.s3.enabled",
+            "Value": "true"
+          },
+          {
+            "Key": "access_logs.s3.bucket",
+            "Value": "access-log-example"
+          },
+          {
+            "Key": "access_logs.s3.prefix",
+            "Value": ""
           }
         ]
       }
@@ -1580,47 +1594,11 @@
               ]
             },
             {
-              "Action": "ec2:CreateTags",
-              "Condition": {
-                "StringEquals": {
-                  "ec2:CreateAction": [
-                    "CreateVolume",
-                    "CreateSnapshot"
-                  ]
-                }
-              },
-              "Effect": "Allow",
-              "Resource": [
-                "arn:aws:ec2:*:*:volume/*",
-                "arn:aws:ec2:*:*:snapshot/*"
-              ]
-            },
-            {
-              "Action": [
-                "elasticloadbalancing:CreateLoadBalancer",
-                "elasticloadbalancing:CreateLoadBalancerPolicy",
-                "elasticloadbalancing:CreateLoadBalancerListeners",
-                "ec2:CreateSecurityGroup",
-                "ec2:CreateVolume",
-                "elasticloadbalancing:CreateListener",
-                "elasticloadbalancing:CreateTargetGroup"
-              ],
-              "Condition": {
-                "StringEquals": {
-                  "aws:RequestTag/KubernetesCluster": "complex.example.com"
-                }
-              },
-              "Effect": "Allow",
-              "Resource": [
-                "*"
-              ]
-            },
-            {
               "Action": [
                 "s3:Get*"
               ],
               "Effect": "Allow",
-              "Resource": "arn:aws:s3:::placeholder-read-bucket/clusters.example.com/complex.example.com/*"
+              "Resource": "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/complex.example.com/*"
             },
             {
               "Action": [
@@ -1630,7 +1608,7 @@
                 "s3:PutObject"
               ],
               "Effect": "Allow",
-              "Resource": "arn:aws:s3:::placeholder-write-bucket/clusters.example.com/complex.example.com/backups/etcd/main/*"
+              "Resource": "arn:aws-test:s3:::placeholder-write-bucket/clusters.example.com/complex.example.com/backups/etcd/main/*"
             },
             {
               "Action": [
@@ -1640,7 +1618,7 @@
                 "s3:PutObject"
               ],
               "Effect": "Allow",
-              "Resource": "arn:aws:s3:::placeholder-write-bucket/clusters.example.com/complex.example.com/backups/etcd/events/*"
+              "Resource": "arn:aws-test:s3:::placeholder-write-bucket/clusters.example.com/complex.example.com/backups/etcd/events/*"
             },
             {
               "Action": [
@@ -1651,7 +1629,7 @@
               ],
               "Effect": "Allow",
               "Resource": [
-                "arn:aws:s3:::placeholder-read-bucket"
+                "arn:aws-test:s3:::placeholder-read-bucket"
               ]
             },
             {
@@ -1663,7 +1641,7 @@
               ],
               "Effect": "Allow",
               "Resource": [
-                "arn:aws:s3:::placeholder-write-bucket"
+                "arn:aws-test:s3:::placeholder-write-bucket"
               ]
             },
             {
@@ -1674,7 +1652,7 @@
               ],
               "Effect": "Allow",
               "Resource": [
-                "arn:aws:route53:::hostedzone/Z1AFAKE1ZON3YO"
+                "arn:aws-test:route53:::hostedzone/Z1AFAKE1ZON3YO"
               ]
             },
             {
@@ -1683,29 +1661,18 @@
               ],
               "Effect": "Allow",
               "Resource": [
-                "arn:aws:route53:::change/*"
+                "arn:aws-test:route53:::change/*"
               ]
             },
             {
               "Action": [
-                "route53:ListHostedZones"
+                "route53:ListHostedZones",
+                "route53:ListTagsForResource"
               ],
               "Effect": "Allow",
               "Resource": [
                 "*"
               ]
-            },
-            {
-              "Action": [
-                "ec2:CreateVolume"
-              ],
-              "Condition": {
-                "StringEquals": {
-                  "aws:RequestTag/KubernetesCluster": "complex.example.com"
-                }
-              },
-              "Effect": "Allow",
-              "Resource": "*"
             },
             {
               "Action": "ec2:CreateTags",
@@ -1719,8 +1686,24 @@
               },
               "Effect": "Allow",
               "Resource": [
-                "arn:aws:ec2:*:*:volume/*",
-                "arn:aws:ec2:*:*:snapshot/*"
+                "arn:aws-test:ec2:*:*:volume/*",
+                "arn:aws-test:ec2:*:*:snapshot/*"
+              ]
+            },
+            {
+              "Action": "ec2:CreateTags",
+              "Condition": {
+                "StringEquals": {
+                  "ec2:CreateAction": [
+                    "CreateVolume",
+                    "CreateSnapshot"
+                  ]
+                }
+              },
+              "Effect": "Allow",
+              "Resource": [
+                "arn:aws-test:ec2:*:*:volume/*",
+                "arn:aws-test:ec2:*:*:snapshot/*"
               ]
             },
             {
@@ -1732,8 +1715,8 @@
               },
               "Effect": "Allow",
               "Resource": [
-                "arn:aws:ec2:*:*:volume/*",
-                "arn:aws:ec2:*:*:snapshot/*"
+                "arn:aws-test:ec2:*:*:volume/*",
+                "arn:aws-test:ec2:*:*:snapshot/*"
               ]
             },
             {
@@ -1745,7 +1728,9 @@
                 "ec2:CreateSecurityGroup",
                 "ec2:CreateTags",
                 "ec2:DescribeAccountAttributes",
+                "ec2:DescribeInstanceTypes",
                 "ec2:DescribeInstances",
+                "ec2:DescribeLaunchTemplateVersions",
                 "ec2:DescribeRegions",
                 "ec2:DescribeRouteTables",
                 "ec2:DescribeSecurityGroups",
@@ -1754,12 +1739,16 @@
                 "ec2:DescribeVolumes",
                 "ec2:DescribeVolumesModifications",
                 "ec2:DescribeVpcs",
+                "elasticloadbalancing:AddTags",
+                "elasticloadbalancing:CreateListener",
+                "elasticloadbalancing:CreateTargetGroup",
                 "elasticloadbalancing:DescribeListeners",
                 "elasticloadbalancing:DescribeLoadBalancerAttributes",
                 "elasticloadbalancing:DescribeLoadBalancerPolicies",
                 "elasticloadbalancing:DescribeLoadBalancers",
                 "elasticloadbalancing:DescribeTargetGroups",
                 "elasticloadbalancing:DescribeTargetHealth",
+                "elasticloadbalancing:RegisterTargets",
                 "iam:GetServerCertificate",
                 "iam:ListServerCertificates",
                 "kms:DescribeKey",
@@ -1807,6 +1796,24 @@
               },
               "Effect": "Allow",
               "Resource": "*"
+            },
+            {
+              "Action": [
+                "ec2:CreateSecurityGroup",
+                "ec2:CreateVolume",
+                "elasticloadbalancing:CreateListener",
+                "elasticloadbalancing:CreateLoadBalancer",
+                "elasticloadbalancing:CreateLoadBalancerListeners",
+                "elasticloadbalancing:CreateLoadBalancerPolicy",
+                "elasticloadbalancing:CreateTargetGroup"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestTag/KubernetesCluster": "complex.example.com"
+                }
+              },
+              "Effect": "Allow",
+              "Resource": "*"
             }
           ],
           "Version": "2012-10-17"
@@ -1830,10 +1837,10 @@
               ],
               "Effect": "Allow",
               "Resource": [
-                "arn:aws:s3:::placeholder-read-bucket/clusters.example.com/complex.example.com/addons/*",
-                "arn:aws:s3:::placeholder-read-bucket/clusters.example.com/complex.example.com/cluster-completed.spec",
-                "arn:aws:s3:::placeholder-read-bucket/clusters.example.com/complex.example.com/igconfig/node/*",
-                "arn:aws:s3:::placeholder-read-bucket/clusters.example.com/complex.example.com/secrets/dockerconfig"
+                "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/complex.example.com/addons/*",
+                "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/complex.example.com/cluster-completed.spec",
+                "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/complex.example.com/igconfig/node/*",
+                "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/complex.example.com/secrets/dockerconfig"
               ]
             },
             {
@@ -1845,12 +1852,13 @@
               ],
               "Effect": "Allow",
               "Resource": [
-                "arn:aws:s3:::placeholder-read-bucket"
+                "arn:aws-test:s3:::placeholder-read-bucket"
               ]
             },
             {
               "Action": [
                 "autoscaling:DescribeAutoScalingInstances",
+                "ec2:DescribeInstanceTypes",
                 "ec2:DescribeInstances",
                 "iam:GetServerCertificate",
                 "iam:ListServerCertificates",
@@ -1880,7 +1888,7 @@
           ],
           "Version": "2012-10-17"
         },
-        "PermissionsBoundary": "arn:aws:iam:00000000000:policy/boundaries",
+        "PermissionsBoundary": "arn:aws-test:iam::000000000000:policy/boundaries",
         "Tags": [
           {
             "Key": "KubernetesCluster",
@@ -1921,7 +1929,7 @@
           ],
           "Version": "2012-10-17"
         },
-        "PermissionsBoundary": "arn:aws:iam:00000000000:policy/boundaries",
+        "PermissionsBoundary": "arn:aws-test:iam::000000000000:policy/boundaries",
         "Tags": [
           {
             "Key": "KubernetesCluster",

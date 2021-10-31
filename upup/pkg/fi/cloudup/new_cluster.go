@@ -30,10 +30,10 @@ import (
 	"k8s.io/kops"
 	api "k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/apis/kops/model"
-	version "k8s.io/kops/pkg/apis/kops/util"
 	"k8s.io/kops/pkg/client/simple"
 	"k8s.io/kops/pkg/dns"
 	"k8s.io/kops/pkg/featureflag"
+	"k8s.io/kops/pkg/zones"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
@@ -125,6 +125,9 @@ type NewClusterOptions struct {
 	NodeCount int32
 	// Bastion enables the creation of a Bastion instance.
 	Bastion bool
+	// BastionLoadBalancerType is the bastion loadbalancer type to use; "public" or "internal".
+	// Defaults to "public".
+	BastionLoadBalancerType string
 
 	// Networking is the networking provider/node to use.
 	Networking string
@@ -237,7 +240,7 @@ func NewCluster(opt *NewClusterOptions, clientset simple.Clientset) (*NewCluster
 	cluster.Spec.CloudProvider = opt.CloudProvider
 	if cluster.Spec.CloudProvider == "" {
 		for _, zone := range allZones.List() {
-			cloud, known := fi.GuessCloudForZone(zone)
+			cloud, known := zones.GuessCloudForZone(zone)
 			if known {
 				klog.Infof("Inferred %q cloud provider from zone %q", cloud, zone)
 				cluster.Spec.CloudProvider = string(cloud)
@@ -454,10 +457,19 @@ func setupZones(opt *NewClusterOptions, cluster *api.Cluster, allZones sets.Stri
 					Name:   subnetName,
 					Region: region,
 				}
+				if len(opt.SubnetIDs) != 0 {
+					// We don't support multi-region clusters, so we can't have more than one subnet
+					if len(opt.SubnetIDs) != 1 {
+						return nil, fmt.Errorf("expected exactly one subnet for GCE, got %d", len(opt.SubnetIDs))
+					}
+					providerID := opt.SubnetIDs[0]
+					subnet.ProviderID = providerID
+				}
 				cluster.Spec.Subnets = append(cluster.Spec.Subnets, *subnet)
 			}
 			zoneToSubnetMap[zoneName] = subnet
 		}
+
 		return zoneToSubnetMap, nil
 
 	case api.CloudProviderDO:
@@ -622,6 +634,8 @@ func getOpenstackZoneToSubnetProviderID(spec *api.ClusterSpec, zones []string, s
 }
 
 func setupMasters(opt *NewClusterOptions, cluster *api.Cluster, zoneToSubnetMap map[string]*api.ClusterSubnetSpec) ([]*api.InstanceGroup, error) {
+	cloudProvider := api.CloudProviderID(cluster.Spec.CloudProvider)
+
 	var masters []*api.InstanceGroup
 
 	// Build the master subnets
@@ -658,7 +672,7 @@ func setupMasters(opt *NewClusterOptions, cluster *api.Cluster, zoneToSubnetMap 
 		for i := 0; i < int(masterCount); i++ {
 			zone := masterZones[i%len(masterZones)]
 			name := zone
-			if api.CloudProviderID(cluster.Spec.CloudProvider) == api.CloudProviderDO {
+			if cloudProvider == api.CloudProviderDO {
 				if int(masterCount) >= len(masterZones) {
 					name += "-" + strconv.Itoa(1+(i/len(masterZones)))
 				}
@@ -680,14 +694,16 @@ func setupMasters(opt *NewClusterOptions, cluster *api.Cluster, zoneToSubnetMap 
 			}
 
 			g.Spec.Subnets = []string{subnet.Name}
-			if cp := api.CloudProviderID(cluster.Spec.CloudProvider); cp == api.CloudProviderGCE || cp == api.CloudProviderAzure {
+			if cloudProvider == api.CloudProviderGCE || cloudProvider == api.CloudProviderAzure {
 				g.Spec.Zones = []string{zone}
 			}
 
 			if cluster.IsKubernetesGTE("1.22") {
-				g.Spec.InstanceMetadata = &api.InstanceMetadataOptions{
-					HTTPPutResponseHopLimit: fi.Int64(3),
-					HTTPTokens:              fi.String("required"),
+				if cloudProvider == api.CloudProviderAWS {
+					g.Spec.InstanceMetadata = &api.InstanceMetadataOptions{
+						HTTPPutResponseHopLimit: fi.Int64(3),
+						HTTPTokens:              fi.String("required"),
+					}
 				}
 			}
 
@@ -726,7 +742,7 @@ func setupMasters(opt *NewClusterOptions, cluster *api.Cluster, zoneToSubnetMap 
 		encryptEtcdStorage := false
 		if opt.EncryptEtcdStorage != nil {
 			encryptEtcdStorage = fi.BoolValue(opt.EncryptEtcdStorage)
-		} else if api.CloudProviderID(cluster.Spec.CloudProvider) == api.CloudProviderAWS {
+		} else if cloudProvider == api.CloudProviderAWS {
 			encryptEtcdStorage = true
 		}
 		for _, etcdCluster := range clusters {
@@ -769,6 +785,8 @@ func trimCommonPrefix(names []string) []string {
 }
 
 func setupNodes(opt *NewClusterOptions, cluster *api.Cluster, zoneToSubnetMap map[string]*api.ClusterSubnetSpec) ([]*api.InstanceGroup, error) {
+	cloudProvider := api.CloudProviderID(cluster.Spec.CloudProvider)
+
 	var nodes []*api.InstanceGroup
 
 	// The node count is the number of zones unless explicitly set
@@ -801,14 +819,16 @@ func setupNodes(opt *NewClusterOptions, cluster *api.Cluster, zoneToSubnetMap ma
 		}
 
 		g.Spec.Subnets = []string{subnet.Name}
-		if cp := api.CloudProviderID(cluster.Spec.CloudProvider); cp == api.CloudProviderGCE || cp == api.CloudProviderAzure {
+		if cloudProvider == api.CloudProviderGCE || cloudProvider == api.CloudProviderAzure {
 			g.Spec.Zones = []string{zone}
 		}
 
 		if cluster.IsKubernetesGTE("1.22") {
-			g.Spec.InstanceMetadata = &api.InstanceMetadataOptions{
-				HTTPPutResponseHopLimit: fi.Int64(1),
-				HTTPTokens:              fi.String("required"),
+			if cloudProvider == api.CloudProviderAWS {
+				g.Spec.InstanceMetadata = &api.InstanceMetadataOptions{
+					HTTPPutResponseHopLimit: fi.Int64(1),
+					HTTPTokens:              fi.String("required"),
+				}
 			}
 		}
 
@@ -819,6 +839,8 @@ func setupNodes(opt *NewClusterOptions, cluster *api.Cluster, zoneToSubnetMap ma
 }
 
 func setupAPIServers(opt *NewClusterOptions, cluster *api.Cluster, zoneToSubnetMap map[string]*api.ClusterSubnetSpec) ([]*api.InstanceGroup, error) {
+	cloudProvider := api.CloudProviderID(cluster.Spec.CloudProvider)
+
 	var nodes []*api.InstanceGroup
 
 	numZones := len(opt.Zones)
@@ -849,14 +871,16 @@ func setupAPIServers(opt *NewClusterOptions, cluster *api.Cluster, zoneToSubnetM
 		}
 
 		g.Spec.Subnets = []string{subnet.Name}
-		if cp := api.CloudProviderID(cluster.Spec.CloudProvider); cp == api.CloudProviderGCE || cp == api.CloudProviderAzure {
+		if cloudProvider == api.CloudProviderGCE || cloudProvider == api.CloudProviderAzure {
 			g.Spec.Zones = []string{zone}
 		}
 
 		if cluster.IsKubernetesGTE("1.22") {
-			g.Spec.InstanceMetadata = &api.InstanceMetadataOptions{
-				HTTPPutResponseHopLimit: fi.Int64(1),
-				HTTPTokens:              fi.String("required"),
+			if cloudProvider == api.CloudProviderAWS {
+				g.Spec.InstanceMetadata = &api.InstanceMetadataOptions{
+					HTTPPutResponseHopLimit: fi.Int64(1),
+					HTTPTokens:              fi.String("required"),
+				}
 			}
 		}
 
@@ -913,8 +937,6 @@ func setupNetworking(opt *NewClusterOptions, cluster *api.Cluster) error {
 	case "cilium-etcd":
 		addCiliumNetwork(cluster)
 		cluster.Spec.Networking.Cilium.EtcdManaged = true
-	case "lyftvpc":
-		cluster.Spec.Networking.LyftVPC = &api.LyftVPCNetworkingSpec{}
 	case "gce":
 		cluster.Spec.Networking.GCE = &api.GCENetworkingSpec{}
 	default:
@@ -946,6 +968,7 @@ func setupTopology(opt *NewClusterOptions, cluster *api.Cluster, allZones sets.S
 		}
 
 		if opt.IPv6 {
+			cluster.Spec.NonMasqueradeCIDR = "::/0"
 			if api.CloudProviderID(cluster.Spec.CloudProvider) == api.CloudProviderAWS {
 				klog.Warningf("IPv6 support is EXPERIMENTAL and can be changed or removed at any time in the future!!!")
 				for i := range cluster.Spec.Subnets {
@@ -971,8 +994,6 @@ func setupTopology(opt *NewClusterOptions, cluster *api.Cluster, allZones sets.S
 			cluster.Spec.Subnets[i].Type = api.SubnetTypePrivate
 		}
 
-		var utilitySubnets []api.ClusterSubnetSpec
-
 		var zoneToSubnetProviderID map[string]string
 		var err error
 		if len(opt.Zones) > 0 && len(opt.UtilitySubnetIDs) > 0 {
@@ -992,22 +1013,33 @@ func setupTopology(opt *NewClusterOptions, cluster *api.Cluster, allZones sets.S
 			}
 		}
 
-		for _, s := range cluster.Spec.Subnets {
-			if s.Type == api.SubnetTypeUtility {
-				continue
-			}
-			subnet := api.ClusterSubnetSpec{
-				Name:   "utility-" + s.Name,
-				Zone:   s.Zone,
-				Type:   api.SubnetTypeUtility,
-				Region: s.Region,
-			}
-			if subnetID, ok := zoneToSubnetProviderID[s.Zone]; ok {
-				subnet.ProviderID = subnetID
-			}
-			utilitySubnets = append(utilitySubnets, subnet)
+		addUtilitySubnets := true
+		switch api.CloudProviderID(cluster.Spec.CloudProvider) {
+		case api.CloudProviderGCE:
+			// GCE does not need utility subnets
+			addUtilitySubnets = false
 		}
-		cluster.Spec.Subnets = append(cluster.Spec.Subnets, utilitySubnets...)
+
+		if addUtilitySubnets {
+			var utilitySubnets []api.ClusterSubnetSpec
+
+			for _, s := range cluster.Spec.Subnets {
+				if s.Type == api.SubnetTypeUtility {
+					continue
+				}
+				subnet := api.ClusterSubnetSpec{
+					Name:   "utility-" + s.Name,
+					Zone:   s.Zone,
+					Type:   api.SubnetTypeUtility,
+					Region: s.Region,
+				}
+				if subnetID, ok := zoneToSubnetProviderID[s.Zone]; ok {
+					subnet.ProviderID = subnetID
+				}
+				utilitySubnets = append(utilitySubnets, subnet)
+			}
+			cluster.Spec.Subnets = append(cluster.Spec.Subnets, utilitySubnets...)
+		}
 
 		if opt.Bastion {
 			bastionGroup := &api.InstanceGroup{}
@@ -1198,25 +1230,10 @@ func createEtcdCluster(etcdCluster string, masters []*api.InstanceGroup, encrypt
 func addCiliumNetwork(cluster *api.Cluster) {
 	cilium := &api.CiliumNetworkingSpec{}
 	cluster.Spec.Networking.Cilium = cilium
-	nodeport := false
-	if cluster.Spec.KubernetesVersion == "" {
-		nodeport = true
-	} else {
-		k8sVersion, err := version.ParseKubernetesVersion(cluster.Spec.KubernetesVersion)
-		if err == nil {
-			if version.IsKubernetesGTE("1.18", *k8sVersion) {
-				nodeport = true
-			}
-		} else {
-			klog.Error(err.Error())
-		}
+	cilium.EnableNodePort = true
+	if cluster.Spec.KubeProxy == nil {
+		cluster.Spec.KubeProxy = &api.KubeProxyConfig{}
 	}
-	if nodeport {
-		cilium.EnableNodePort = true
-		if cluster.Spec.KubeProxy == nil {
-			cluster.Spec.KubeProxy = &api.KubeProxyConfig{}
-		}
-		enabled := false
-		cluster.Spec.KubeProxy.Enabled = &enabled
-	}
+	enabled := false
+	cluster.Spec.KubeProxy.Enabled = &enabled
 }

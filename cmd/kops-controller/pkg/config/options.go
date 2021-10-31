@@ -16,13 +16,19 @@ limitations under the License.
 
 package config
 
-import "k8s.io/kops/upup/pkg/fi/cloudup/awsup"
+import (
+	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
+	gcetpm "k8s.io/kops/upup/pkg/fi/cloudup/gce/tpm"
+)
 
 type Options struct {
 	Cloud                 string         `json:"cloud,omitempty"`
 	ConfigBase            string         `json:"configBase,omitempty"`
 	Server                *ServerOptions `json:"server,omitempty"`
 	CacheNodeidentityInfo bool           `json:"cacheNodeidentityInfo,omitempty"`
+
+	// EnableCloudIPAM enables the cloud IPAM controller.
+	EnableCloudIPAM bool `json:"enableCloudIPAM,omitempty"`
 }
 
 func (o *Options) PopulateDefaults() {
@@ -49,5 +55,6 @@ type ServerOptions struct {
 }
 
 type ServerProviderOptions struct {
-	AWS *awsup.AWSVerifierOptions `json:"aws,omitempty"`
+	AWS *awsup.AWSVerifierOptions  `json:"aws,omitempty"`
+	GCE *gcetpm.TPMVerifierOptions `json:"gce,omitempty"`
 }

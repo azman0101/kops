@@ -95,15 +95,13 @@ type WeaveNetworkingSpec struct {
 type FlannelNetworkingSpec struct {
 	// Backend is the backend overlay type we want to use (vxlan or udp)
 	Backend string `json:"backend,omitempty"`
-	// DisableTxChecksumOffloading is deprecated as of kOps 1.19 and has no effect.
-	DisableTxChecksumOffloading bool `json:"disableTxChecksumOffloading,omitempty"`
 	// IptablesResyncSeconds sets resync period for iptables rules, in seconds
 	IptablesResyncSeconds *int32 `json:"iptablesResyncSeconds,omitempty"`
 }
 
 // CalicoNetworkingSpec declares that we want Calico networking
 type CalicoNetworkingSpec struct {
-	// Version overrides the Calico container image registry.
+	// Registry overrides the Calico container image registry.
 	Registry string `json:"registry,omitempty"`
 	// Version overrides the Calico container image tag.
 	Version string `json:"version,omitempty"`
@@ -175,8 +173,6 @@ type CalicoNetworkingSpec struct {
 	PrometheusGoMetricsEnabled bool `json:"prometheusGoMetricsEnabled,omitempty"`
 	// PrometheusProcessMetricsEnabled enables Prometheus process metrics collection
 	PrometheusProcessMetricsEnabled bool `json:"prometheusProcessMetricsEnabled,omitempty"`
-	// MajorVersion is deprecated as of kOps 1.20 and has no effect
-	MajorVersion string `json:"majorVersion,omitempty"`
 	// TyphaPrometheusMetricsEnabled enables Prometheus metrics collection from Typha
 	// (default: false)
 	TyphaPrometheusMetricsEnabled bool `json:"typhaPrometheusMetricsEnabled,omitempty"`
@@ -211,8 +207,6 @@ type CanalNetworkingSpec struct {
 	// DisableFlannelForwardRules configures Flannel to NOT add the
 	// default ACCEPT traffic rules to the iptables FORWARD chain
 	DisableFlannelForwardRules bool `json:"disableFlannelForwardRules,omitempty"`
-	// DisableTxChecksumOffloading is deprecated as of kOps 1.19 and has no effect.
-	DisableTxChecksumOffloading bool `json:"disableTxChecksumOffloading,omitempty"`
 	// IptablesBackend controls which variant of iptables binary Felix uses
 	// Default: Auto (other options: Legacy, NFT)
 	IptablesBackend string `json:"iptablesBackend,omitempty"`
@@ -266,6 +260,11 @@ type AmazonVPCNetworkingSpec struct {
 
 const CiliumIpamEni = "eni"
 
+type CiliumEncryptionType string
+
+const CiliumEncryptionTypeIPSec CiliumEncryptionType = "ipsec"
+const CiliumEncryptionTypeWireguard CiliumEncryptionType = "wireguard"
+
 // CiliumNetworkingSpec declares that we want Cilium networking
 type CiliumNetworkingSpec struct {
 	// Version is the version of the Cilium agent and the Cilium Operator.
@@ -276,50 +275,20 @@ type CiliumNetworkingSpec struct {
 	// CPURequest CPU request of Cilium agent + operator container. (default: 25m)
 	CPURequest *resource.Quantity `json:"cpuRequest,omitempty"`
 
-	// AccessLog is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	AccessLog string `json:"accessLog,omitempty"`
-	// AgentLabels is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	AgentLabels []string `json:"agentLabels,omitempty"`
 	// AgentPrometheusPort is the port to listen to for Prometheus metrics.
 	// Defaults to 9090.
 	AgentPrometheusPort int `json:"agentPrometheusPort,omitempty"`
-	// AllowLocalhost is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	AllowLocalhost string `json:"allowLocalhost,omitempty"`
-	// AutoIpv6NodeRoutes is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	AutoIpv6NodeRoutes bool `json:"autoIpv6NodeRoutes,omitempty"`
-	// BPFRoot is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	BPFRoot string `json:"bpfRoot,omitempty"`
-	// ContainerRuntime is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	ContainerRuntime []string `json:"containerRuntime,omitempty"`
-	// ContainerRuntimeEndpoint is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	ContainerRuntimeEndpoint map[string]string `json:"containerRuntimeEndpoint,omitempty"`
+	// ChainingMode allows using Cilium in combination with other CNI plugins.
+	// With Cilium CNI chaining, the base network connectivity and IP address management is managed
+	// by the non-Cilium CNI plugin, but Cilium attaches eBPF programs to the network devices created
+	// by the non-Cilium plugin to provide L3/L4 network visibility, policy enforcement and other advanced features.
+	// Default: none
+	ChainingMode string `json:"chainingMode,omitempty"`
 	// Debug runs Cilium in debug mode.
 	Debug bool `json:"debug,omitempty"`
-	// DebugVerbose is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	DebugVerbose []string `json:"debugVerbose,omitempty"`
-	// Device is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Device string `json:"device,omitempty"`
-	// DisableConntrack is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	DisableConntrack bool `json:"disableConntrack,omitempty"`
 	// DisableEndpointCRD disables usage of CiliumEndpoint CRD.
 	// Default: false
 	DisableEndpointCRD bool `json:"disableEndpointCRD,omitempty"`
-	// DisableIpv4 is deprecated: Use EnableIpv4 instead.
-	// Setting this flag has no effect.
-	DisableIpv4 bool `json:"disableIpv4,omitempty"`
-	// DisableK8sServices is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	DisableK8sServices bool `json:"disableK8sServices,omitempty"`
 	// EnablePolicy specifies the policy enforcement mode.
 	// "default": Follows Kubernetes policy enforcement.
 	// "always": Cilium restricts all traffic if no policy is in place.
@@ -335,124 +304,28 @@ type CiliumNetworkingSpec struct {
 	// EnableEndpointHealthChecking enables connectivity health checking between virtual endpoints.
 	// Default: true
 	EnableEndpointHealthChecking *bool `json:"enableEndpointHealthChecking,omitempty"`
-	// EnableTracing is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	EnableTracing bool `json:"enableTracing,omitempty"`
 	// EnablePrometheusMetrics enables the Cilium "/metrics" endpoint for both the agent and the operator.
 	EnablePrometheusMetrics bool `json:"enablePrometheusMetrics,omitempty"`
 	// EnableEncryption enables Cilium Encryption.
 	// Default: false
 	EnableEncryption bool `json:"enableEncryption,omitempty"`
-	// EnvoyLog is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	EnvoyLog string `json:"envoyLog,omitempty"`
+	// EncryptionType specifies Cilium Encryption method ("ipsec", "wireguard").
+	// Default: ipsec
+	EncryptionType CiliumEncryptionType `json:"encryptionType,omitempty"`
 	// IdentityAllocationMode specifies in which backend identities are stored ("crd", "kvstore").
 	// Default: crd
 	IdentityAllocationMode string `json:"identityAllocationMode,omitempty"`
 	// IdentityChangeGracePeriod specifies the duration to wait before using a changed identity.
 	// Default: 5s
 	IdentityChangeGracePeriod string `json:"identityChangeGracePeriod,omitempty"`
-	// Ipv4ClusterCIDRMaskSize is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Ipv4ClusterCIDRMaskSize int `json:"ipv4ClusterCidrMaskSize,omitempty"`
-	// Ipv4Node is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Ipv4Node string `json:"ipv4Node,omitempty"`
-	// Ipv4Range is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Ipv4Range string `json:"ipv4Range,omitempty"`
-	// Ipv4ServiceRange is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Ipv4ServiceRange string `json:"ipv4ServiceRange,omitempty"`
-	// Ipv6ClusterAllocCidr is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Ipv6ClusterAllocCidr string `json:"ipv6ClusterAllocCidr,omitempty"`
-	// Ipv6Node is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Ipv6Node string `json:"ipv6Node,omitempty"`
-	// Ipv6Range is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Ipv6Range string `json:"ipv6Range,omitempty"`
-	// Ipv6ServiceRange is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Ipv6ServiceRange string `json:"ipv6ServiceRange,omitempty"`
-	// K8sAPIServer is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	K8sAPIServer string `json:"k8sApiServer,omitempty"`
-	// K8sKubeconfigPath is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	K8sKubeconfigPath string `json:"k8sKubeconfigPath,omitempty"`
-	// KeepBPFTemplates is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	KeepBPFTemplates bool `json:"keepBpfTemplates,omitempty"`
-	// KeepConfig is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	KeepConfig bool `json:"keepConfig,omitempty"`
-	// LabelPrefixFile is not implemented and may be removed in the future.
-	// Setting this has currently no effect
-	LabelPrefixFile string `json:"labelPrefixFile,omitempty"`
-	// Labels is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Labels []string `json:"labels,omitempty"`
-	// LB is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	LB string `json:"lb,omitempty"`
-	// LibDir is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	LibDir string `json:"libDir,omitempty"`
-	// LogDrivers is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	LogDrivers []string `json:"logDriver,omitempty"`
-	// LogOpt is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	LogOpt map[string]string `json:"logOpt,omitempty"`
-	// Logstash is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Logstash bool `json:"logstash,omitempty"`
-	// LogstashAgent is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	LogstashAgent string `json:"logstashAgent,omitempty"`
-	// LogstashProbeTimer is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	LogstashProbeTimer uint32 `json:"logstashProbeTimer,omitempty"`
 	// DisableMasquerade disables masquerading traffic to external destinations behind the node IP.
 	DisableMasquerade *bool `json:"disableMasquerade,omitempty"`
-	// Nat6Range is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Nat46Range string `json:"nat46Range,omitempty"`
-	// Pprof is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Pprof bool `json:"pprof,omitempty"`
-	// PrefilterDevice is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	PrefilterDevice string `json:"prefilterDevice,omitempty"`
-	// PrometheusServeAddr is deprecated. Use EnablePrometheusMetrics and AgentPrometheusPort instead.
-	// Setting this has no effect.
-	PrometheusServeAddr string `json:"prometheusServeAddr,omitempty"`
-	// Restore is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	Restore bool `json:"restore,omitempty"`
-	// SingleClusterRoute is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	SingleClusterRoute bool `json:"singleClusterRoute,omitempty"`
-	// SocketPath is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	SocketPath string `json:"socketPath,omitempty"`
-	// StateDir is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	StateDir string `json:"stateDir,omitempty"`
-	// TracePayloadLen is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	TracePayloadLen int `json:"tracePayloadlen,omitempty"`
+	// AgentPodAnnotations makes possible to add additional annotations to cilium agent.
+	// Default: none
+	AgentPodAnnotations map[string]string `json:"agentPodAnnotations,omitempty"`
 	// Tunnel specifies the Cilium tunnelling mode. Possible values are "vxlan", "geneve", or "disabled".
 	// Default: vxlan
 	Tunnel string `json:"tunnel,omitempty"`
-	// EnableIpv6 is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	EnableIpv6 bool `json:"enableipv6,omitempty"`
-	// EnableIpv4 is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	EnableIpv4 bool `json:"enableipv4,omitempty"`
 	// MonitorAggregation sets the level of packet monitoring. Possible values are "low", "medium", or "maximum".
 	// Default: medium
 	MonitorAggregation string `json:"monitorAggregation,omitempty"`
@@ -480,6 +353,11 @@ type CiliumNetworkingSpec struct {
 	// BPFLBMapMax is the maximum number of entries in bpf lb service, backend and affinity maps.
 	// Default: 65536
 	BPFLBMapMax int `json:"bpfLBMapMax,omitempty"`
+	// BPFLBSockHostNSOnly enables skipping socket LB for services when inside a pod namespace,
+	// in favor of service LB at the pod interface. Socket LB is still used when in the host namespace.
+	// Required by service mesh (e.g., Istio, Linkerd).
+	// Default: false
+	BPFLBSockHostNSOnly bool `json:"bpfLBSockHostNSOnly,omitempty"`
 	// PreallocateBPFMaps reduces the per-packet latency at the expense of up-front memory allocation.
 	// Default: true
 	PreallocateBPFMaps bool `json:"preallocateBPFMaps,omitempty"`
@@ -497,19 +375,13 @@ type CiliumNetworkingSpec struct {
 	// with the less powerful legacy implementation.
 	// Default: false
 	ToFqdnsEnablePoller bool `json:"toFqdnsEnablePoller,omitempty"`
-	// ContainerRuntimeLabels enables fetching of container-runtime labels from the specified container runtime and associating them with endpoints.
-	// Supported values are: "none", "containerd", "crio", "docker", "auto"
-	// As of Cilium 1.7.0, Cilium no longer fetches information from the
-	// container runtime and this field is ignored.
-	// Default: none
-	ContainerRuntimeLabels string `json:"containerRuntimeLabels,omitempty"`
 	// Ipam specifies the IP address allocation mode to use.
 	// Possible values are "crd" and "eni".
 	// "eni" will use AWS native networking for pods. Eni requires masquerade to be set to false.
 	// "crd" will use CRDs for controlling IP address management.
 	// "hostscope" will use hostscope IPAM mode.
 	// "kubernetes" will use addersing based on node pod CIDR.
-	// Empty value will use hostscope for cilum <= 1.7 and "kubernetes" otherwise.
+	// Default: "kubernetes".
 	Ipam string `json:"ipam,omitempty"`
 	// IPTablesRulesNoinstall disables installing the base IPTables rules used for masquerading and kube-proxy.
 	// Default: false
@@ -530,27 +402,14 @@ type CiliumNetworkingSpec struct {
 	// The cluster is operated by cilium-etcd-operator.
 	// Default: false
 	EtcdManaged bool `json:"etcdManaged,omitempty"`
-	// EnableRemoteNodeIdentity enables the remote-node-identity added in Cilium 1.7.0.
+	// EnableRemoteNodeIdentity enables the remote-node-identity.
 	// Default: true
 	EnableRemoteNodeIdentity *bool `json:"enableRemoteNodeIdentity,omitempty"`
 	// Hubble configures the Hubble service on the Cilium agent.
 	Hubble *HubbleSpec `json:"hubble,omitempty"`
 
-	// RemoveCbrBridge is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	RemoveCbrBridge bool `json:"removeCbrBridge,omitempty"`
-	// RestartPods is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	RestartPods bool `json:"restartPods,omitempty"`
-	// ReconfigureKubelet is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	ReconfigureKubelet bool `json:"reconfigureKubelet,omitempty"`
-	// NodeInitBootstrapFile is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	NodeInitBootstrapFile string `json:"nodeInitBootstrapFile,omitempty"`
-	// CniBinPath is not implemented and may be removed in the future.
-	// Setting this has no effect.
-	CniBinPath string `json:"cniBinPath,omitempty"`
+	// DisableCNPStatusUpdates determines if CNP NodeStatus updates will be sent to the Kubernetes api-server.
+	DisableCNPStatusUpdates *bool `json:"disableCNPStatusUpdates,omitempty"`
 }
 
 // HubbleSpec configures the Hubble service on the Cilium agent.
@@ -564,6 +423,7 @@ type HubbleSpec struct {
 }
 
 // LyftVPCNetworkingSpec declares that we want to use the cni-ipvlan-vpc-k8s CNI networking.
+// Lyft VPC is deprecated as of kOps 1.22 and removed as of kOps 1.23.
 type LyftVPCNetworkingSpec struct {
 	SubnetTags map[string]string `json:"subnetTags,omitempty"`
 }

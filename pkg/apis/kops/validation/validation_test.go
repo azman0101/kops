@@ -444,7 +444,6 @@ func Test_Validate_AdditionalPolicies(t *testing.T) {
 					},
 				},
 			},
-			IAM: &kops.IAMSpec{},
 		}
 		errs := validateClusterSpec(clusterSpec, &kops.Cluster{Spec: *clusterSpec}, field.NewPath("spec"))
 		testErrors(t, g.Input, errs, g.ExpectedErrors)
@@ -452,8 +451,8 @@ func Test_Validate_AdditionalPolicies(t *testing.T) {
 }
 
 type caliInput struct {
-	Calico *kops.CalicoNetworkingSpec
-	Etcd   kops.EtcdClusterSpec
+	Cluster *kops.ClusterSpec
+	Calico  *kops.CalicoNetworkingSpec
 }
 
 func Test_Validate_Calico(t *testing.T) {
@@ -466,7 +465,6 @@ func Test_Validate_Calico(t *testing.T) {
 			Description: "empty specs",
 			Input: caliInput{
 				Calico: &kops.CalicoNetworkingSpec{},
-				Etcd:   kops.EtcdClusterSpec{},
 			},
 		},
 		{
@@ -475,7 +473,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					TyphaReplicas: 3,
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
@@ -484,7 +481,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					TyphaReplicas: -1,
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 			ExpectedErrors: []string{"Invalid value::calico.typhaReplicas"},
 		},
@@ -492,9 +488,6 @@ func Test_Validate_Calico(t *testing.T) {
 			Description: "with etcd version",
 			Input: caliInput{
 				Calico: &kops.CalicoNetworkingSpec{},
-				Etcd: kops.EtcdClusterSpec{
-					Version: "3.2.18",
-				},
 			},
 		},
 		{
@@ -503,7 +496,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPv4AutoDetectionMethod: "first-found",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
@@ -512,7 +504,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPv6AutoDetectionMethod: "first-found",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
@@ -521,7 +512,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPv4AutoDetectionMethod: "can-reach=8.8.8.8",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
@@ -530,7 +520,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPv6AutoDetectionMethod: "can-reach=2001:4860:4860::8888",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
@@ -539,7 +528,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPv4AutoDetectionMethod: "bogus",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 			ExpectedErrors: []string{"Invalid value::calico.ipv4AutoDetectionMethod"},
 		},
@@ -549,7 +537,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPv6AutoDetectionMethod: "bogus",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 			ExpectedErrors: []string{"Invalid value::calico.ipv6AutoDetectionMethod"},
 		},
@@ -559,7 +546,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPv6AutoDetectionMethod: "interface=",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 			ExpectedErrors: []string{"Invalid value::calico.ipv6AutoDetectionMethod"},
 		},
@@ -569,7 +555,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPv4AutoDetectionMethod: "interface=en.*,eth0",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
@@ -578,7 +563,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPv6AutoDetectionMethod: "skip-interface=en.*,eth0",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
@@ -587,7 +571,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPv4AutoDetectionMethod: "interface=(,en1",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 			ExpectedErrors: []string{"Invalid value::calico.ipv4AutoDetectionMethod"},
 		},
@@ -597,7 +580,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPv4AutoDetectionMethod: "interface=foo=bar",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 			ExpectedErrors: []string{"Invalid value::calico.ipv4AutoDetectionMethod"},
 		},
@@ -607,7 +589,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPv4AutoDetectionMethod: "=en0,eth.*",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 			ExpectedErrors: []string{"Invalid value::calico.ipv4AutoDetectionMethod"},
 		},
@@ -617,7 +598,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					AWSSrcDstCheck: "off",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 			ExpectedErrors: []string{"Unsupported value::calico.awsSrcDstCheck"},
 		},
@@ -627,7 +607,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					AWSSrcDstCheck: "Enable",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
@@ -636,7 +615,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					AWSSrcDstCheck: "Disable",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
@@ -645,18 +623,43 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					AWSSrcDstCheck: "DoNothing",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
-			Description: "unknown Calico encapsulation mode",
+			Description: "encapsulation none with IPv4",
 			Input: caliInput{
-				Calico: &kops.CalicoNetworkingSpec{
-					EncapsulationMode: "None",
+				Cluster: &kops.ClusterSpec{
+					NonMasqueradeCIDR: "100.64.0.0/10",
 				},
-				Etcd: kops.EtcdClusterSpec{},
+				Calico: &kops.CalicoNetworkingSpec{
+					EncapsulationMode: "none",
+				},
 			},
-			ExpectedErrors: []string{"Unsupported value::calico.encapsulationMode"},
+			ExpectedErrors: []string{"Forbidden::calico.encapsulationMode"},
+		},
+		{
+			Description: "encapsulation mode IPIP for IPv6",
+			Input: caliInput{
+				Cluster: &kops.ClusterSpec{
+					NonMasqueradeCIDR: "::/0",
+				},
+				Calico: &kops.CalicoNetworkingSpec{
+					EncapsulationMode: "ipip",
+				},
+			},
+			ExpectedErrors: []string{"Forbidden::calico.encapsulationMode"},
+		},
+		{
+			Description: "encapsulation mode VXLAN for IPv6",
+			Input: caliInput{
+				Cluster: &kops.ClusterSpec{
+					NonMasqueradeCIDR: "::/0",
+				},
+				Calico: &kops.CalicoNetworkingSpec{
+					EncapsulationMode: "vxlan",
+				},
+			},
+			ExpectedErrors: []string{"Forbidden::calico.encapsulationMode"},
 		},
 		{
 			Description: "unknown Calico IPIP mode",
@@ -664,7 +667,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPIPMode: "unknown",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 			ExpectedErrors: []string{"Unsupported value::calico.ipipMode"},
 		},
@@ -676,7 +678,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPIPMode: "Always",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
@@ -685,7 +686,6 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPIPMode: "CrossSubnet",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
@@ -694,87 +694,113 @@ func Test_Validate_Calico(t *testing.T) {
 				Calico: &kops.CalicoNetworkingSpec{
 					IPIPMode: "Never",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
 			Description: "Calico IPIP encapsulation mode (explicit) with IPIP IPPool mode (always)",
 			Input: caliInput{
+				Cluster: &kops.ClusterSpec{
+					NonMasqueradeCIDR: "100.64.0.0/10",
+				},
 				Calico: &kops.CalicoNetworkingSpec{
 					EncapsulationMode: "ipip",
 					IPIPMode:          "Always",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
 			Description: "Calico IPIP encapsulation mode (explicit) with IPIP IPPool mode (cross-subnet)",
 			Input: caliInput{
+				Cluster: &kops.ClusterSpec{
+					NonMasqueradeCIDR: "100.64.0.0/10",
+				},
 				Calico: &kops.CalicoNetworkingSpec{
 					EncapsulationMode: "ipip",
 					IPIPMode:          "CrossSubnet",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
 			Description: "Calico IPIP encapsulation mode (explicit) with IPIP IPPool mode (never)",
 			Input: caliInput{
+				Cluster: &kops.ClusterSpec{
+					NonMasqueradeCIDR: "100.64.0.0/10",
+				},
 				Calico: &kops.CalicoNetworkingSpec{
 					EncapsulationMode: "ipip",
 					IPIPMode:          "Never",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 		},
 		{
 			Description: "Calico VXLAN encapsulation mode with IPIP IPPool mode",
 			Input: caliInput{
+				Cluster: &kops.ClusterSpec{
+					NonMasqueradeCIDR: "100.64.0.0/10",
+				},
 				Calico: &kops.CalicoNetworkingSpec{
 					EncapsulationMode: "vxlan",
 					IPIPMode:          "Always",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 			ExpectedErrors: []string{`Forbidden::calico.ipipMode`},
 		},
 		{
 			Description: "Calico VXLAN encapsulation mode with IPIP IPPool mode (always)",
 			Input: caliInput{
+				Cluster: &kops.ClusterSpec{
+					NonMasqueradeCIDR: "100.64.0.0/10",
+				},
 				Calico: &kops.CalicoNetworkingSpec{
 					EncapsulationMode: "vxlan",
 					IPIPMode:          "Always",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 			ExpectedErrors: []string{`Forbidden::calico.ipipMode`},
 		},
 		{
 			Description: "Calico VXLAN encapsulation mode with IPIP IPPool mode (cross-subnet)",
 			Input: caliInput{
+				Cluster: &kops.ClusterSpec{
+					NonMasqueradeCIDR: "100.64.0.0/10",
+				},
 				Calico: &kops.CalicoNetworkingSpec{
 					EncapsulationMode: "vxlan",
 					IPIPMode:          "CrossSubnet",
 				},
-				Etcd: kops.EtcdClusterSpec{},
 			},
 			ExpectedErrors: []string{`Forbidden::calico.ipipMode`},
 		},
 		{
 			Description: "Calico VXLAN encapsulation mode with IPIP IPPool mode (never)",
 			Input: caliInput{
+				Cluster: &kops.ClusterSpec{
+					NonMasqueradeCIDR: "100.64.0.0/10",
+				},
 				Calico: &kops.CalicoNetworkingSpec{
 					EncapsulationMode: "vxlan",
 					IPIPMode:          "Never",
 				},
-				Etcd: kops.EtcdClusterSpec{},
+			},
+		},
+		{
+			Description: "Calico IPv6 without encapsulation",
+			Input: caliInput{
+				Cluster: &kops.ClusterSpec{
+					NonMasqueradeCIDR: "::/0",
+				},
+				Calico: &kops.CalicoNetworkingSpec{
+					EncapsulationMode: "none",
+					IPIPMode:          "Never",
+					VXLANMode:         "Never",
+				},
 			},
 		},
 	}
 	rootFieldPath := field.NewPath("calico")
 	for _, g := range grid {
 		t.Run(g.Description, func(t *testing.T) {
-			errs := validateNetworkingCalico(g.Input.Calico, g.Input.Etcd, rootFieldPath)
+			errs := validateNetworkingCalico(g.Input.Cluster, g.Input.Calico, rootFieldPath)
 			testErrors(t, g.Input, errs, g.ExpectedErrors)
 		})
 	}
@@ -1310,4 +1336,52 @@ func TestValidateSAExternalPermissions(t *testing.T) {
 		})
 	}
 
+}
+
+func Test_Validate_Nvdia(t *testing.T) {
+
+	grid := []struct {
+		Input          kops.ClusterSpec
+		ExpectedErrors []string
+	}{
+		{
+			Input: kops.ClusterSpec{
+				Containerd: &kops.ContainerdConfig{
+					NvidiaGPU: &kops.NvidiaGPUConfig{
+						Enabled: fi.Bool(true),
+					},
+				},
+				CloudProvider:    "aws",
+				ContainerRuntime: "containerd",
+			},
+		},
+		{
+			Input: kops.ClusterSpec{
+				Containerd: &kops.ContainerdConfig{
+					NvidiaGPU: &kops.NvidiaGPUConfig{
+						Enabled: fi.Bool(true),
+					},
+				},
+				CloudProvider:    "gce",
+				ContainerRuntime: "containerd",
+			},
+			ExpectedErrors: []string{"Forbidden::containerd.nvidiaGPU"},
+		},
+		{
+			Input: kops.ClusterSpec{
+				Containerd: &kops.ContainerdConfig{
+					NvidiaGPU: &kops.NvidiaGPUConfig{
+						Enabled: fi.Bool(true),
+					},
+				},
+				CloudProvider:    "aws",
+				ContainerRuntime: "docker",
+			},
+			ExpectedErrors: []string{"Forbidden::containerd.nvidiaGPU"},
+		},
+	}
+	for _, g := range grid {
+		errs := validateNvidiaConfig(&g.Input, g.Input.Containerd.NvidiaGPU, field.NewPath("containerd", "nvidiaGPU"))
+		testErrors(t, g.Input, errs, g.ExpectedErrors)
+	}
 }

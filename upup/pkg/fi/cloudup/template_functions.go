@@ -54,7 +54,9 @@ import (
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
+	gcetpm "k8s.io/kops/upup/pkg/fi/cloudup/gce/tpm"
 	"k8s.io/kops/util/pkg/env"
+	"sigs.k8s.io/yaml"
 )
 
 // TemplateFunctions provides a collection of methods used throughout the templates
@@ -70,11 +72,10 @@ type TemplateFunctions struct {
 func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretStore) (err error) {
 	cluster := tf.Cluster
 
-	dest["EtcdScheme"] = tf.EtcdScheme
 	dest["SharedVPC"] = tf.SharedVPC
 	dest["ToJSON"] = tf.ToJSON
+	dest["ToYAML"] = tf.ToYAML
 	dest["UseBootstrapTokens"] = tf.UseBootstrapTokens
-	dest["UseEtcdTLS"] = tf.UseEtcdTLS
 	// Remember that we may be on a different arch from the target.  Hard-code for now.
 	dest["replace"] = func(s, find, replace string) string {
 		return strings.Replace(s, find, replace, -1)
@@ -84,8 +85,11 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 	}
 
 	sprigTxtFuncMap := sprig.TxtFuncMap()
+	dest["nindent"] = sprigTxtFuncMap["nindent"]
 	dest["indent"] = sprigTxtFuncMap["indent"]
 	dest["contains"] = sprigTxtFuncMap["contains"]
+	dest["trimPrefix"] = sprigTxtFuncMap["trimPrefix"]
+	dest["semverCompare"] = sprigTxtFuncMap["semverCompare"]
 
 	dest["ClusterName"] = tf.ClusterName
 	dest["WithDefaultBool"] = func(v *bool, defaultValue bool) bool {
@@ -99,6 +103,7 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 	dest["GetNodeInstanceGroups"] = tf.GetNodeInstanceGroups
 	dest["HasHighlyAvailableControlPlane"] = tf.HasHighlyAvailableControlPlane
 	dest["ControlPlaneControllerReplicas"] = tf.ControlPlaneControllerReplicas
+	dest["APIServerNodeRole"] = tf.APIServerNodeRole
 
 	dest["CloudTags"] = tf.CloudTagsForInstanceGroup
 	dest["KubeDNS"] = func() *kops.KubeDNSConfig {
@@ -128,7 +133,6 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 
 	// will return openstack external ccm image location for current kubernetes version
 	dest["OpenStackCCMTag"] = tf.OpenStackCCMTag
-	dest["AWSCCMTag"] = tf.AWSCCMTag
 	dest["ProxyEnv"] = tf.ProxyEnv
 
 	dest["KopsSystemEnv"] = tf.KopsSystemEnv
@@ -170,6 +174,9 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 			}
 			if c.IPIPMode != "" {
 				return c.IPIPMode
+			}
+			if kops.CloudProviderID(cluster.Spec.CloudProvider) == kops.CloudProviderOpenstack {
+				return "Always"
 			}
 			return "CrossSubnet"
 		}
@@ -234,7 +241,7 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 	}
 
 	dest["IsIPv6Only"] = tf.IsIPv6Only
-	dest["UseServiceAccountIAM"] = tf.UseServiceAccountIAM
+	dest["UseServiceAccountExternalPermissions"] = tf.UseServiceAccountExternalPermissions
 
 	if cluster.Spec.NodeTerminationHandler != nil {
 		dest["DefaultQueueName"] = func() string {
@@ -263,13 +270,14 @@ func (tf *TemplateFunctions) ToJSON(data interface{}) string {
 	return string(encoded)
 }
 
-// EtcdScheme parses and grabs the protocol to the etcd cluster
-func (tf *TemplateFunctions) EtcdScheme() string {
-	if tf.UseEtcdTLS() {
-		return "https"
+// ToYAML returns a yaml representation of the struct or on error an empty string
+func (tf *TemplateFunctions) ToYAML(data interface{}) string {
+	encoded, err := yaml.Marshal(data)
+	if err != nil {
+		return ""
 	}
 
-	return "http"
+	return string(encoded)
 }
 
 // SharedVPC is a simple helper function which makes the templates for a shared VPC clearer
@@ -293,6 +301,13 @@ func (tf *TemplateFunctions) ControlPlaneControllerReplicas() int {
 		return 2
 	}
 	return 1
+}
+
+func (tf *TemplateFunctions) APIServerNodeRole() string {
+	if featureflag.APIServerNodes.Enabled() {
+		return "node-role.kubernetes.io/api-server"
+	}
+	return "node-role.kubernetes.io/master"
 }
 
 // HasHighlyAvailableControlPlane returns true of the cluster has more than one control plane node. False otherwise.
@@ -353,6 +368,8 @@ func (tf *TemplateFunctions) CloudControllerConfigArgv() ([]string, error) {
 	} else {
 		argv = append(argv, fmt.Sprintf("--use-service-account-credentials=%t", true))
 	}
+
+	argv = append(argv, "--cloud-config=/etc/kubernetes/cloud.config")
 
 	return argv, nil
 }
@@ -461,6 +478,13 @@ func (tf *TemplateFunctions) DNSControllerArgv() ([]string, error) {
 			argv = append(argv, "--zone=*/"+zone)
 		}
 	}
+
+	if cluster.Spec.IsIPv6Only() {
+		argv = append(argv, "--internal-ipv6")
+	} else {
+		argv = append(argv, "--internal-ipv4")
+	}
+
 	// permit wildcard updates
 	argv = append(argv, "--zone=*/*")
 	// Verbose, but not crazy logging
@@ -537,9 +561,23 @@ func (tf *TemplateFunctions) KopsControllerConfig() (string, error) {
 				NodesRoles: nodesRoles.List(),
 				Region:     tf.Region,
 			}
+
+		case kops.CloudProviderGCE:
+			c := tf.cloud.(gce.GCECloud)
+
+			config.Server.Provider.GCE = &gcetpm.TPMVerifierOptions{
+				ProjectID:   c.Project(),
+				ClusterName: tf.ClusterName(),
+				Region:      tf.Region,
+				MaxTimeSkew: 300,
+			}
 		default:
 			return "", fmt.Errorf("unsupported cloud provider %s", cluster.Spec.CloudProvider)
 		}
+	}
+
+	if tf.Cluster.Spec.IsKopsControllerIPAM() {
+		config.EnableCloudIPAM = true
 	}
 
 	// To avoid indentation problems, we marshal as json.  json is a subset of yaml
@@ -567,6 +605,7 @@ func (tf *TemplateFunctions) KopsControllerArgv() ([]string, error) {
 
 func (tf *TemplateFunctions) ExternalDNSArgv() ([]string, error) {
 	cluster := tf.Cluster
+	externalDNS := tf.Cluster.Spec.ExternalDNS
 
 	var argv []string
 
@@ -583,7 +622,19 @@ func (tf *TemplateFunctions) ExternalDNSArgv() ([]string, error) {
 		return nil, fmt.Errorf("unhandled cloudprovider %q", cluster.Spec.CloudProvider)
 	}
 
-	argv = append(argv, "--source=ingress")
+	argv = append(argv, "--events")
+	if fi.BoolValue(externalDNS.WatchIngress) {
+		argv = append(argv, "--source=ingress")
+	}
+	argv = append(argv, "--source=pod")
+	argv = append(argv, "--source=service")
+	argv = append(argv, "--compatibility=kops-dns-controller")
+	argv = append(argv, "--registry=txt")
+	argv = append(argv, "--txt-owner-id=kops-"+tf.ClusterName())
+	argv = append(argv, "--zone-id-filter="+tf.Cluster.Spec.DNSZone)
+	if externalDNS.WatchNamespace != "" {
+		argv = append(argv, "--namespace="+externalDNS.WatchNamespace)
+	}
 
 	return argv, nil
 }
@@ -639,28 +690,6 @@ func (tf *TemplateFunctions) OpenStackCCMTag() string {
 		}
 	}
 	return tag
-}
-
-// AWSCCMTag returns the correct tag for the cloud controller manager based on
-// the Kubernetes Version
-func (tf *TemplateFunctions) AWSCCMTag() (string, error) {
-	var tag string
-	parsed, err := util.ParseKubernetesVersion(tf.Cluster.Spec.KubernetesVersion)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse Kubernetes version from cluster spec: %q", err)
-	}
-
-	// Update when we have stable releases
-	switch parsed.Minor {
-	case 18:
-		tag = "v1.18.0-alpha.1"
-	case 19:
-		tag = "v1.19.0-alpha.1"
-	default:
-		tag = "latest"
-	}
-
-	return tag, nil
 }
 
 // GetNodeInstanceGroups returns a map containing the defined instance groups of role "Node".

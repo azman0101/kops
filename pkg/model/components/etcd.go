@@ -17,14 +17,9 @@ limitations under the License.
 package components
 
 import (
-	"fmt"
-	"strings"
-
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi/loader"
 )
-
-const DefaultBackupImage = "k8s.gcr.io/etcdadm/etcd-backup:3.0.20210707"
 
 // EtcdOptionsBuilder adds options for etcd to the model
 type EtcdOptionsBuilder struct {
@@ -45,10 +40,6 @@ func (b *EtcdOptionsBuilder) BuildOptions(o interface{}) error {
 
 	for i := range spec.EtcdClusters {
 		c := &spec.EtcdClusters[i]
-		if c.Provider == "" {
-			c.Provider = kops.EtcdProviderTypeManager
-		}
-
 		// Ensure the version is set
 		if c.Version == "" {
 			// We run the k8s-recommended versions of etcd
@@ -58,55 +49,6 @@ func (b *EtcdOptionsBuilder) BuildOptions(o interface{}) error {
 				c.Version = DefaultEtcd3Version_1_19
 			} else {
 				c.Version = DefaultEtcd3Version_1_17
-			}
-		}
-
-		// We make sure that etcd v3 is used
-		version := strings.TrimPrefix(c.Version, "v")
-		if !strings.HasPrefix(version, "3.") {
-			return fmt.Errorf("unexpected etcd version %q", c.Version)
-		}
-
-		// We enable TLS if we're running EtcdManager
-		if c.Provider == kops.EtcdProviderTypeManager {
-			c.EnableEtcdTLS = true
-			c.EnableTLSAuth = true
-		}
-
-		// We remap the etcd manager image when we build the manifest,
-		// but we need to map the standalone images here because protokube launches them
-		if c.Provider == kops.EtcdProviderTypeLegacy {
-
-			// remap etcd image
-			{
-				image := c.Image
-				if image == "" {
-					image = fmt.Sprintf("k8s.gcr.io/etcd:%s", c.Version)
-				}
-
-				if image != "" {
-					image, err := b.AssetBuilder.RemapImage(image)
-					if err != nil {
-						return fmt.Errorf("unable to remap container %q: %v", image, err)
-					}
-					c.Image = image
-				}
-			}
-
-			// remap backup manager image
-			if c.Backups != nil {
-				image := c.Backups.Image
-				if image == "" {
-					image = DefaultBackupImage
-				}
-
-				if image != "" {
-					image, err := b.AssetBuilder.RemapImage(image)
-					if err != nil {
-						return fmt.Errorf("unable to remap container %q: %v", image, err)
-					}
-					c.Backups.Image = image
-				}
 			}
 		}
 	}

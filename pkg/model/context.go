@@ -24,7 +24,7 @@ import (
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/apis/kops/model"
 	"k8s.io/kops/pkg/apis/kops/util"
-	"k8s.io/kops/pkg/featureflag"
+	"k8s.io/kops/pkg/dns"
 	"k8s.io/kops/pkg/model/components"
 	"k8s.io/kops/pkg/model/iam"
 	nodeidentityaws "k8s.io/kops/pkg/nodeidentity/aws"
@@ -311,28 +311,6 @@ func (b *KopsModelContext) UseNetworkLoadBalancer() bool {
 	return b.Cluster.Spec.API.LoadBalancer.Class == kops.LoadBalancerClassNetwork
 }
 
-// UseEtcdManager checks to see if etcd manager is enabled
-func (b *KopsModelContext) UseEtcdManager() bool {
-	for _, x := range b.Cluster.Spec.EtcdClusters {
-		if x.Provider == kops.EtcdProviderTypeManager {
-			return true
-		}
-	}
-
-	return false
-}
-
-// UseEtcdTLS checks to see if etcd tls is enabled
-func (b *KopsModelContext) UseEtcdTLS() bool {
-	for _, x := range b.Cluster.Spec.EtcdClusters {
-		if x.EnableEtcdTLS {
-			return true
-		}
-	}
-
-	return false
-}
-
 // UseSSHKey returns true if SSHKeyName from the cluster spec is set to a nonempty string
 // or there is an SSH public key provisioned in the key store.
 func (b *KopsModelContext) UseSSHKey() bool {
@@ -414,7 +392,24 @@ func (b *KopsModelContext) NodePortRange() (utilnet.PortRange, error) {
 	return defaultServiceNodePortRange, nil
 }
 
-// UseServiceAccountIAM returns true if we are using service-account bound IAM roles.
-func (b *KopsModelContext) UseServiceAccountIAM() bool {
-	return featureflag.UseServiceAccountIAM.Enabled()
+// UseServiceAccountExternalPermissions returns true if we are using service-account bound IAM roles.
+func (b *KopsModelContext) UseServiceAccountExternalPermissions() bool {
+
+	return b.Cluster.Spec.IAM != nil &&
+		fi.BoolValue(b.Cluster.Spec.IAM.UseServiceAccountExternalPermissions)
+}
+
+// NetworkingIsCalico returns true if we are using calico networking
+func (b *KopsModelContext) NetworkingIsCalico() bool {
+	return b.Cluster.Spec.Networking != nil && b.Cluster.Spec.Networking.Calico != nil
+}
+
+// NetworkingIsCilium returns true if we are using cilium networking
+func (b *KopsModelContext) NetworkingIsCilium() bool {
+	return b.Cluster.Spec.Networking != nil && b.Cluster.Spec.Networking.Cilium != nil
+}
+
+// IsGossip returns true if we are using gossip instead of "real" DNS
+func (b *KopsModelContext) IsGossip() bool {
+	return dns.IsGossipHostname(b.Cluster.Name)
 }

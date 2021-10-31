@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"k8s.io/kops/pkg/apis/nodeup"
+	"k8s.io/kops/pkg/bootstrap"
 	"k8s.io/kops/pkg/pki"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup"
@@ -135,7 +136,7 @@ func (b *BootstrapClientTask) Run(c *fi.Context) error {
 
 type KopsBootstrapClient struct {
 	// Authenticator generates authentication credentials for requests.
-	Authenticator fi.Authenticator
+	Authenticator bootstrap.Authenticator
 	// CAs are the CA certificates for kops-controller.
 	CAs []byte
 
@@ -166,12 +167,8 @@ func (b *KopsBootstrapClient) QueryBootstrap(ctx context.Context, req *nodeup.Bo
 			return nil, fi.NewTryAgainLaterError(fmt.Sprintf("kops-controller DNS not setup yet (not found: %v)", dnsErr))
 		}
 		return nil, err
-	} else {
-		for _, ip := range ips {
-			if ip.String() == cloudup.PlaceholderIP {
-				return nil, fi.NewTryAgainLaterError(fmt.Sprintf("kops-controller DNS not setup yet (placeholder IP found: %v)", ips))
-			}
-		}
+	} else if len(ips) == 1 && (ips[0].String() == cloudup.PlaceholderIP || ips[0].String() == cloudup.PlaceholderIPv6) {
+		return nil, fi.NewTryAgainLaterError(fmt.Sprintf("kops-controller DNS not setup yet (placeholder IP found: %v)", ips))
 	}
 
 	reqBytes, err := json.Marshal(req)

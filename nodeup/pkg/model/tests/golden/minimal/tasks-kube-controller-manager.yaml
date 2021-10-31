@@ -2,8 +2,6 @@ contents: |
   apiVersion: v1
   kind: Pod
   metadata:
-    annotations:
-      scheduler.alpha.kubernetes.io/critical-pod: ""
     creationTimestamp: null
     labels:
       k8s-app: kube-controller-manager
@@ -12,17 +10,20 @@ contents: |
   spec:
     containers:
     - args:
+      - --log-file=/var/log/kube-controller-manager.log
+      - /usr/local/bin/kube-controller-manager
       - --allocate-node-cidrs=true
       - --attach-detach-reconcile-sync-period=1m0s
       - --authentication-kubeconfig=/var/lib/kube-controller-manager/kubeconfig
       - --authorization-kubeconfig=/var/lib/kube-controller-manager/kubeconfig
-      - --cloud-config=/etc/kubernetes/cloud.config
+      - --cloud-config=/etc/kubernetes/in-tree-cloud.config
       - --cloud-provider=aws
       - --cluster-cidr=100.96.0.0/11
       - --cluster-name=minimal.example.com
       - --cluster-signing-cert-file=/srv/kubernetes/kube-controller-manager/ca.crt
       - --cluster-signing-key-file=/srv/kubernetes/kube-controller-manager/ca.key
       - --configure-cloud-routes=true
+      - --feature-gates=CSIMigrationAWS=true
       - --flex-volume-plugin-dir=/usr/libexec/kubernetes/kubelet-plugins/volume/exec/
       - --kubeconfig=/var/lib/kube-controller-manager/kubeconfig
       - --leader-elect=true
@@ -32,12 +33,9 @@ contents: |
       - --tls-private-key-file=/srv/kubernetes/kube-controller-manager/server.key
       - --use-service-account-credentials=true
       - --v=2
-      - --logtostderr=false
-      - --alsologtostderr
-      - --log-file=/var/log/kube-controller-manager.log
       command:
-      - /usr/local/bin/kube-controller-manager
-      image: k8s.gcr.io/kube-controller-manager:v1.18.0
+      - /go-runner
+      image: k8s.gcr.io/kube-controller-manager:v1.23.0
       livenessProbe:
         httpGet:
           host: 127.0.0.1
@@ -80,7 +78,7 @@ contents: |
       - mountPath: /etc/openssl
         name: etcopenssl
         readOnly: true
-      - mountPath: /etc/kubernetes/cloud.config
+      - mountPath: /etc/kubernetes/in-tree-cloud.config
         name: cloudconfig
         readOnly: true
       - mountPath: /srv/kubernetes/ca.crt
@@ -131,7 +129,7 @@ contents: |
         path: /etc/openssl
       name: etcopenssl
     - hostPath:
-        path: /etc/kubernetes/cloud.config
+        path: /etc/kubernetes/in-tree-cloud.config
       name: cloudconfig
     - hostPath:
         path: /srv/kubernetes/ca.crt

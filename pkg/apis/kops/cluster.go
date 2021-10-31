@@ -19,6 +19,7 @@ package kops
 import (
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -208,10 +209,8 @@ type ClusterSpec struct {
 	ClusterAutoscaler *ClusterAutoscalerConfig `json:"clusterAutoscaler,omitempty"`
 	// WarmPool defines the default warm pool settings for instance groups (AWS only).
 	WarmPool *WarmPoolSpec `json:"warmPool,omitempty"`
-
 	// ServiceAccountIssuerDiscovery configures the OIDC Issuer for ServiceAccounts.
 	ServiceAccountIssuerDiscovery *ServiceAccountIssuerDiscoveryConfig `json:"serviceAccountIssuerDiscovery,omitempty"`
-
 	// SnapshotController defines the CSI Snapshot Controller configuration.
 	SnapshotController *SnapshotControllerConfig `json:"snapshotController,omitempty"`
 }
@@ -222,6 +221,8 @@ type ServiceAccountIssuerDiscoveryConfig struct {
 	DiscoveryStore string `json:"discoveryStore,omitempty"`
 	// EnableAWSOIDCProvider will provision an AWS OIDC provider that trusts the ServiceAccount Issuer
 	EnableAWSOIDCProvider bool `json:"enableAWSOIDCProvider,omitempty"`
+	// AdditionalAudiences adds user defined audiences to the provisioned AWS OIDC provider
+	AdditionalAudiences []string `json:"additionalAudiences,omitempty"`
 }
 
 // ServiceAccountExternalPermissions grants a ServiceAccount permissions to external resources.
@@ -300,11 +301,13 @@ type Assets struct {
 
 // IAMSpec adds control over the IAM security policies applied to resources
 type IAMSpec struct {
-	// TODO: remove Legacy in next APIVersion
 	Legacy                 bool    `json:"legacy"`
 	AllowContainerRegistry bool    `json:"allowContainerRegistry,omitempty"`
 	PermissionsBoundary    *string `json:"permissionsBoundary,omitempty"`
-	// ServiceAccountExternalPermissions defines the relatinship between Kubernetes ServiceAccounts and permissions with external resources.
+	// UseServiceAccountExternalPermissions determines if managed ServiceAccounts will use external permissions directly.
+	// If this is set to false, ServiceAccounts will assume external permissions from the instances they run on.
+	UseServiceAccountExternalPermissions *bool `json:"useServiceAccountExternalPermissions,omitempty"`
+	// ServiceAccountExternalPermissions defines the relationship between Kubernetes ServiceAccounts and permissions with external resources.
 	ServiceAccountExternalPermissions []ServiceAccountExternalPermission `json:"serviceAccountExternalPermissions,omitempty"`
 }
 
@@ -367,6 +370,17 @@ type AwsAuthenticationSpec struct {
 	MemoryLimit *resource.Quantity `json:"memoryLimit,omitempty"`
 	// CPULimit CPU limit of AWS IAM Authenticator container. Default 10m
 	CPULimit *resource.Quantity `json:"cpuLimit,omitempty"`
+	// IdentityMappings maps IAM Identities to Kubernetes users/groups
+	IdentityMappings []AwsAuthenticationIdentityMappingSpec `json:"identityMappings,omitempty"`
+}
+
+type AwsAuthenticationIdentityMappingSpec struct {
+	// Arn of the IAM User or IAM Role to be allowed to authenticate
+	ARN string `json:"arn,omitempty"`
+	// Username that Kubernetes will see the user as
+	Username string `json:"username,omitempty"`
+	// Groups to be attached to your users/roles
+	Groups []string `json:"groups,omitempty"`
 }
 
 type AuthorizationSpec struct {
@@ -411,6 +425,15 @@ const (
 	LoadBalancerClassNetwork LoadBalancerClass = "Network"
 )
 
+type AccessLogSpec struct {
+	// Interval is the publishing interval in minutes. This parameter is only used with classic load balancer.
+	Interval int `json:"interval,omitempty"`
+	// Bucket is the S3 bucket name to store the logs in.
+	Bucket string `json:"bucket,omitempty"`
+	// BucketPrefix is the S3 bucket prefix. Logs are stored in the root if not configured.
+	BucketPrefix string `json:"bucketPrefix,omitempty"`
+}
+
 var SupportedLoadBalancerClasses = []string{
 	string(LoadBalancerClassClassic),
 	string(LoadBalancerClassNetwork),
@@ -448,6 +471,8 @@ type LoadBalancerAccessSpec struct {
 	CrossZoneLoadBalancing *bool `json:"crossZoneLoadBalancing,omitempty"`
 	// Subnets allows you to specify the subnets that must be used for the load balancer
 	Subnets []LoadBalancerSubnetSpec `json:"subnets,omitempty"`
+	// AccessLog is the configuration of access logs.
+	AccessLog *AccessLogSpec `json:"accessLog,omitempty"`
 }
 
 // KubeDNSConfig defines the kube dns configuration
@@ -456,6 +481,10 @@ type KubeDNSConfig struct {
 	CacheMaxSize int `json:"cacheMaxSize,omitempty"`
 	// CacheMaxConcurrent is the maximum number of concurrent queries for dnsmasq
 	CacheMaxConcurrent int `json:"cacheMaxConcurrent,omitempty"`
+	// Tolerations	are tolerations to apply to the kube-dns deployment
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// Affinity is the kube-dns affinity, uses the same syntax as kubectl's affinity
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// CoreDNSImage is used to override the default image used for CoreDNS
 	CoreDNSImage string `json:"coreDNSImage,omitempty"`
 	// CPAImage is used to override the default image used for Cluster Proportional Autoscaler
@@ -488,8 +517,10 @@ type KubeDNSConfig struct {
 
 // NodeLocalDNSConfig are options of the node-local-dns
 type NodeLocalDNSConfig struct {
-	// Enabled activates the node-local-dns addon
+	// Enabled activates the node-local-dns addon.
 	Enabled *bool `json:"enabled,omitempty"`
+	// Image overrides the default docker image used for node-local-dns addon.
+	Image *string `json:"image,omitempty"`
 	// Local listen IP address. It can be any IP in the 169.254.20.0/16 space or any other IP address that can be guaranteed to not collide with any existing IP.
 	LocalIP string `json:"localIP,omitempty"`
 	// If enabled, nodelocal dns will use kubedns as a default upstream
@@ -500,6 +531,13 @@ type NodeLocalDNSConfig struct {
 	CPURequest *resource.Quantity `json:"cpuRequest,omitempty"`
 }
 
+type ExternalDNSProvider string
+
+const (
+	ExternalDNSProviderDNSController ExternalDNSProvider = "dns-controller"
+	ExternalDNSProviderExternalDNS   ExternalDNSProvider = "external-dns"
+)
+
 // ExternalDNSConfig are options of the dns-controller
 type ExternalDNSConfig struct {
 	// Disable indicates we do not wish to run the dns-controller addon
@@ -508,6 +546,10 @@ type ExternalDNSConfig struct {
 	WatchIngress *bool `json:"watchIngress,omitempty"`
 	// WatchNamespace is namespace to watch, defaults to all (use to control whom can creates dns entries)
 	WatchNamespace string `json:"watchNamespace,omitempty"`
+	// Provider determines which implementation of ExternalDNS to use.
+	// 'dns-controller' will use kOps DNS Controller.
+	// 'external-dns' will use kubernetes-sigs/external-dns.
+	Provider ExternalDNSProvider `json:"provider,omitempty"`
 }
 
 // EtcdProviderType describes etcd cluster provisioning types (Standalone, Manager)
@@ -515,13 +557,7 @@ type EtcdProviderType string
 
 const (
 	EtcdProviderTypeManager EtcdProviderType = "Manager"
-	EtcdProviderTypeLegacy  EtcdProviderType = "Legacy"
 )
-
-var SupportedEtcdProviderTypes = []string{
-	string(EtcdProviderTypeManager),
-	string(EtcdProviderTypeLegacy),
-}
 
 // EtcdClusterSpec is the etcd cluster specification
 type EtcdClusterSpec struct {
@@ -532,10 +568,6 @@ type EtcdClusterSpec struct {
 	Provider EtcdProviderType `json:"provider,omitempty"`
 	// Members stores the configurations for each member of the cluster (including the data volume)
 	Members []EtcdMemberSpec `json:"etcdMembers,omitempty"`
-	// EnableEtcdTLS indicates the etcd service should use TLS between peers and clients
-	EnableEtcdTLS bool `json:"enableEtcdTLS,omitempty"`
-	// EnableTLSAuth indicates client and peer TLS auth should be enforced
-	EnableTLSAuth bool `json:"enableTLSAuth,omitempty"`
 	// Version is the version of etcd to run.
 	Version string `json:"version,omitempty"`
 	// LeaderElectionTimeout is the time (in milliseconds) for an etcd leader election timeout
@@ -669,8 +701,10 @@ func (t *TargetSpec) IsEmpty() bool {
 
 // TerraformSpec allows us to specify terraform config in an extensible way
 type TerraformSpec struct {
-	// ProviderExtraConfig contains key/value pairs to add to the rendered terraform "provider" block
+	// ProviderExtraConfig contains key/value pairs to add to the main terraform provider block
 	ProviderExtraConfig *map[string]string `json:"providerExtraConfig,omitempty"`
+	// FilesProviderExtraConfig contains key/value pairs to add to the terraform provider block used for managed files
+	FilesProviderExtraConfig *map[string]string `json:"filesProviderExtraConfig,omitempty"`
 }
 
 func (t *TerraformSpec) IsEmpty() bool {
@@ -736,8 +770,6 @@ func (c *Cluster) fillClusterSpecNetworkingSpec() {
 		// OK
 	} else if c.Spec.Networking.Cilium != nil {
 		// OK
-	} else if c.Spec.Networking.LyftVPC != nil {
-		// OK
 	} else if c.Spec.Networking.GCE != nil {
 		// OK
 	} else {
@@ -798,6 +830,10 @@ func (c *Cluster) IsSharedAzureRouteTable() bool {
 
 func (c *ClusterSpec) IsIPv6Only() bool {
 	return utils.IsIPv6CIDR(c.NonMasqueradeCIDR)
+}
+
+func (c *ClusterSpec) IsKopsControllerIPAM() bool {
+	return c.IsIPv6Only()
 }
 
 // EnvVar represents an environment variable present in a Container.

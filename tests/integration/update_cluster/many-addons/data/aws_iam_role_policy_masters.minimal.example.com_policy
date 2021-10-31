@@ -14,47 +14,11 @@
       ]
     },
     {
-      "Action": "ec2:CreateTags",
-      "Condition": {
-        "StringEquals": {
-          "ec2:CreateAction": [
-            "CreateVolume",
-            "CreateSnapshot"
-          ]
-        }
-      },
-      "Effect": "Allow",
-      "Resource": [
-        "arn:aws:ec2:*:*:volume/*",
-        "arn:aws:ec2:*:*:snapshot/*"
-      ]
-    },
-    {
-      "Action": [
-        "elasticloadbalancing:CreateLoadBalancer",
-        "elasticloadbalancing:CreateLoadBalancerPolicy",
-        "elasticloadbalancing:CreateLoadBalancerListeners",
-        "ec2:CreateSecurityGroup",
-        "ec2:CreateVolume",
-        "elasticloadbalancing:CreateListener",
-        "elasticloadbalancing:CreateTargetGroup"
-      ],
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestTag/KubernetesCluster": "minimal.example.com"
-        }
-      },
-      "Effect": "Allow",
-      "Resource": [
-        "*"
-      ]
-    },
-    {
       "Action": [
         "s3:Get*"
       ],
       "Effect": "Allow",
-      "Resource": "arn:aws:s3:::placeholder-read-bucket/clusters.example.com/minimal.example.com/*"
+      "Resource": "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/minimal.example.com/*"
     },
     {
       "Action": [
@@ -64,7 +28,7 @@
         "s3:PutObject"
       ],
       "Effect": "Allow",
-      "Resource": "arn:aws:s3:::placeholder-write-bucket/clusters.example.com/minimal.example.com/backups/etcd/main/*"
+      "Resource": "arn:aws-test:s3:::placeholder-write-bucket/clusters.example.com/minimal.example.com/backups/etcd/main/*"
     },
     {
       "Action": [
@@ -74,7 +38,7 @@
         "s3:PutObject"
       ],
       "Effect": "Allow",
-      "Resource": "arn:aws:s3:::placeholder-write-bucket/clusters.example.com/minimal.example.com/backups/etcd/events/*"
+      "Resource": "arn:aws-test:s3:::placeholder-write-bucket/clusters.example.com/minimal.example.com/backups/etcd/events/*"
     },
     {
       "Action": [
@@ -85,7 +49,7 @@
       ],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:s3:::placeholder-read-bucket"
+        "arn:aws-test:s3:::placeholder-read-bucket"
       ]
     },
     {
@@ -97,7 +61,7 @@
       ],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:s3:::placeholder-write-bucket"
+        "arn:aws-test:s3:::placeholder-write-bucket"
       ]
     },
     {
@@ -108,7 +72,7 @@
       ],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:route53:::hostedzone/Z1AFAKE1ZON3YO"
+        "arn:aws-test:route53:::hostedzone/Z1AFAKE1ZON3YO"
       ]
     },
     {
@@ -117,29 +81,18 @@
       ],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:route53:::change/*"
+        "arn:aws-test:route53:::change/*"
       ]
     },
     {
       "Action": [
-        "route53:ListHostedZones"
+        "route53:ListHostedZones",
+        "route53:ListTagsForResource"
       ],
       "Effect": "Allow",
       "Resource": [
         "*"
       ]
-    },
-    {
-      "Action": [
-        "ec2:CreateVolume"
-      ],
-      "Condition": {
-        "StringEquals": {
-          "aws:RequestTag/KubernetesCluster": "minimal.example.com"
-        }
-      },
-      "Effect": "Allow",
-      "Resource": "*"
     },
     {
       "Action": "ec2:CreateTags",
@@ -153,8 +106,24 @@
       },
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:ec2:*:*:volume/*",
-        "arn:aws:ec2:*:*:snapshot/*"
+        "arn:aws-test:ec2:*:*:volume/*",
+        "arn:aws-test:ec2:*:*:snapshot/*"
+      ]
+    },
+    {
+      "Action": "ec2:CreateTags",
+      "Condition": {
+        "StringEquals": {
+          "ec2:CreateAction": [
+            "CreateVolume",
+            "CreateSnapshot"
+          ]
+        }
+      },
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws-test:ec2:*:*:volume/*",
+        "arn:aws-test:ec2:*:*:snapshot/*"
       ]
     },
     {
@@ -166,28 +135,9 @@
       },
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:ec2:*:*:volume/*",
-        "arn:aws:ec2:*:*:snapshot/*"
+        "arn:aws-test:ec2:*:*:volume/*",
+        "arn:aws-test:ec2:*:*:snapshot/*"
       ]
-    },
-    {
-      "Action": [
-        "ec2:AuthorizeSecurityGroupIngress",
-        "ec2:DeleteSecurityGroup",
-        "ec2:RevokeSecurityGroupIngress",
-        "elasticloadbalancing:ModifyTargetGroupAttributes",
-        "elasticloadbalancing:ModifyRule",
-        "elasticloadbalancing:DeleteRule",
-        "elasticloadbalancing:AddTags",
-        "elasticloadbalancing:RemoveTags"
-      ],
-      "Condition": {
-        "StringEquals": {
-          "aws:ResourceTag/elbv2.k8s.aws/cluster": "minimal.example.com"
-        }
-      },
-      "Effect": "Allow",
-      "Resource": "*"
     },
     {
       "Action": [
@@ -195,11 +145,13 @@
       ],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:ec2:*:*:network-interface/*"
+        "arn:aws-test:ec2:*:*:network-interface/*"
       ]
     },
     {
       "Action": [
+        "acm:DescribeCertificate",
+        "acm:ListCertificates",
         "autoscaling:DescribeAutoScalingGroups",
         "autoscaling:DescribeAutoScalingInstances",
         "autoscaling:DescribeLaunchConfigurations",
@@ -215,6 +167,7 @@
         "ec2:DescribeAvailabilityZones",
         "ec2:DescribeInstanceTypes",
         "ec2:DescribeInstances",
+        "ec2:DescribeLaunchTemplateVersions",
         "ec2:DescribeNetworkInterfaces",
         "ec2:DescribeRegions",
         "ec2:DescribeRouteTables",
@@ -228,7 +181,10 @@
         "ec2:DetachNetworkInterface",
         "ec2:ModifyNetworkInterfaceAttribute",
         "ec2:UnassignPrivateIpAddresses",
+        "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:CreateListener",
         "elasticloadbalancing:CreateRule",
+        "elasticloadbalancing:CreateTargetGroup",
         "elasticloadbalancing:DescribeListenerCertificates",
         "elasticloadbalancing:DescribeListeners",
         "elasticloadbalancing:DescribeLoadBalancerAttributes",
@@ -239,6 +195,7 @@
         "elasticloadbalancing:DescribeTargetGroupAttributes",
         "elasticloadbalancing:DescribeTargetGroups",
         "elasticloadbalancing:DescribeTargetHealth",
+        "elasticloadbalancing:RegisterTargets",
         "iam:GetServerCertificate",
         "iam:ListServerCertificates",
         "kms:DescribeKey",
@@ -268,21 +225,43 @@
         "elasticloadbalancing:DeleteListener",
         "elasticloadbalancing:DeleteLoadBalancer",
         "elasticloadbalancing:DeleteLoadBalancerListeners",
+        "elasticloadbalancing:DeleteRule",
         "elasticloadbalancing:DeleteTargetGroup",
         "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
         "elasticloadbalancing:DeregisterTargets",
         "elasticloadbalancing:DetachLoadBalancerFromSubnets",
         "elasticloadbalancing:ModifyListener",
         "elasticloadbalancing:ModifyLoadBalancerAttributes",
+        "elasticloadbalancing:ModifyRule",
         "elasticloadbalancing:ModifyTargetGroup",
+        "elasticloadbalancing:ModifyTargetGroupAttributes",
         "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
         "elasticloadbalancing:RegisterTargets",
+        "elasticloadbalancing:RemoveTags",
         "elasticloadbalancing:SetLoadBalancerPoliciesForBackendServer",
         "elasticloadbalancing:SetLoadBalancerPoliciesOfListener"
       ],
       "Condition": {
         "StringEquals": {
           "aws:ResourceTag/KubernetesCluster": "minimal.example.com"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "*"
+    },
+    {
+      "Action": [
+        "ec2:CreateSecurityGroup",
+        "ec2:CreateVolume",
+        "elasticloadbalancing:CreateListener",
+        "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:CreateLoadBalancerListeners",
+        "elasticloadbalancing:CreateLoadBalancerPolicy",
+        "elasticloadbalancing:CreateTargetGroup"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/KubernetesCluster": "minimal.example.com"
         }
       },
       "Effect": "Allow",

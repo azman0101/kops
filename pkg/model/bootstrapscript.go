@@ -204,6 +204,10 @@ func (b *BootstrapScript) buildEnvironmentVariables(cluster *kops.Cluster) (map[
 
 	if kops.CloudProviderID(cluster.Spec.CloudProvider) == kops.CloudProviderAzure {
 		env["AZURE_STORAGE_ACCOUNT"] = os.Getenv("AZURE_STORAGE_ACCOUNT")
+		azureEnv := os.Getenv("AZURE_ENVIRONMENT")
+		if azureEnv != "" {
+			env["AZURE_ENVIRONMENT"] = os.Getenv("AZURE_ENVIRONMENT")
+		}
 	}
 
 	return env, nil
@@ -225,10 +229,7 @@ func (b *BootstrapScriptBuilder) ResourceNodeUp(c *fi.ModelBuilderContext, ig *k
 		keypairs = append(keypairs, "etcd-client-cilium")
 	}
 	if ig.HasAPIServer() {
-		keypairs = append(keypairs, "apiserver-aggregator-ca", "service-account")
-		if b.UseEtcdManager() {
-			keypairs = append(keypairs, "etcd-clients-ca")
-		}
+		keypairs = append(keypairs, "apiserver-aggregator-ca", "service-account", "etcd-clients-ca")
 	} else if !model.UseKopsControllerForNodeBootstrap(b.Cluster) {
 		keypairs = append(keypairs, "kubelet", "kube-proxy")
 		if b.Cluster.Spec.Networking.Kuberouter != nil {

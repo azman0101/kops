@@ -21,10 +21,16 @@ provider "google" {
   region  = "us-test1"
 }
 
+provider "aws" {
+  alias  = "files"
+  region = "us-test-1"
+}
+
 resource "aws_s3_bucket_object" "cluster-completed-spec" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_cluster-completed.spec_content")
   key                    = "tests/minimal-gce-private.example.com/cluster-completed.spec"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -32,6 +38,7 @@ resource "aws_s3_bucket_object" "etcd-cluster-spec-events" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_etcd-cluster-spec-events_content")
   key                    = "tests/minimal-gce-private.example.com/backups/etcd/events/control/etcd-cluster-spec"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -39,6 +46,7 @@ resource "aws_s3_bucket_object" "etcd-cluster-spec-main" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_etcd-cluster-spec-main_content")
   key                    = "tests/minimal-gce-private.example.com/backups/etcd/main/control/etcd-cluster-spec"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -46,6 +54,7 @@ resource "aws_s3_bucket_object" "kops-version-txt" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_kops-version.txt_content")
   key                    = "tests/minimal-gce-private.example.com/kops-version.txt"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -53,6 +62,7 @@ resource "aws_s3_bucket_object" "manifests-etcdmanager-events" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_manifests-etcdmanager-events_content")
   key                    = "tests/minimal-gce-private.example.com/manifests/etcd/events.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -60,6 +70,7 @@ resource "aws_s3_bucket_object" "manifests-etcdmanager-main" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_manifests-etcdmanager-main_content")
   key                    = "tests/minimal-gce-private.example.com/manifests/etcd/main.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -67,6 +78,7 @@ resource "aws_s3_bucket_object" "manifests-static-kube-apiserver-healthcheck" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_manifests-static-kube-apiserver-healthcheck_content")
   key                    = "tests/minimal-gce-private.example.com/manifests/static/kube-apiserver-healthcheck.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -74,6 +86,7 @@ resource "aws_s3_bucket_object" "minimal-gce-private-example-com-addons-bootstra
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal-gce-private.example.com-addons-bootstrap_content")
   key                    = "tests/minimal-gce-private.example.com/addons/bootstrap-channel.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -81,6 +94,7 @@ resource "aws_s3_bucket_object" "minimal-gce-private-example-com-addons-core-add
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal-gce-private.example.com-addons-core.addons.k8s.io_content")
   key                    = "tests/minimal-gce-private.example.com/addons/core.addons.k8s.io/v1.4.0.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -88,6 +102,7 @@ resource "aws_s3_bucket_object" "minimal-gce-private-example-com-addons-coredns-
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal-gce-private.example.com-addons-coredns.addons.k8s.io-k8s-1.12_content")
   key                    = "tests/minimal-gce-private.example.com/addons/coredns.addons.k8s.io/k8s-1.12.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -95,6 +110,7 @@ resource "aws_s3_bucket_object" "minimal-gce-private-example-com-addons-dns-cont
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal-gce-private.example.com-addons-dns-controller.addons.k8s.io-k8s-1.12_content")
   key                    = "tests/minimal-gce-private.example.com/addons/dns-controller.addons.k8s.io/k8s-1.12.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -102,6 +118,7 @@ resource "aws_s3_bucket_object" "minimal-gce-private-example-com-addons-kops-con
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal-gce-private.example.com-addons-kops-controller.addons.k8s.io-k8s-1.16_content")
   key                    = "tests/minimal-gce-private.example.com/addons/kops-controller.addons.k8s.io/k8s-1.16.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -109,6 +126,7 @@ resource "aws_s3_bucket_object" "minimal-gce-private-example-com-addons-kubelet-
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal-gce-private.example.com-addons-kubelet-api.rbac.addons.k8s.io-k8s-1.9_content")
   key                    = "tests/minimal-gce-private.example.com/addons/kubelet-api.rbac.addons.k8s.io/k8s-1.9.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -116,6 +134,7 @@ resource "aws_s3_bucket_object" "minimal-gce-private-example-com-addons-limit-ra
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal-gce-private.example.com-addons-limit-range.addons.k8s.io_content")
   key                    = "tests/minimal-gce-private.example.com/addons/limit-range.addons.k8s.io/v1.5.0.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -123,6 +142,7 @@ resource "aws_s3_bucket_object" "minimal-gce-private-example-com-addons-metadata
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal-gce-private.example.com-addons-metadata-proxy.addons.k8s.io-v0.1.12_content")
   key                    = "tests/minimal-gce-private.example.com/addons/metadata-proxy.addons.k8s.io/v0.1.12.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -130,6 +150,7 @@ resource "aws_s3_bucket_object" "minimal-gce-private-example-com-addons-rbac-add
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal-gce-private.example.com-addons-rbac.addons.k8s.io-k8s-1.8_content")
   key                    = "tests/minimal-gce-private.example.com/addons/rbac.addons.k8s.io/k8s-1.8.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -137,6 +158,7 @@ resource "aws_s3_bucket_object" "minimal-gce-private-example-com-addons-storage-
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_minimal-gce-private.example.com-addons-storage-gce.addons.k8s.io-v1.7.0_content")
   key                    = "tests/minimal-gce-private.example.com/addons/storage-gce.addons.k8s.io/v1.7.0.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -144,6 +166,7 @@ resource "aws_s3_bucket_object" "nodeupconfig-master-us-test1-a" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_nodeupconfig-master-us-test1-a_content")
   key                    = "tests/minimal-gce-private.example.com/igconfig/master/master-us-test1-a/nodeupconfig.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -151,6 +174,7 @@ resource "aws_s3_bucket_object" "nodeupconfig-nodes" {
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_nodeupconfig-nodes_content")
   key                    = "tests/minimal-gce-private.example.com/igconfig/node/nodes/nodeupconfig.yaml"
+  provider               = aws.files
   server_side_encryption = "AES256"
 }
 
@@ -178,44 +202,16 @@ resource "google_compute_disk" "d1-etcd-main-minimal-gce-private-example-com" {
   zone = "us-test1-a"
 }
 
-resource "google_compute_firewall" "cidr-to-master-minimal-gce-private-example-com" {
+resource "google_compute_firewall" "kubernetes-master-https-ipv6-minimal-gce-private-example-com" {
   allow {
     ports    = ["443"]
     protocol = "tcp"
   }
-  allow {
-    ports    = ["4194"]
-    protocol = "tcp"
-  }
-  name          = "cidr-to-master-minimal-gce-private-example-com"
-  network       = google_compute_network.default.name
-  source_ranges = ["100.64.0.0/10"]
+  disabled      = true
+  name          = "kubernetes-master-https-ipv6-minimal-gce-private-example-com"
+  network       = google_compute_network.minimal-gce-private-example-com.name
+  source_ranges = ["::/0"]
   target_tags   = ["minimal-gce-private-example-com-k8s-io-role-master"]
-}
-
-resource "google_compute_firewall" "cidr-to-node-minimal-gce-private-example-com" {
-  allow {
-    protocol = "tcp"
-  }
-  allow {
-    protocol = "udp"
-  }
-  allow {
-    protocol = "icmp"
-  }
-  allow {
-    protocol = "esp"
-  }
-  allow {
-    protocol = "ah"
-  }
-  allow {
-    protocol = "sctp"
-  }
-  name          = "cidr-to-node-minimal-gce-private-example-com"
-  network       = google_compute_network.default.name
-  source_ranges = ["100.64.0.0/10"]
-  target_tags   = ["minimal-gce-private-example-com-k8s-io-role-node"]
 }
 
 resource "google_compute_firewall" "kubernetes-master-https-minimal-gce-private-example-com" {
@@ -223,8 +219,9 @@ resource "google_compute_firewall" "kubernetes-master-https-minimal-gce-private-
     ports    = ["443"]
     protocol = "tcp"
   }
+  disabled      = false
   name          = "kubernetes-master-https-minimal-gce-private-example-com"
-  network       = google_compute_network.default.name
+  network       = google_compute_network.minimal-gce-private-example-com.name
   source_ranges = ["0.0.0.0/0"]
   target_tags   = ["minimal-gce-private-example-com-k8s-io-role-master"]
 }
@@ -248,8 +245,9 @@ resource "google_compute_firewall" "master-to-master-minimal-gce-private-example
   allow {
     protocol = "sctp"
   }
+  disabled    = false
   name        = "master-to-master-minimal-gce-private-example-com"
-  network     = google_compute_network.default.name
+  network     = google_compute_network.minimal-gce-private-example-com.name
   source_tags = ["minimal-gce-private-example-com-k8s-io-role-master"]
   target_tags = ["minimal-gce-private-example-com-k8s-io-role-master"]
 }
@@ -273,8 +271,9 @@ resource "google_compute_firewall" "master-to-node-minimal-gce-private-example-c
   allow {
     protocol = "sctp"
   }
+  disabled    = false
   name        = "master-to-node-minimal-gce-private-example-com"
-  network     = google_compute_network.default.name
+  network     = google_compute_network.minimal-gce-private-example-com.name
   source_tags = ["minimal-gce-private-example-com-k8s-io-role-master"]
   target_tags = ["minimal-gce-private-example-com-k8s-io-role-node"]
 }
@@ -285,11 +284,12 @@ resource "google_compute_firewall" "node-to-master-minimal-gce-private-example-c
     protocol = "tcp"
   }
   allow {
-    ports    = ["4194"]
+    ports    = ["3988"]
     protocol = "tcp"
   }
+  disabled    = false
   name        = "node-to-master-minimal-gce-private-example-com"
-  network     = google_compute_network.default.name
+  network     = google_compute_network.minimal-gce-private-example-com.name
   source_tags = ["minimal-gce-private-example-com-k8s-io-role-node"]
   target_tags = ["minimal-gce-private-example-com-k8s-io-role-master"]
 }
@@ -313,10 +313,27 @@ resource "google_compute_firewall" "node-to-node-minimal-gce-private-example-com
   allow {
     protocol = "sctp"
   }
+  disabled    = false
   name        = "node-to-node-minimal-gce-private-example-com"
-  network     = google_compute_network.default.name
+  network     = google_compute_network.minimal-gce-private-example-com.name
   source_tags = ["minimal-gce-private-example-com-k8s-io-role-node"]
   target_tags = ["minimal-gce-private-example-com-k8s-io-role-node"]
+}
+
+resource "google_compute_firewall" "nodeport-external-to-node-ipv6-minimal-gce-private-example-com" {
+  allow {
+    ports    = ["30000-32767"]
+    protocol = "tcp"
+  }
+  allow {
+    ports    = ["30000-32767"]
+    protocol = "udp"
+  }
+  disabled      = true
+  name          = "nodeport-external-to-node-ipv6-minimal-gce-private-example-com"
+  network       = google_compute_network.minimal-gce-private-example-com.name
+  source_ranges = ["::/0"]
+  target_tags   = ["minimal-gce-private-example-com-k8s-io-role-node"]
 }
 
 resource "google_compute_firewall" "nodeport-external-to-node-minimal-gce-private-example-com" {
@@ -328,10 +345,23 @@ resource "google_compute_firewall" "nodeport-external-to-node-minimal-gce-privat
     ports    = ["30000-32767"]
     protocol = "udp"
   }
-  name        = "nodeport-external-to-node-minimal-gce-private-example-com"
-  network     = google_compute_network.default.name
-  source_tags = ["minimal-gce-private-example-com-k8s-io-role-node"]
-  target_tags = ["minimal-gce-private-example-com-k8s-io-role-node"]
+  disabled      = true
+  name          = "nodeport-external-to-node-minimal-gce-private-example-com"
+  network       = google_compute_network.minimal-gce-private-example-com.name
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["minimal-gce-private-example-com-k8s-io-role-node"]
+}
+
+resource "google_compute_firewall" "ssh-external-to-master-ipv6-minimal-gce-private-example-com" {
+  allow {
+    ports    = ["22"]
+    protocol = "tcp"
+  }
+  disabled      = true
+  name          = "ssh-external-to-master-ipv6-minimal-gce-private-example-com"
+  network       = google_compute_network.minimal-gce-private-example-com.name
+  source_ranges = ["::/0"]
+  target_tags   = ["minimal-gce-private-example-com-k8s-io-role-master"]
 }
 
 resource "google_compute_firewall" "ssh-external-to-master-minimal-gce-private-example-com" {
@@ -339,10 +369,23 @@ resource "google_compute_firewall" "ssh-external-to-master-minimal-gce-private-e
     ports    = ["22"]
     protocol = "tcp"
   }
+  disabled      = false
   name          = "ssh-external-to-master-minimal-gce-private-example-com"
-  network       = google_compute_network.default.name
+  network       = google_compute_network.minimal-gce-private-example-com.name
   source_ranges = ["0.0.0.0/0"]
   target_tags   = ["minimal-gce-private-example-com-k8s-io-role-master"]
+}
+
+resource "google_compute_firewall" "ssh-external-to-node-ipv6-minimal-gce-private-example-com" {
+  allow {
+    ports    = ["22"]
+    protocol = "tcp"
+  }
+  disabled      = true
+  name          = "ssh-external-to-node-ipv6-minimal-gce-private-example-com"
+  network       = google_compute_network.minimal-gce-private-example-com.name
+  source_ranges = ["::/0"]
+  target_tags   = ["minimal-gce-private-example-com-k8s-io-role-node"]
 }
 
 resource "google_compute_firewall" "ssh-external-to-node-minimal-gce-private-example-com" {
@@ -350,8 +393,9 @@ resource "google_compute_firewall" "ssh-external-to-node-minimal-gce-private-exa
     ports    = ["22"]
     protocol = "tcp"
   }
+  disabled      = false
   name          = "ssh-external-to-node-minimal-gce-private-example-com"
-  network       = google_compute_network.default.name
+  network       = google_compute_network.minimal-gce-private-example-com.name
   source_ranges = ["0.0.0.0/0"]
   target_tags   = ["minimal-gce-private-example-com-k8s-io-role-node"]
 }
@@ -400,7 +444,8 @@ resource "google_compute_instance_template" "master-us-test1-a-minimal-gce-priva
   }
   name_prefix = "master-us-test1-a-minimal-asf34c-"
   network_interface {
-    network = google_compute_network.default.name
+    network    = google_compute_network.minimal-gce-private-example-com.name
+    subnetwork = google_compute_subnetwork.us-test1-minimal-gce-private-example-com.name
   }
   scheduling {
     automatic_restart   = true
@@ -438,7 +483,8 @@ resource "google_compute_instance_template" "nodes-minimal-gce-private-example-c
   }
   name_prefix = "nodes-minimal-gce-private-4aopo5-"
   network_interface {
-    network = google_compute_network.default.name
+    network    = google_compute_network.minimal-gce-private-example-com.name
+    subnetwork = google_compute_subnetwork.us-test1-minimal-gce-private-example-com.name
   }
   scheduling {
     automatic_restart   = true
@@ -452,26 +498,37 @@ resource "google_compute_instance_template" "nodes-minimal-gce-private-example-c
   tags = ["minimal-gce-private-example-com-k8s-io-role-node"]
 }
 
-resource "google_compute_network" "default" {
-  auto_create_subnetworks = true
-  name                    = "default"
+resource "google_compute_network" "minimal-gce-private-example-com" {
+  auto_create_subnetworks = false
+  name                    = "minimal-gce-private-example-com"
 }
 
 resource "google_compute_router" "nat-minimal-gce-private-example-com" {
   name    = "nat-minimal-gce-private-example-com"
-  network = "https://www.googleapis.com/compute/v1/projects/testproject/global/networks/default"
+  network = google_compute_network.minimal-gce-private-example-com.name
 }
 
 resource "google_compute_router_nat" "nat-minimal-gce-private-example-com" {
   name                               = "nat-minimal-gce-private-example-com"
   nat_ip_allocate_option             = "AUTO_ONLY"
   region                             = "us-test1"
-  router                             = "nat-minimal-gce-private-example-com"
-  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+  router                             = google_compute_router.nat-minimal-gce-private-example-com.name
+  source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
+  subnetwork {
+    name                    = google_compute_subnetwork.us-test1-minimal-gce-private-example-com.name
+    source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
+  }
+}
+
+resource "google_compute_subnetwork" "us-test1-minimal-gce-private-example-com" {
+  ip_cidr_range = "10.0.16.0/20"
+  name          = "us-test1-minimal-gce-private-example-com"
+  network       = google_compute_network.minimal-gce-private-example-com.name
+  region        = "us-test1"
 }
 
 terraform {
-  required_version = ">= 0.12.26"
+  required_version = ">= 0.15.0"
   required_providers {
     google = {
       "source"  = "hashicorp/google"

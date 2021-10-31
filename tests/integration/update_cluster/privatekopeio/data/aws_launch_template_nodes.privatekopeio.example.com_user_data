@@ -130,7 +130,7 @@ cloudConfig:
 containerRuntime: containerd
 containerd:
   logLevel: info
-  version: 1.4.9
+  version: 1.4.11
 docker:
   skipInstall: true
 kubeProxy:
@@ -151,7 +151,6 @@ kubelet:
   hostnameOverride: '@aws'
   kubeconfigPath: /var/lib/kubelet/kubeconfig
   logLevel: 2
-  networkPluginName: cni
   nonMasqueradeCIDR: 100.64.0.0/10
   podManifestPath: /etc/kubernetes/manifests
 
@@ -162,7 +161,7 @@ CloudProvider: aws
 ConfigBase: memfs://clusters.example.com/privatekopeio.example.com
 InstanceGroupName: nodes
 InstanceGroupRole: Node
-NodeupConfigHash: QsL02v5F4dPm/SxOBAeABj9LKtggcSW+f9Ead/+989Q=
+NodeupConfigHash: 6BsL1o8+xIJWxgQsanvkYMJPb61q7VlNej9cHejL6+E=
 
 __EOF_KUBE_ENV
 

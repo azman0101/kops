@@ -50,10 +50,6 @@ var (
 	// CacheNodeidentityInfo enables NodeidentityInfo caching
 	// in order to reduce the number of EC2 DescribeInstance calls.
 	CacheNodeidentityInfo = new("CacheNodeidentityInfo", Bool(false))
-	// DNSPreCreate controls whether we pre-create DNS records.
-	DNSPreCreate = new("DNSPreCreate", Bool(true))
-	// EnableExternalDNS enables external DNS
-	EnableExternalDNS = new("EnableExternalDNS", Bool(false))
 	// EnableSeparateConfigBase allows a config-base that is different from the state store
 	EnableSeparateConfigBase = new("EnableSeparateConfigBase", Bool(false))
 	// ExperimentalClusterDNS allows for setting the kubelet dns flag to experimental values.
@@ -62,11 +58,6 @@ var (
 	GoogleCloudBucketACL = new("GoogleCloudBucketAcl", Bool(false))
 	// KeepLaunchConfigurations can be set to prevent garbage collection of old launch configurations
 	KeepLaunchConfigurations = new("KeepLaunchConfigurations", Bool(false))
-	// SkipTerraformFormat if set means we will not `tf fmt` the generated terraform.
-	// However we should no longer need it, with the keyset.yaml fix
-	// In particular, this is the only (?) way to grant the bucket.list permission
-	// It allows for experiments with alternative DNS configurations - in particular local proxies.
-	SkipTerraformFormat = new("SkipTerraformFormat", Bool(false))
 	// SpecOverrideFlag allows setting spec values on create
 	SpecOverrideFlag = new("SpecOverrideFlag", Bool(false))
 	// Spotinst toggles the use of Spotinst integration.
@@ -87,8 +78,6 @@ var (
 	TerraformJSON = new("TerraformJSON", Bool(false))
 	// ClusterAddons activates experimental cluster-addons support
 	ClusterAddons = new("ClusterAddons", Bool(false))
-	// UseServiceAccountIAM controls whether we use pod-level IAM permissions for our system pods and kOps addons.
-	UseServiceAccountIAM = new("UseServiceAccountIAM", Bool(false))
 	// Azure toggles the Azure support.
 	Azure = new("Azure", Bool(false))
 	// KopsControllerStateStore enables fetching the kops state from kops-controller, instead of requiring access to S3/GCS/etc.

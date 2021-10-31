@@ -87,6 +87,21 @@ func (p *S3Path) String() string {
 	return p.Path()
 }
 
+// TerraformProvider returns the provider name and necessary arguments
+func (p *S3Path) TerraformProvider() (*TerraformProvider, error) {
+	if err := p.ensureBucketDetails(); err != nil {
+		return nil, err
+	}
+
+	provider := &TerraformProvider{
+		Name: "aws",
+		Arguments: map[string]string{
+			"region": p.bucketDetails.region,
+		},
+	}
+	return provider, nil
+}
+
 func (p *S3Path) Remove() error {
 	client, err := p.client()
 	if err != nil {
@@ -481,12 +496,34 @@ func (p *S3Path) GetHTTPsUrl() (string, error) {
 	return strings.TrimSuffix(url, "/"), nil
 }
 
+func (p *S3Path) IsPublic() (bool, error) {
+	client, err := p.client()
+	if err != nil {
+		return false, err
+	}
+	acl, err := client.GetObjectAcl(&s3.GetObjectAclInput{
+		Bucket: &p.bucket,
+		Key:    &p.key,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to get grant for key %q in bucket %q: %w", p.key, p.bucket, err)
+	}
+
+	for _, grant := range acl.Grants {
+		if aws.StringValue(grant.Grantee.URI) == "http://acs.amazonaws.com/groups/global/AllUsers" {
+			return aws.StringValue(grant.Permission) == "READ", nil
+		}
+	}
+	return false, nil
+}
+
 type terraformS3File struct {
-	Bucket  string                   `json:"bucket" cty:"bucket"`
-	Key     string                   `json:"key" cty:"key"`
-	Content *terraformWriter.Literal `json:"content,omitempty" cty:"content"`
-	Acl     *string                  `json:"acl,omitempty" cty:"acl"`
-	SSE     *string                  `json:"server_side_encryption,omitempty" cty:"server_side_encryption"`
+	Bucket   string                   `json:"bucket" cty:"bucket"`
+	Key      string                   `json:"key" cty:"key"`
+	Content  *terraformWriter.Literal `json:"content,omitempty" cty:"content"`
+	Acl      *string                  `json:"acl,omitempty" cty:"acl"`
+	SSE      *string                  `json:"server_side_encryption,omitempty" cty:"server_side_encryption"`
+	Provider *terraformWriter.Literal `json:"provider,omitempty" cty:"provider"`
 }
 
 func (p *S3Path) RenderTerraform(w *terraformWriter.TerraformWriter, name string, data io.Reader, acl ACL) error {
@@ -511,11 +548,12 @@ func (p *S3Path) RenderTerraform(w *terraformWriter.TerraformWriter, name string
 	}
 
 	tf := &terraformS3File{
-		Bucket:  p.Bucket(),
-		Key:     p.Key(),
-		Content: content,
-		SSE:     sse,
-		Acl:     requestACL,
+		Bucket:   p.Bucket(),
+		Key:      p.Key(),
+		Content:  content,
+		SSE:      sse,
+		Acl:      requestACL,
+		Provider: terraformWriter.LiteralTokens("aws", "files"),
 	}
 	return w.RenderResource("aws_s3_bucket_object", name, tf)
 }

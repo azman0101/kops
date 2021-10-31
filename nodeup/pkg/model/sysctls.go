@@ -18,6 +18,7 @@ package model
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"k8s.io/kops/pkg/apis/kops"
@@ -115,6 +116,11 @@ func (b *SysctlBuilder) Build(c *fi.ModelBuilderContext) error {
 			"# e.g. uses of inotify: nginx ingress controller, kubectl logs -f",
 			"fs.inotify.max_user_instances = 8192",
 			"fs.inotify.max_user_watches = 524288",
+
+			"# Additional sysctl flags that kubelet expects",
+			"vm.overcommit_memory = 1",
+			"kernel.panic = 10",
+			"kernel.panic_on_oops = 1",
 			"",
 		)
 	}
@@ -145,10 +151,34 @@ func (b *SysctlBuilder) Build(c *fi.ModelBuilderContext) error {
 			"")
 	}
 
-	sysctls = append(sysctls,
-		"# Prevent docker from changing iptables: https://github.com/kubernetes/kubernetes/issues/40182",
-		"net.ipv4.ip_forward=1",
-		"")
+	if b.Cluster.Spec.IsIPv6Only() {
+		if b.Distribution == distributions.DistributionDebian11 {
+			// Accepting Router Advertisements must be enabled for each existing network interface to take effect.
+			// net.ipv6.conf.all.accept_ra takes effect only for newly created network interfaces.
+			// https://bugzilla.kernel.org/show_bug.cgi?id=11655
+			sysctls = append(sysctls, "# Enable Router Advertisements to get the default IPv6 route")
+			ifaces, err := net.Interfaces()
+			if err != nil {
+				return err
+			}
+			for _, iface := range ifaces {
+				// Accept Router Advertisements for ethernet network interfaces with slot position.
+				// https://www.freedesktop.org/software/systemd/man/systemd.net-naming-scheme.html
+				if strings.HasPrefix(iface.Name, "ens") {
+					sysctls = append(sysctls, fmt.Sprintf("net.ipv6.conf.%s.accept_ra=2", iface.Name))
+				}
+			}
+		}
+		sysctls = append(sysctls,
+			"# Enable IPv6 forwarding for network plugins that don't do it themselves",
+			"net.ipv6.conf.all.forwarding=1",
+			"")
+	} else {
+		sysctls = append(sysctls,
+			"# Prevent docker from changing iptables: https://github.com/kubernetes/kubernetes/issues/40182",
+			"net.ipv4.ip_forward=1",
+			"")
+	}
 
 	if params := b.NodeupConfig.SysctlParameters; len(params) > 0 {
 		sysctls = append(sysctls,

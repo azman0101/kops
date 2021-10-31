@@ -55,6 +55,7 @@ go_library(
         "//pkg/templates:go_default_library",
         "//pkg/util/subnet:go_default_library",
         "//pkg/wellknownports:go_default_library",
+        "//pkg/zones:go_default_library",
         "//upup/models:go_default_library",
         "//upup/pkg/fi:go_default_library",
         "//upup/pkg/fi/cloudup/aliup:go_default_library",
@@ -64,6 +65,7 @@ go_library(
         "//upup/pkg/fi/cloudup/cloudformation:go_default_library",
         "//upup/pkg/fi/cloudup/do:go_default_library",
         "//upup/pkg/fi/cloudup/gce:go_default_library",
+        "//upup/pkg/fi/cloudup/gce/tpm:go_default_library",
         "//upup/pkg/fi/cloudup/openstack:go_default_library",
         "//upup/pkg/fi/cloudup/terraform:go_default_library",
         "//upup/pkg/fi/cloudup/terraformWriter:go_default_library",
@@ -84,6 +86,7 @@ go_library(
         "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/util/sets:go_default_library",
         "//vendor/k8s.io/klog/v2:go_default_library",
+        "//vendor/sigs.k8s.io/yaml:go_default_library",
     ],
 )
 
@@ -112,6 +115,7 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//:go_default_library",
+        "//dnsprovider/pkg/dnsprovider/rrstype:go_default_library",
         "//pkg/apis/kops:go_default_library",
         "//pkg/apis/kops/validation:go_default_library",
         "//pkg/assets:go_default_library",

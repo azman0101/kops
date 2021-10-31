@@ -80,9 +80,9 @@ const (
 	starline = "*********************************************************************************"
 
 	// OldestSupportedKubernetesVersion is the oldest kubernetes version that is supported in kOps.
-	OldestSupportedKubernetesVersion = "1.17.0"
+	OldestSupportedKubernetesVersion = "1.18.0"
 	// OldestRecommendedKubernetesVersion is the oldest kubernetes version that is not deprecated in kOps.
-	OldestRecommendedKubernetesVersion = "1.19.0"
+	OldestRecommendedKubernetesVersion = "1.20.0"
 )
 
 var (
@@ -360,7 +360,7 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 	}
 
 	ciliumSpec := c.Cluster.Spec.Networking.Cilium
-	if ciliumSpec != nil && ciliumSpec.EnableEncryption {
+	if ciliumSpec != nil && ciliumSpec.EnableEncryption && ciliumSpec.EncryptionType == kops.CiliumEncryptionTypeIPSec {
 		secret, err := secretStore.FindSecret("ciliumpassword")
 		if err != nil {
 			return fmt.Errorf("could not load the ciliumpassword secret: %w", err)
@@ -701,7 +701,15 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 	case TargetTerraform:
 		checkExisting = false
 		outDir := c.OutDir
-		tf := terraform.NewTerraformTarget(cloud, project, outDir, cluster.Spec.Target)
+		var vfsProvider *vfs.TerraformProvider
+		if tfPath, ok := configBase.(vfs.TerraformPath); ok && featureflag.TerraformManagedFiles.Enabled() {
+			var err error
+			vfsProvider, err = tfPath.TerraformProvider()
+			if err != nil {
+				return err
+			}
+		}
+		tf := terraform.NewTerraformTarget(cloud, project, vfsProvider, outDir, cluster.Spec.Target)
 
 		// We include a few "util" variables in the TF output
 		if err := tf.AddOutputVariable("region", terraformWriter.LiteralFromStringValue(cloud.Region())); err != nil {
@@ -1048,14 +1056,6 @@ func (c *ApplyClusterCmd) addFileAssets(assetBuilder *assets.AssetBuilder) error
 		}
 		c.Assets[arch] = append(c.Assets[arch], mirrors.BuildMirroredAsset(cniAsset, cniAssetHash))
 
-		if c.Cluster.Spec.Networking.LyftVPC != nil {
-			lyftAsset, lyftAssetHash, err := findLyftVPCAssets(c.Cluster, assetBuilder, arch)
-			if err != nil {
-				return err
-			}
-			c.Assets[arch] = append(c.Assets[arch], mirrors.BuildMirroredAsset(lyftAsset, lyftAssetHash))
-		}
-
 		var containerRuntimeAssetUrl *url.URL
 		var containerRuntimeAssetHash *hashing.Hash
 		switch c.Cluster.Spec.ContainerRuntime {
@@ -1252,10 +1252,8 @@ func newNodeUpConfigBuilder(cluster *kops.Cluster, assetBuilder *assets.AssetBui
 
 		if isMaster {
 			for _, etcdCluster := range cluster.Spec.EtcdClusters {
-				if etcdCluster.Provider == kops.EtcdProviderTypeManager {
-					p := configBase.Join("manifests/etcd/" + etcdCluster.Name + ".yaml").Path()
-					etcdManifests[role] = append(etcdManifests[role], p)
-				}
+				p := configBase.Join("manifests/etcd/" + etcdCluster.Name + ".yaml").Path()
+				etcdManifests[role] = append(etcdManifests[role], p)
 			}
 		}
 	}
@@ -1427,6 +1425,10 @@ func (n *nodeUpConfigBuilder) BuildConfig(ig *kops.InstanceGroup, apiserverAddit
 
 	if cluster.Spec.ContainerRuntime == "containerd" {
 		config.ContainerdConfig = cluster.Spec.Containerd
+	}
+
+	if cluster.Spec.Containerd.NvidiaGPU != nil {
+		config.NvidiaGPU = cluster.Spec.Containerd.NvidiaGPU
 	}
 
 	if ig.Spec.WarmPool != nil || cluster.Spec.WarmPool != nil {

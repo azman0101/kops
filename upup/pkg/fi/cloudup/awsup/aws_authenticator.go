@@ -28,7 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
-	"k8s.io/kops/upup/pkg/fi"
+	"k8s.io/kops/pkg/bootstrap"
 )
 
 const AWSAuthenticationTokenPrefix = "x-aws-sts "
@@ -37,7 +37,7 @@ type awsAuthenticator struct {
 	sts *sts.STS
 }
 
-var _ fi.Authenticator = &awsAuthenticator{}
+var _ bootstrap.Authenticator = &awsAuthenticator{}
 
 // RegionFromMetadata returns the current region from the aws metdata
 func RegionFromMetadata(ctx context.Context) (string, error) {
@@ -57,7 +57,7 @@ func RegionFromMetadata(ctx context.Context) (string, error) {
 	return region, nil
 }
 
-func NewAWSAuthenticator(region string) (fi.Authenticator, error) {
+func NewAWSAuthenticator(region string) (bootstrap.Authenticator, error) {
 	config := aws.NewConfig().
 		WithCredentialsChainVerboseErrors(true).
 		WithRegion(region).
@@ -79,8 +79,7 @@ func (a awsAuthenticator) CreateToken(body []byte) (string, error) {
 	// Ensure the signature is only valid for this particular body content.
 	stsRequest.HTTPRequest.Header.Add("X-Kops-Request-SHA", base64.RawStdEncoding.EncodeToString(sha[:]))
 
-	err := stsRequest.Sign()
-	if err != nil {
+	if err := stsRequest.Sign(); err != nil {
 		return "", err
 	}
 
