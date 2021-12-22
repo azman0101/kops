@@ -28,6 +28,7 @@ import (
 	nodeidentitygce "k8s.io/kops/pkg/nodeidentity/gce"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
+	"k8s.io/kops/upup/pkg/fi/cloudup/gce/gcemetadata"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gcetasks"
 )
 
@@ -97,7 +98,7 @@ func (b *AutoscalingGroupModelBuilder) buildInstanceTemplate(c *fi.ModelBuilderC
 				Metadata: map[string]fi.Resource{
 					"startup-script": startupScript,
 					//"config": resources/config.yaml $nodeset.Name
-					"cluster-name": fi.NewStringResource(b.ClusterName()),
+					gcemetadata.MetadataKeyClusterName:           fi.NewStringResource(b.ClusterName()),
 					nodeidentitygce.MetadataKeyInstanceGroupName: fi.NewStringResource(ig.Name),
 				},
 			}
@@ -137,6 +138,12 @@ func (b *AutoscalingGroupModelBuilder) buildInstanceTemplate(c *fi.ModelBuilderC
 			case kops.InstanceGroupRoleNode:
 				t.Tags = append(t.Tags, b.GCETagForRole(kops.InstanceGroupRoleNode))
 			}
+			roleLabel := gce.GceLabelNameRolePrefix + gce.EncodeGCELabel(strings.ToLower(string(ig.Spec.Role)))
+			t.Labels = map[string]string{
+				gce.GceLabelNameKubernetesCluster: gce.SafeClusterName(b.ClusterName()),
+				roleLabel:                         "",
+				gce.GceLabelNameInstanceGroup:     name,
+			}
 
 			if gce.UsesIPAliases(b.Cluster) {
 				t.CanIPForward = fi.Bool(false)
@@ -149,17 +156,8 @@ func (b *AutoscalingGroupModelBuilder) buildInstanceTemplate(c *fi.ModelBuilderC
 			}
 			t.Subnet = b.LinkToSubnet(subnet)
 
-			if b.Cluster.Spec.CloudConfig.GCEServiceAccount != "" {
-				klog.Infof("VMs using Service Account: %v", b.Cluster.Spec.CloudConfig.GCEServiceAccount)
-				// b.Cluster.Spec.GCEServiceAccount = c.GCEServiceAccount
-			} else {
-				klog.Warning("VMs will be configured to use the GCE default compute Service Account! This is an anti-pattern")
-				klog.Warning("Use a pre-created Service Account with the flag: --gce-service-account=account@projectname.iam.gserviceaccount.com")
-				b.Cluster.Spec.CloudConfig.GCEServiceAccount = "default"
-			}
+			t.ServiceAccounts = append(t.ServiceAccounts, b.LinkToServiceAccount(ig))
 
-			klog.Infof("gsa: %v", b.Cluster.Spec.CloudConfig.GCEServiceAccount)
-			t.ServiceAccounts = []string{b.Cluster.Spec.CloudConfig.GCEServiceAccount}
 			//labels, err := b.CloudTagsForInstanceGroup(ig)
 			//if err != nil {
 			//	return fmt.Errorf("error building cloud tags: %v", err)

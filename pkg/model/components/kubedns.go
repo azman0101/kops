@@ -18,6 +18,7 @@ package components
 
 import (
 	"k8s.io/apimachinery/pkg/api/resource"
+
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/loader"
@@ -37,8 +38,6 @@ func (b *KubeDnsOptionsBuilder) BuildOptions(o interface{}) error {
 	if clusterSpec.KubeDNS == nil {
 		clusterSpec.KubeDNS = &kops.KubeDNSConfig{}
 	}
-
-	clusterSpec.KubeDNS.Replicas = 2
 
 	if clusterSpec.KubeDNS.CacheMaxSize == 0 {
 		clusterSpec.KubeDNS.CacheMaxSize = 1000
@@ -90,7 +89,11 @@ func (b *KubeDnsOptionsBuilder) BuildOptions(o interface{}) error {
 		nodeLocalDNS.Enabled = fi.Bool(false)
 	}
 	if fi.BoolValue(nodeLocalDNS.Enabled) && nodeLocalDNS.LocalIP == "" {
-		nodeLocalDNS.LocalIP = "169.254.20.10"
+		if clusterSpec.IsIPv6Only() {
+			nodeLocalDNS.LocalIP = "fd00:90de:d95::1"
+		} else {
+			nodeLocalDNS.LocalIP = "169.254.20.10"
+		}
 	}
 	if fi.BoolValue(nodeLocalDNS.Enabled) && nodeLocalDNS.ForwardToKubeDNS == nil {
 		nodeLocalDNS.ForwardToKubeDNS = fi.Bool(false)
@@ -107,7 +110,7 @@ func (b *KubeDnsOptionsBuilder) BuildOptions(o interface{}) error {
 	}
 
 	if nodeLocalDNS.Image == nil {
-		nodeLocalDNS.Image = fi.String("k8s.gcr.io/dns/k8s-dns-node-cache:1.20.0")
+		nodeLocalDNS.Image = fi.String("k8s.gcr.io/dns/k8s-dns-node-cache:1.21.3")
 	}
 
 	return nil

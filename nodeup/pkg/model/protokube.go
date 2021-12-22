@@ -207,7 +207,7 @@ func (t *ProtokubeBuilder) ProtokubeFlags(k8sVersion semver.Version) (*Protokube
 	} else {
 		klog.Warningf("DNSZone not specified; protokube won't be able to update DNS")
 		// @TODO: Should we permit wildcard updates if zone is not specified?
-		//argv = append(argv, "--zone=*/*")
+		// argv = append(argv, "--zone=*/*")
 	}
 
 	if dns.IsGossipHostname(t.Cluster.Spec.MasterInternalName) {
@@ -231,11 +231,11 @@ func (t *ProtokubeBuilder) ProtokubeFlags(k8sVersion semver.Version) (*Protokube
 		f.DNSInternalSuffix = fi.String(internalSuffix)
 	}
 
-	if t.Cluster.Spec.CloudProvider != "" {
-		f.Cloud = fi.String(t.Cluster.Spec.CloudProvider)
+	if t.CloudProvider != "" {
+		f.Cloud = fi.String(string(t.CloudProvider))
 
 		if f.DNSProvider == nil {
-			switch kops.CloudProviderID(t.Cluster.Spec.CloudProvider) {
+			switch t.CloudProvider {
 			case kops.CloudProviderAWS:
 				f.DNSProvider = fi.String("aws-route53")
 			case kops.CloudProviderDO:
@@ -243,7 +243,7 @@ func (t *ProtokubeBuilder) ProtokubeFlags(k8sVersion semver.Version) (*Protokube
 			case kops.CloudProviderGCE:
 				f.DNSProvider = fi.String("google-clouddns")
 			default:
-				klog.Warningf("Unknown cloudprovider %q; won't set DNS provider", t.Cluster.Spec.CloudProvider)
+				klog.Warningf("Unknown cloudprovider %q; won't set DNS provider", t.CloudProvider)
 			}
 		}
 	}
@@ -290,7 +290,7 @@ func (t *ProtokubeBuilder) ProtokubeFlags(k8sVersion semver.Version) (*Protokube
 }
 
 func (t *ProtokubeBuilder) buildEnvFile() (*nodetasks.File, error) {
-	var envVars = make(map[string]string)
+	envVars := make(map[string]string)
 
 	envVars["KUBECONFIG"] = "/var/lib/kops/kubeconfig"
 
@@ -327,7 +327,7 @@ func (t *ProtokubeBuilder) buildEnvFile() (*nodetasks.File, error) {
 		}
 	}
 
-	if kops.CloudProviderID(t.Cluster.Spec.CloudProvider) == kops.CloudProviderDO && os.Getenv("DIGITALOCEAN_ACCESS_TOKEN") != "" {
+	if t.CloudProvider == kops.CloudProviderDO && os.Getenv("DIGITALOCEAN_ACCESS_TOKEN") != "" {
 		envVars["DIGITALOCEAN_ACCESS_TOKEN"] = os.Getenv("DIGITALOCEAN_ACCESS_TOKEN")
 	}
 
@@ -353,7 +353,7 @@ func (t *ProtokubeBuilder) buildEnvFile() (*nodetasks.File, error) {
 		envVars["PATH"] = fmt.Sprintf("/opt/kops/bin:%v", os.Getenv("PATH"))
 	}
 
-	var sysconfig = ""
+	sysconfig := ""
 	for key, value := range envVars {
 		sysconfig += key + "=" + value + "\n"
 	}

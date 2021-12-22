@@ -37,6 +37,7 @@ import (
 	"k8s.io/kops/pkg/bootstrap"
 	"k8s.io/kops/pkg/nodeidentity/gce"
 	"k8s.io/kops/upup/pkg/fi"
+	"k8s.io/kops/upup/pkg/fi/cloudup/gce/gcemetadata"
 	gcetpm "k8s.io/kops/upup/pkg/fi/cloudup/gce/tpm"
 )
 
@@ -63,7 +64,7 @@ func NewTPMVerifier(opt *gcetpm.TPMVerifierOptions) (bootstrap.Verifier, error) 
 
 var _ bootstrap.Verifier = &tpmVerifier{}
 
-func (v *tpmVerifier) VerifyToken(ctx context.Context, authToken string, body []byte) (*bootstrap.VerifyResult, error) {
+func (v *tpmVerifier) VerifyToken(ctx context.Context, authToken string, body []byte, useInstanceIDForNodeName bool) (*bootstrap.VerifyResult, error) {
 	// Reminder: we shouldn't trust any data we get from the client until we've checked the signature (and even then...)
 	// Thankfully the GCE SDK does seem to escape the parameters correctly, for example.
 
@@ -136,7 +137,7 @@ func (v *tpmVerifier) VerifyToken(ctx context.Context, authToken string, body []
 		switch item.Key {
 		case gce.MetadataKeyInstanceGroupName:
 			instanceGroupName = fi.StringValue(item.Value)
-		case "cluster-name":
+		case gcemetadata.MetadataKeyClusterName:
 			clusterName = fi.StringValue(item.Value)
 		}
 	}

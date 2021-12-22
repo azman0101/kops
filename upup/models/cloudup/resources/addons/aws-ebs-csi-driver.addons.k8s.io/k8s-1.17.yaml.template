@@ -396,26 +396,23 @@ spec:
         app.kubernetes.io/instance: aws-ebs-csi-driver
         app.kubernetes.io/version: {{ .Version }}
     spec:
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - ebs-csi-controller
-            topologyKey: kubernetes.com/hostname
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100 
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                  - ebs-csi-controller
-              topologyKey: topology.kubernetes.io/zone
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: "topology.kubernetes.io/zone"
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: ebs-csi-controller
+            app.kubernetes.io/name: aws-ebs-csi-driver
+            app.kubernetes.io/instance: aws-ebs-csi-driver
+      - maxSkew: 1
+        topologyKey: "kubernetes.io/hostname"
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: ebs-csi-controller
+            app.kubernetes.io/name: aws-ebs-csi-driver
+            app.kubernetes.io/instance: aws-ebs-csi-driver
       nodeSelector:
         kubernetes.io/os: linux
         {{ if not UseServiceAccountExternalPermissions }}
@@ -440,10 +437,6 @@ spec:
             - --v=5
           env:
             {{- if IsIPv6Only }}
-            # TODO: Replace with "AWS_USE_DUALSTACK_ENDPOINT=true" when the relevant PR is merged:
-            # https://github.com/aws/aws-sdk-go/pull/3938
-            - name: AWS_EC2_ENDPOINT
-              value: https://api.ec2.{{ Region }}.aws
             - name: AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE
               value: IPv6
             {{- end }}
@@ -559,6 +552,7 @@ apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
 metadata:
   name: ebs-csi-controller
+  namespace: kube-system
   labels:
     app.kubernetes.io/name: aws-ebs-csi-driver
     app.kubernetes.io/instance: aws-ebs-csi-driver

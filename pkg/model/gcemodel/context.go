@@ -17,14 +17,17 @@ limitations under the License.
 package gcemodel
 
 import (
+	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/model"
-	"k8s.io/kops/pkg/model/components"
+	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gcetasks"
 )
 
 type GCEModelContext struct {
+	ProjectID string
+
 	*model.KopsModelContext
 }
 
@@ -67,8 +70,9 @@ func (c *GCEModelContext) SafeClusterName() string {
 	return gce.SafeClusterName(c.Cluster.ObjectMeta.Name)
 }
 
+// GCETagForRole returns the (network) tag for GCE instances in the given instance group role.
 func (c *GCEModelContext) GCETagForRole(role kops.InstanceGroupRole) string {
-	return components.GCETagForRole(c.Cluster.ObjectMeta.Name, role)
+	return gce.TagForRole(c.Cluster.ObjectMeta.Name, role)
 }
 
 func (c *GCEModelContext) LinkToTargetPool(id string) *gcetasks.TargetPool {
@@ -97,4 +101,44 @@ func (c *GCEModelContext) NetworkingIsIPAlias() bool {
 
 func (c *GCEModelContext) NetworkingIsGCERoutes() bool {
 	return c.Cluster.Spec.Networking != nil && c.Cluster.Spec.Networking.Kubenet != nil
+}
+
+// LinkToServiceAccount returns a link to the GCE ServiceAccount object for VMs in the given role
+func (c *GCEModelContext) LinkToServiceAccount(ig *kops.InstanceGroup) *gcetasks.ServiceAccount {
+	if c.Cluster.Spec.CloudConfig.GCEServiceAccount != "" {
+		// This is a legacy setting because the nodes & control-plane run under the same serviceaccount
+		klog.Warningf("using legacy spec.cloudConfig.gceServiceAccount=%q setting", c.Cluster.Spec.CloudConfig.GCEServiceAccount)
+		return &gcetasks.ServiceAccount{
+			Name:   s("shared"),
+			Email:  &c.Cluster.Spec.CloudConfig.GCEServiceAccount,
+			Shared: fi.Bool(true),
+		}
+	}
+
+	role := ig.Spec.Role
+
+	name := ""
+	switch role {
+	case kops.InstanceGroupRoleAPIServer, kops.InstanceGroupRoleMaster:
+		name = "control-plane"
+
+	case kops.InstanceGroupRoleBastion:
+		name = "bastion"
+
+	case kops.InstanceGroupRoleNode:
+		name = "node"
+
+	default:
+		klog.Fatalf("unknown role %q", role)
+	}
+
+	accountID, err := gce.ServiceAccountName(name, c.ClusterName())
+	if err != nil {
+		klog.Fatalf("failed to construct serviceaccount name: %w", err)
+	}
+	projectID := c.ProjectID
+
+	email := accountID + "@" + projectID + ".iam.gserviceaccount.com"
+
+	return &gcetasks.ServiceAccount{Name: s(name), Email: s(email)}
 }

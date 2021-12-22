@@ -25,13 +25,14 @@ import (
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 )
 
 // ValidateInstanceGroup is responsible for validating the configuration of a instancegroup
-func ValidateInstanceGroup(g *kops.InstanceGroup, cloud fi.Cloud) field.ErrorList {
+func ValidateInstanceGroup(g *kops.InstanceGroup, cloud fi.Cloud, strict bool) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if g.ObjectMeta.Name == "" {
@@ -60,14 +61,27 @@ func ValidateInstanceGroup(g *kops.InstanceGroup, cloud fi.Cloud) field.ErrorLis
 		allErrs = append(allErrs, IsValidValue(field.NewPath("spec", "tenancy"), &g.Spec.Tenancy, ec2.Tenancy_Values())...)
 	}
 
+	if strict && g.Spec.Manager == kops.InstanceManagerCloudGroup {
+		if g.Spec.MaxSize == nil {
+			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "maxSize"), "maxSize must be set"))
+		}
+		if g.Spec.MinSize == nil {
+			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "minSize"), "minSize must be set"))
+		}
+	}
+
 	if g.Spec.MaxSize != nil && g.Spec.MinSize != nil {
 		if *g.Spec.MaxSize < *g.Spec.MinSize {
 			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "maxSize"), "maxSize must be greater than or equal to minSize."))
 		}
 	}
 
-	if fi.Int32Value(g.Spec.RootVolumeIops) < 0 {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "rootVolumeIops"), g.Spec.RootVolumeIops, "RootVolumeIops must be greater than 0"))
+	if strict && g.Spec.Image == "" {
+		allErrs = append(allErrs, field.Forbidden(field.NewPath("spec", "image"), "image must be specified."))
+	}
+
+	if fi.Int32Value(g.Spec.RootVolumeIOPS) < 0 {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "rootVolumeIops"), g.Spec.RootVolumeIOPS, "RootVolumeIOPS must be greater than 0"))
 	}
 
 	if fi.Int32Value(g.Spec.RootVolumeThroughput) < 0 {
@@ -180,8 +194,8 @@ func validateVolumeMountSpec(path *field.Path, spec kops.VolumeMountSpec) field.
 
 // CrossValidateInstanceGroup performs validation of the instance group, including that it is consistent with the Cluster
 // It calls ValidateInstanceGroup, so all that validation is included.
-func CrossValidateInstanceGroup(g *kops.InstanceGroup, cluster *kops.Cluster, cloud fi.Cloud) field.ErrorList {
-	allErrs := ValidateInstanceGroup(g, cloud)
+func CrossValidateInstanceGroup(g *kops.InstanceGroup, cluster *kops.Cluster, cloud fi.Cloud, strict bool) field.ErrorList {
+	allErrs := ValidateInstanceGroup(g, cloud, strict)
 
 	if g.Spec.Role == kops.InstanceGroupRoleMaster {
 		allErrs = append(allErrs, ValidateMasterInstanceGroup(g, cluster)...)
@@ -234,7 +248,6 @@ func CrossValidateInstanceGroup(g *kops.InstanceGroup, cluster *kops.Cluster, cl
 				allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "warmPool", "maxSize"), *warmPool.MaxSize, "warm pool maxSize cannot be negative"))
 			} else if warmPool.MinSize > *warmPool.MaxSize {
 				allErrs = append(allErrs, field.Invalid(field.NewPath("spec", "warmPool", "maxSize"), *warmPool.MaxSize, "warm pool maxSize cannot be set to lower than minSize"))
-
 			}
 		}
 		if warmPool.MinSize < 0 {
@@ -324,7 +337,6 @@ func validateIGCloudLabels(ig *kops.InstanceGroup, fldPath *field.Path) (allErrs
 
 	for key, value := range labels {
 		if key == aws.CloudTagInstanceGroupName {
-
 			if value != ig.ObjectMeta.Name {
 				allErrs = append(allErrs, field.Invalid(fldPath.Child(aws.CloudTagInstanceGroupName), key, "value must match instance group name"))
 			}

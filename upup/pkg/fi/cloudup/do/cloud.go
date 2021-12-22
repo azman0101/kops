@@ -28,6 +28,7 @@ import (
 	"github.com/digitalocean/godo"
 	"golang.org/x/oauth2"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider"
 	dns "k8s.io/kops/dnsprovider/pkg/dnsprovider/providers/do"
@@ -35,14 +36,17 @@ import (
 	"k8s.io/kops/pkg/cloudinstances"
 	"k8s.io/kops/protokube/pkg/etcd"
 	"k8s.io/kops/upup/pkg/fi"
+	"k8s.io/kops/util/pkg/vfs"
 )
 
-const TagKubernetesClusterIndex = "k8s-index"
-const TagNameEtcdClusterPrefix = "etcdCluster-"
-const TagNameRolePrefix = "k8s.io/role/"
-const TagKubernetesClusterNamePrefix = "KubernetesCluster"
-const TagKubernetesClusterMasterPrefix = "KubernetesCluster-Master"
-const TagKubernetesInstanceGroup = "kops-instancegroup"
+const (
+	TagKubernetesClusterIndex        = "k8s-index"
+	TagNameEtcdClusterPrefix         = "etcdCluster-"
+	TagNameRolePrefix                = "k8s.io/role/"
+	TagKubernetesClusterNamePrefix   = "KubernetesCluster"
+	TagKubernetesClusterMasterPrefix = "KubernetesCluster-Master"
+	TagKubernetesInstanceGroup       = "kops-instancegroup"
+)
 
 type DOInstanceGroup struct {
 	ClusterName       string
@@ -70,6 +74,13 @@ type DOCloud interface {
 	GetAllLoadBalancers() ([]godo.LoadBalancer, error)
 	GetAllDropletsByTag(tag string) ([]godo.Droplet, error)
 	GetAllVolumesByRegion() ([]godo.Volume, error)
+}
+
+var readBackoff = wait.Backoff{
+	Duration: time.Second,
+	Factor:   2,
+	Jitter:   0.1,
+	Steps:    10,
 }
 
 // static compile time check to validate DOCloud's fi.Cloud Interface.
@@ -228,34 +239,41 @@ func (c *doCloudImplementation) FindVPCInfo(id string) (*fi.VPCInfo, error) {
 
 func (c *doCloudImplementation) GetApiIngressStatus(cluster *kops.Cluster) ([]fi.ApiIngressStatus, error) {
 	var ingresses []fi.ApiIngressStatus
-	if cluster.Spec.MasterPublicName != "" {
-		// Note that this must match Digital Ocean's lb name
-		klog.V(2).Infof("Querying DO to find Loadbalancers for API (%q)", cluster.Name)
+	done, err := vfs.RetryWithBackoff(readBackoff, func() (bool, error) {
+		if cluster.Spec.MasterPublicName != "" {
+			// Note that this must match Digital Ocean's lb name
+			klog.V(2).Infof("Querying DO to find Loadbalancers for API (%q)", cluster.Name)
 
-		loadBalancers, err := c.GetAllLoadBalancers()
-		if err != nil {
-			return nil, fmt.Errorf("LoadBalancers.List returned error: %v", err)
-		}
+			loadBalancers, err := c.GetAllLoadBalancers()
+			if err != nil {
+				return false, fmt.Errorf("LoadBalancers.List returned error: %v", err)
+			}
 
-		lbName := "api-" + strings.Replace(cluster.Name, ".", "-", -1)
+			lbName := "api-" + strings.Replace(cluster.Name, ".", "-", -1)
 
-		for _, lb := range loadBalancers {
-			if lb.Name == lbName {
-				klog.V(10).Infof("Matching LB name found for API (%q)", cluster.Name)
+			for _, lb := range loadBalancers {
+				if lb.Name == lbName {
+					klog.V(10).Infof("Matching LB name found for API (%q)", cluster.Name)
 
-				if lb.Status != "active" {
-					return nil, fmt.Errorf("load-balancer is not yet active (current status: %s)", lb.Status)
+					if lb.Status != "active" {
+						return false, fmt.Errorf("load-balancer is not yet active (current status: %s)", lb.Status)
+					}
+
+					address := lb.IP
+					ingresses = append(ingresses, fi.ApiIngressStatus{IP: address})
 				}
-
-				address := lb.IP
-				ingresses = append(ingresses, fi.ApiIngressStatus{IP: address})
-
-				return ingresses, nil
 			}
 		}
+		return true, nil
+	})
+	if done {
+		return ingresses, nil
+	} else {
+		if err == nil {
+			err = wait.ErrWaitTimeout
+		}
+		return ingresses, err
 	}
-
-	return nil, nil
 }
 
 // FindClusterStatus discovers the status of the cluster, by looking for the tagged etcd volumes
@@ -275,7 +293,6 @@ func (c *doCloudImplementation) FindClusterStatus(cluster *kops.Cluster) (*kops.
 func findEtcdStatus(c *doCloudImplementation, cluster *kops.Cluster) ([]kops.EtcdClusterStatus, error) {
 	statusMap := make(map[string]*kops.EtcdClusterStatus)
 	volumes, err := c.GetAllVolumesByRegion()
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all volumes by region from %s: %v", c.Region(), err)
 	}
@@ -320,7 +337,7 @@ func findEtcdStatus(c *doCloudImplementation, cluster *kops.Cluster) ([]kops.Etc
 						memberName := etcdClusterSpec.NodeName
 						status.Members = append(status.Members, &kops.EtcdMemberStatus{
 							Name:     memberName,
-							VolumeId: volume.ID,
+							VolumeID: volume.ID,
 						})
 					}
 				}
@@ -384,7 +401,6 @@ func getCloudGroups(c *doCloudImplementation, cluster *kops.Cluster, instancegro
 
 	klog.V(8).Infof("Cloud Instance Group Info = %v", groups)
 	return groups, nil
-
 }
 
 // findInstanceGroups finds instance groups matching the specified tags
@@ -546,7 +562,6 @@ func (c *doCloudImplementation) GetAllVolumesByRegion() ([]godo.Volume, error) {
 			Region:      c.Region(),
 			ListOptions: opt,
 		})
-
 		if err != nil {
 			return nil, err
 		}

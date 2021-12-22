@@ -97,6 +97,18 @@ func TestDockerBuilder_BuildFlags(t *testing.T) {
 			kops.DockerConfig{InsecureRegistries: []string{"registry1", "registry2"}},
 			"--insecure-registry=registry1 --insecure-registry=registry2",
 		},
+		{
+			kops.DockerConfig{DNS: []string{}},
+			"",
+		},
+		{
+			kops.DockerConfig{DNS: []string{"8.8.4.4"}},
+			"--dns=8.8.4.4",
+		},
+		{
+			kops.DockerConfig{DNS: []string{"8.8.4.4", "8.8.8.8"}},
+			"--dns=8.8.4.4 --dns=8.8.8.8",
+		},
 	}
 
 	for _, g := range grid {
@@ -131,7 +143,7 @@ func runDockerBuilderTest(t *testing.T, key string) {
 		return
 	}
 
-	nodeUpModelContext.Distribution = distributions.DistributionUbuntu1604
+	nodeUpModelContext.Distribution = distributions.DistributionUbuntu2004
 
 	if nodeUpModelContext.Cluster.Spec.Docker.SkipInstall == false {
 		if nodeUpModelContext.Cluster == nil || nodeUpModelContext.Cluster.Spec.Docker == nil || nodeUpModelContext.Cluster.Spec.Docker.Version == nil {

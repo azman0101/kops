@@ -19,12 +19,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/klogr"
@@ -52,7 +52,6 @@ var (
 )
 
 func init() {
-
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -61,7 +60,7 @@ func main() {
 
 	// Disable metrics by default (avoid port conflicts, also risky because we are host network)
 	metricsAddress := ":0"
-	//flag.StringVar(&metricsAddr, "metrics-addr", metricsAddress, "The address the metric endpoint binds to.")
+	// flag.StringVar(&metricsAddr, "metrics-addr", metricsAddress, "The address the metric endpoint binds to.")
 
 	configPath := "/etc/kubernetes/kops-controller/config.yaml"
 	flag.StringVar(&configPath, "conf", configPath, "Location of yaml configuration file")
@@ -76,7 +75,7 @@ func main() {
 	opt.PopulateDefaults()
 
 	{
-		b, err := ioutil.ReadFile(configPath)
+		b, err := os.ReadFile(configPath)
 		if err != nil {
 			klog.Fatalf("failed to read configuration file %q: %v", configPath, err)
 		}
@@ -87,6 +86,23 @@ func main() {
 	}
 
 	ctrl.SetLogger(klogr.New())
+
+	if err := buildScheme(); err != nil {
+		setupLog.Error(err, "error building scheme")
+		os.Exit(1)
+	}
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme:             scheme,
+		MetricsBindAddress: metricsAddress,
+		LeaderElection:     true,
+		LeaderElectionID:   "kops-controller-leader",
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
 	if opt.Server != nil {
 		var verifier bootstrap.Verifier
 		var err error
@@ -111,27 +127,7 @@ func main() {
 			setupLog.Error(err, "unable to create server")
 			os.Exit(1)
 		}
-		go func() {
-			err := srv.Start()
-			setupLog.Error(err, "unable to start server")
-			os.Exit(1)
-		}()
-	}
-
-	if err := buildScheme(); err != nil {
-		setupLog.Error(err, "error building scheme")
-		os.Exit(1)
-	}
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddress,
-		LeaderElection:     true,
-		LeaderElectionID:   "kops-controller-leader",
-	})
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		mgr.Add(srv)
 	}
 
 	if opt.EnableCloudIPAM {
@@ -153,6 +149,11 @@ func main() {
 
 	if err := addNodeController(mgr, &opt); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "NodeController")
+		os.Exit(1)
+	}
+
+	if err := addGossipController(mgr, &opt); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GossipController")
 		os.Exit(1)
 	}
 
@@ -238,6 +239,28 @@ func addNodeController(mgr manager.Manager, opt *config.Options) error {
 		if err := nodeController.SetupWithManager(mgr); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func addGossipController(mgr manager.Manager, opt *config.Options) error {
+	if opt.Discovery == nil || !opt.Discovery.Enabled {
+		return nil
+	}
+
+	configMapID := types.NamespacedName{
+		Namespace: "kube-system",
+		Name:      "coredns",
+	}
+
+	controller, err := controllers.NewHostsReconciler(mgr, configMapID)
+	if err != nil {
+		return err
+	}
+
+	if err := controller.SetupWithManager(mgr); err != nil {
+		return err
 	}
 
 	return nil

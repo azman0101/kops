@@ -145,10 +145,10 @@ func TestPolicyGeneration(t *testing.T) {
 						{
 							Members: []kops.EtcdMemberSpec{
 								{
-									KmsKeyId: aws.String("key-id-1"),
+									KmsKeyID: aws.String("key-id-1"),
 								},
 								{
-									KmsKeyId: aws.String("key-id-2"),
+									KmsKeyID: aws.String("key-id-2"),
 								},
 							},
 						},
@@ -158,7 +158,7 @@ func TestPolicyGeneration(t *testing.T) {
 						{
 							Members: []kops.EtcdMemberSpec{
 								{
-									KmsKeyId: aws.String("key-id-3"),
+									KmsKeyID: aws.String("key-id-3"),
 								},
 							},
 						},
@@ -195,7 +195,6 @@ func TestPolicyGeneration(t *testing.T) {
 }
 
 func TestEmptyPolicy(t *testing.T) {
-
 	role := &GenericServiceAccount{
 		NamespacedName: types.NamespacedName{
 			Name:      "myaccount",
@@ -222,5 +221,4 @@ func TestEmptyPolicy(t *testing.T) {
 	if policy != "" {
 		t.Errorf("empty policy should result in empty string, but was %q", policy)
 	}
-
 }

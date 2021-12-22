@@ -18,7 +18,6 @@ package nodetasks
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -41,8 +40,10 @@ type LoadImageTask struct {
 	Runtime string
 }
 
-var _ fi.Task = &LoadImageTask{}
-var _ fi.HasDependencies = &LoadImageTask{}
+var (
+	_ fi.Task            = &LoadImageTask{}
+	_ fi.HasDependencies = &LoadImageTask{}
+)
 
 func (t *LoadImageTask) GetDependencies(tasks map[string]fi.Task) []fi.Task {
 	// LoadImageTask depends on the docker service to ensure we
@@ -125,7 +126,7 @@ func (_ *LoadImageTask) RenderLocal(t *local.LocalTarget, a, e, changes *LoadIma
 	// TODO: Improve the naive gzip format detection by checking the content type bytes "\x1F\x8B\x08"
 	var tarFile string
 	if strings.HasSuffix(localFile, "gz") {
-		tmpDir, err := ioutil.TempDir("", "loadimage")
+		tmpDir, err := os.MkdirTemp("", "loadimage")
 		if err != nil {
 			return fmt.Errorf("error creating temp dir: %v", err)
 		}

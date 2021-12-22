@@ -40,7 +40,7 @@ download-or-bust() {
     if ! validate-hash "${file}" "${hash}"; then
       rm -f "${file}"
     else
-      return
+      return 0
     fi
   fi
 
@@ -63,7 +63,7 @@ download-or-bust() {
           rm -f "${file}"
         else
           echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-          return
+          return 0
         fi
       done
     done
@@ -126,17 +126,16 @@ cat > conf/cluster_spec.yaml << '__EOF_CLUSTER_SPEC'
 cloudConfig:
   awsEBSCSIDriver:
     enabled: true
-    version: v1.4.0
+    version: v1.5.0
   manageStorageClasses: true
 containerRuntime: containerd
 containerd:
   logLevel: info
-  version: 1.4.11
+  version: 1.4.12
 docker:
   skipInstall: true
 kubeProxy:
   cpuRequest: 100m
-  hostnameOverride: '@aws'
   image: k8s.gcr.io/kube-proxy:v1.21.0
   logLevel: 2
 kubelet:
@@ -151,11 +150,9 @@ kubelet:
   featureGates:
     CSIMigrationAWS: "true"
     InTreePluginAWSUnregister: "true"
-  hostnameOverride: '@aws'
   kubeconfigPath: /var/lib/kubelet/kubeconfig
   logLevel: 2
   networkPluginName: cni
-  nonMasqueradeCIDR: 172.20.0.0/16
   podManifestPath: /etc/kubernetes/manifests
 
 __EOF_CLUSTER_SPEC
@@ -165,7 +162,7 @@ CloudProvider: aws
 ConfigBase: memfs://clusters.example.com/minimal.example.com
 InstanceGroupName: nodes
 InstanceGroupRole: Node
-NodeupConfigHash: 2kWouWgiHwe6KIsdj5fXtEK2nB0mKuRqsgnFF/UvHH0=
+NodeupConfigHash: nDqODcpSjWqpD2hJ2ew83ONgK0KBiPew/b98asKRHSk=
 
 __EOF_KUBE_ENV
 

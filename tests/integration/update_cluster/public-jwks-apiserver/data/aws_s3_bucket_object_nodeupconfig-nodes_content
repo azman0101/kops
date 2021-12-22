@@ -45,14 +45,12 @@ KubeletConfig:
   clusterDomain: cluster.local
   enableDebuggingHandlers: true
   evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-  hostnameOverride: '@aws'
   kubeconfigPath: /var/lib/kubelet/kubeconfig
   logLevel: 2
   networkPluginName: cni
   nodeLabels:
     kubernetes.io/role: node
     node-role.kubernetes.io/node: ""
-  nonMasqueradeCIDR: 100.64.0.0/10
   podInfraContainerImage: k8s.gcr.io/pause:3.5
   podManifestPath: /etc/kubernetes/manifests
 UpdatePolicy: automatic

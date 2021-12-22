@@ -50,7 +50,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amasterscomplexexamplecom.Properties.
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -73,7 +73,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amasterscomplexexamplecom.Properties.
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -140,7 +140,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amasterscomplexexamplecom.Properties.
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   encryptionConfig: null
@@ -212,7 +212,6 @@ Resources.AWSEC2LaunchTemplatemasterustest1amasterscomplexexamplecom.Properties.
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
-    hostnameOverride: '@aws'
     image: k8s.gcr.io/kube-proxy:v1.21.0
     logLevel: 2
   kubeScheduler:
@@ -229,11 +228,9 @@ Resources.AWSEC2LaunchTemplatemasterustest1amasterscomplexexamplecom.Properties.
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
   masterKubelet:
     anonymousAuth: false
@@ -244,11 +241,9 @@ Resources.AWSEC2LaunchTemplatemasterustest1amasterscomplexexamplecom.Properties.
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
     registerSchedulable: false
 
@@ -259,7 +254,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amasterscomplexexamplecom.Properties.
   ConfigBase: memfs://clusters.example.com/complex.example.com
   InstanceGroupName: master-us-test-1a
   InstanceGroupRole: Master
-  NodeupConfigHash: fqM+horNPzSjAlyshqJt02zzi4cPuixfQJ51ZW8gKXI=
+  NodeupConfigHash: hcYblQZ7391YLj10FrziHu1Em+nC0o0OXowMqTeSv7g=
 
   __EOF_KUBE_ENV
 
@@ -328,7 +323,7 @@ Resources.AWSEC2LaunchTemplatenodescomplexexamplecom.Properties.LaunchTemplateDa
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -351,7 +346,7 @@ Resources.AWSEC2LaunchTemplatenodescomplexexamplecom.Properties.LaunchTemplateDa
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -418,13 +413,12 @@ Resources.AWSEC2LaunchTemplatenodescomplexexamplecom.Properties.LaunchTemplateDa
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
-    hostnameOverride: '@aws'
     image: k8s.gcr.io/kube-proxy:v1.21.0
     logLevel: 2
   kubelet:
@@ -436,11 +430,9 @@ Resources.AWSEC2LaunchTemplatenodescomplexexamplecom.Properties.LaunchTemplateDa
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
 
   __EOF_CLUSTER_SPEC
@@ -450,7 +442,7 @@ Resources.AWSEC2LaunchTemplatenodescomplexexamplecom.Properties.LaunchTemplateDa
   ConfigBase: memfs://clusters.example.com/complex.example.com
   InstanceGroupName: nodes
   InstanceGroupRole: Node
-  NodeupConfigHash: xSAbgi63cWrp1euxBeEVxhM+T8D5yzlxOs502lfjXag=
+  NodeupConfigHash: Jim7turvVsKgOG3apfPQJVoZ8L/4Kc8XT5XAa1i2Vls=
 
   __EOF_KUBE_ENV
 

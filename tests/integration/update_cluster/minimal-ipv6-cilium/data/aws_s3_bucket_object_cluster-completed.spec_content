@@ -13,11 +13,18 @@ spec:
   channel: stable
   cloudConfig:
     awsEBSCSIDriver:
-      enabled: false
+      enabled: true
+      version: v1.5.0
     manageStorageClasses: true
     nodeIPFamilies:
     - ipv6
     - ipv4
+  cloudControllerManager:
+    allocateNodeCIDRs: true
+    clusterCIDR: ::/0
+    clusterName: minimal-ipv6.example.com
+    configureCloudRoutes: false
+    image: k8s.gcr.io/provider-aws/cloud-controller-manager:v1.21.0-alpha.0
   cloudProvider: aws
   clusterDNSDomain: cluster.local
   configBase: memfs://clusters.example.com/minimal-ipv6.example.com
@@ -25,7 +32,7 @@ spec:
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   dnsZone: Z1AFAKE1ZON3YO
   docker:
     skipInstall: true
@@ -57,7 +64,7 @@ spec:
     apiServerCount: 1
     authorizationMode: AlwaysAllow
     bindAddress: '::'
-    cloudProvider: aws
+    cloudProvider: external
     enableAdmissionPlugins:
     - NamespaceLifecycle
     - LimitRanger
@@ -94,12 +101,14 @@ spec:
   kubeControllerManager:
     allocateNodeCIDRs: false
     attachDetachReconcileSyncPeriod: 1m0s
-    cloudProvider: aws
+    cloudProvider: external
     clusterName: minimal-ipv6.example.com
     configureCloudRoutes: false
     controllers:
     - '*'
     - -nodeipam
+    featureGates:
+      CSIMigrationAWS: "true"
     image: k8s.gcr.io/kube-controller-manager:v1.21.0
     leaderElection:
       leaderElect: true
@@ -115,16 +124,14 @@ spec:
     nodeLocalDNS:
       cpuRequest: 25m
       enabled: false
-      image: k8s.gcr.io/dns/k8s-dns-node-cache:1.20.0
+      image: k8s.gcr.io/dns/k8s-dns-node-cache:1.21.3
       memoryRequest: 5Mi
     provider: CoreDNS
-    replicas: 2
     serverIP: fd00:5e4f:ce::a
     upstreamNameservers:
     - fd00:ec2::253
   kubeProxy:
     cpuRequest: 100m
-    hostnameOverride: '@aws'
     image: k8s.gcr.io/kube-proxy:v1.21.0
     logLevel: 2
   kubeScheduler:
@@ -136,16 +143,17 @@ spec:
     anonymousAuth: false
     cgroupDriver: systemd
     cgroupRoot: /
-    cloudProvider: aws
+    cloudProvider: external
     clusterDNS: fd00:5e4f:ce::a
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
+    featureGates:
+      CSIMigrationAWS: "true"
+      InTreePluginAWSUnregister: "true"
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: ::/0
     podManifestPath: /etc/kubernetes/manifests
   kubernetesApiAccess:
   - 0.0.0.0/0
@@ -156,16 +164,17 @@ spec:
     anonymousAuth: false
     cgroupDriver: systemd
     cgroupRoot: /
-    cloudProvider: aws
+    cloudProvider: external
     clusterDNS: fd00:5e4f:ce::a
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
+    featureGates:
+      CSIMigrationAWS: "true"
+      InTreePluginAWSUnregister: "true"
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: ::/0
     podManifestPath: /etc/kubernetes/manifests
     registerSchedulable: false
   masterPublicName: api.minimal-ipv6.example.com
@@ -184,7 +193,7 @@ spec:
       clusterName: default
       cpuRequest: 25m
       disableCNPStatusUpdates: true
-      disableMasquerade: false
+      disableMasquerade: true
       enableBPFMasquerade: false
       enableEndpointHealthChecking: true
       enableL7Proxy: true
@@ -199,7 +208,7 @@ spec:
       sidecarIstioProxyImage: cilium/istio_proxy
       toFqdnsDnsRejectResponseCode: refused
       tunnel: disabled
-      version: v1.10.4
+      version: v1.10.5
   nonMasqueradeCIDR: ::/0
   secretStore: memfs://clusters.example.com/minimal-ipv6.example.com/secrets
   serviceClusterIPRange: fd00:5e4f:ce::/108

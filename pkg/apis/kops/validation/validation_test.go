@@ -348,7 +348,6 @@ func Test_Validate_DockerConfig_Storage(t *testing.T) {
 }
 
 func Test_Validate_Networking_Flannel(t *testing.T) {
-
 	grid := []struct {
 		Input          kops.FlannelNetworkingSpec
 		ExpectedErrors []string
@@ -817,12 +816,12 @@ func Test_Validate_Cilium(t *testing.T) {
 		},
 		{
 			Cilium: kops.CiliumNetworkingSpec{
-				Ipam: "crd",
+				IPAM: "crd",
 			},
 		},
 		{
 			Cilium: kops.CiliumNetworkingSpec{
-				Ipam: "eni",
+				IPAM: "eni",
 			},
 			Spec: kops.ClusterSpec{
 				CloudProvider: "aws",
@@ -830,8 +829,8 @@ func Test_Validate_Cilium(t *testing.T) {
 		},
 		{
 			Cilium: kops.CiliumNetworkingSpec{
-				DisableMasquerade: fi.Bool(true),
-				Ipam:              "eni",
+				Masquerade: fi.Bool(false),
+				IPAM:       "eni",
 			},
 			Spec: kops.ClusterSpec{
 				CloudProvider: "aws",
@@ -839,24 +838,24 @@ func Test_Validate_Cilium(t *testing.T) {
 		},
 		{
 			Cilium: kops.CiliumNetworkingSpec{
-				Ipam: "foo",
+				IPAM: "foo",
 			},
 			ExpectedErrors: []string{"Unsupported value::cilium.ipam"},
 		},
 		{
 			Cilium: kops.CiliumNetworkingSpec{
-				DisableMasquerade: fi.Bool(false),
-				Ipam:              "eni",
+				Masquerade: fi.Bool(true),
+				IPAM:       "eni",
 			},
 			Spec: kops.ClusterSpec{
 				CloudProvider: "aws",
 			},
-			ExpectedErrors: []string{"Forbidden::cilium.disableMasquerade"},
+			ExpectedErrors: []string{"Forbidden::cilium.masquerade"},
 		},
 		{
 			Cilium: kops.CiliumNetworkingSpec{
-				EnableL7Proxy:          fi.Bool(true),
-				IPTablesRulesNoinstall: true,
+				EnableL7Proxy:        fi.Bool(true),
+				InstallIptablesRules: fi.Bool(false),
 			},
 			Spec: kops.ClusterSpec{
 				CloudProvider: "aws",
@@ -865,7 +864,7 @@ func Test_Validate_Cilium(t *testing.T) {
 		},
 		{
 			Cilium: kops.CiliumNetworkingSpec{
-				Ipam: "eni",
+				IPAM: "eni",
 			},
 			Spec: kops.ClusterSpec{
 				CloudProvider: "gce",
@@ -1185,7 +1184,8 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 					BlockStorage: &kops.OpenstackBlockStorageConfig{
 						CreateStorageClass: fi.Bool(false),
 					},
-				}},
+				},
+			},
 		},
 		{
 			Description: "os true",
@@ -1194,7 +1194,8 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 					BlockStorage: &kops.OpenstackBlockStorageConfig{
 						CreateStorageClass: fi.Bool(true),
 					},
-				}},
+				},
+			},
 		},
 		{
 			Description: "all false, os false",
@@ -1204,7 +1205,8 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 					BlockStorage: &kops.OpenstackBlockStorageConfig{
 						CreateStorageClass: fi.Bool(false),
 					},
-				}},
+				},
+			},
 		},
 		{
 			Description: "all false, os true",
@@ -1214,7 +1216,8 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 					BlockStorage: &kops.OpenstackBlockStorageConfig{
 						CreateStorageClass: fi.Bool(true),
 					},
-				}},
+				},
+			},
 			ExpectedErrors: []string{"Forbidden::cloudConfig.manageStorageClasses"},
 		},
 		{
@@ -1225,7 +1228,8 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 					BlockStorage: &kops.OpenstackBlockStorageConfig{
 						CreateStorageClass: fi.Bool(false),
 					},
-				}},
+				},
+			},
 			ExpectedErrors: []string{"Forbidden::cloudConfig.manageStorageClasses"},
 		},
 		{
@@ -1236,7 +1240,8 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 					BlockStorage: &kops.OpenstackBlockStorageConfig{
 						CreateStorageClass: fi.Bool(true),
 					},
-				}},
+				},
+			},
 		},
 	}
 
@@ -1255,7 +1260,6 @@ func TestValidateSAExternalPermissions(t *testing.T) {
 		Input          []kops.ServiceAccountExternalPermission
 		ExpectedErrors []string
 	}{
-
 		{
 			Description: "Duplicate SA",
 			Input: []kops.ServiceAccountExternalPermission{
@@ -1335,11 +1339,9 @@ func TestValidateSAExternalPermissions(t *testing.T) {
 			testErrors(t, g.Input, errs, g.ExpectedErrors)
 		})
 	}
-
 }
 
 func Test_Validate_Nvdia(t *testing.T) {
-
 	grid := []struct {
 		Input          kops.ClusterSpec
 		ExpectedErrors []string

@@ -125,24 +125,7 @@ func (b *SysctlBuilder) Build(c *fi.ModelBuilderContext) error {
 		)
 	}
 
-	// Running Flannel on CentOS7 / rhel7 needs custom settings
-	if b.Cluster.Spec.Networking.Flannel != nil {
-		proxyMode := b.Cluster.Spec.KubeProxy.ProxyMode
-		if proxyMode == "" {
-			proxyMode = "iptables"
-		}
-
-		if proxyMode == "iptables" && (b.Distribution == distributions.DistributionCentos7 || b.Distribution == distributions.DistributionRhel7) {
-			sysctls = append(sysctls,
-				"# Flannel settings on CentOS 7",
-				"# Issue https://github.com/coreos/flannel/issues/902",
-				"net.bridge.bridge-nf-call-ip6tables=1",
-				"net.bridge.bridge-nf-call-iptables=1",
-				"")
-		}
-	}
-
-	if b.Cluster.Spec.CloudProvider == string(kops.CloudProviderAWS) {
+	if b.CloudProvider == kops.CloudProviderAWS {
 		sysctls = append(sysctls,
 			"# AWS settings",
 			"",
@@ -186,7 +169,7 @@ func (b *SysctlBuilder) Build(c *fi.ModelBuilderContext) error {
 			"")
 		for _, param := range params {
 			if !strings.ContainsRune(param, '=') {
-				return fmt.Errorf("Invalid SysctlParameter: expected %q to contain '='", param)
+				return fmt.Errorf("invalid SysctlParameter: expected %q to contain '='", param)
 			}
 			sysctls = append(sysctls, param)
 		}
@@ -198,7 +181,7 @@ func (b *SysctlBuilder) Build(c *fi.ModelBuilderContext) error {
 			"")
 		for _, param := range params {
 			if !strings.ContainsRune(param, '=') {
-				return fmt.Errorf("Invalid SysctlParameter: expected %q to contain '='", param)
+				return fmt.Errorf("invalid SysctlParameter: expected %q to contain '='", param)
 			}
 			sysctls = append(sysctls, param)
 		}

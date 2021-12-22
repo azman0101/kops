@@ -44,8 +44,10 @@ type VFSCAStore struct {
 	cachedCA *Keyset
 }
 
-var _ CAStore = &VFSCAStore{}
-var _ SSHCredentialStore = &VFSCAStore{}
+var (
+	_ CAStore            = &VFSCAStore{}
+	_ SSHCredentialStore = &VFSCAStore{}
+)
 
 func NewVFSCAStore(cluster *kops.Cluster, basedir vfs.Path) *VFSCAStore {
 	c := &VFSCAStore{
@@ -166,7 +168,7 @@ func (k *Keyset) ToAPIObject(name string) (*kops.Keyset, error) {
 		o.Spec.Keys = append(o.Spec.Keys, oki)
 	}
 	if k.Primary != nil {
-		o.Spec.PrimaryId = k.Primary.Id
+		o.Spec.PrimaryID = k.Primary.Id
 	}
 	return o, nil
 }

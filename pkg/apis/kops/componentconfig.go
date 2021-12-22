@@ -32,7 +32,7 @@ type KubeletConfigSpec struct {
 	// BootstrapKubeconfig is the path to a kubeconfig file that will be used to get client certificate for kubelet
 	BootstrapKubeconfig string `json:"bootstrapKubeconfig,omitempty" flag:"bootstrap-kubeconfig"`
 	// ClientCAFile is the path to a CA certificate
-	ClientCAFile string `json:"clientCaFile,omitempty" flag:"client-ca-file"`
+	ClientCAFile string `json:"clientCAFile,omitempty" flag:"client-ca-file"`
 	// TODO: Remove unused TLSCertFile
 	TLSCertFile string `json:"tlsCertFile,omitempty" flag:"tls-cert-file"`
 	// TODO: Remove unused TLSPrivateKeyFile
@@ -191,7 +191,7 @@ type KubeletConfigSpec struct {
 	// AuthenticationTokenWebhook uses the TokenReview API to determine authentication for bearer tokens.
 	AuthenticationTokenWebhook *bool `json:"authenticationTokenWebhook,omitempty" flag:"authentication-token-webhook"`
 	// AuthenticationTokenWebhook sets the duration to cache responses from the webhook token authenticator. Default is 2m. (default 2m0s)
-	AuthenticationTokenWebhookCacheTTL *metav1.Duration `json:"authenticationTokenWebhookCacheTtl,omitempty" flag:"authentication-token-webhook-cache-ttl"`
+	AuthenticationTokenWebhookCacheTTL *metav1.Duration `json:"authenticationTokenWebhookCacheTTL,omitempty" flag:"authentication-token-webhook-cache-ttl"`
 	// CPUCFSQuota enables CPU CFS quota enforcement for containers that specify CPU limits
 	CPUCFSQuota *bool `json:"cpuCFSQuota,omitempty" flag:"cpu-cfs-quota"`
 	// CPUCFSQuotaPeriod sets CPU CFS quota period value, cpu.cfs_period_us, defaults to Linux Kernel default
@@ -200,9 +200,9 @@ type KubeletConfigSpec struct {
 	CpuManagerPolicy string `json:"cpuManagerPolicy,omitempty" flag:"cpu-manager-policy"`
 	// RegistryPullQPS if > 0, limit registry pull QPS to this value.  If 0, unlimited. (default 5)
 	RegistryPullQPS *int32 `json:"registryPullQPS,omitempty" flag:"registry-qps"`
-	//RegistryBurst Maximum size of a bursty pulls, temporarily allows pulls to burst to this number, while still not exceeding registry-qps. Only used if --registry-qps > 0 (default 10)
+	// RegistryBurst Maximum size of a bursty pulls, temporarily allows pulls to burst to this number, while still not exceeding registry-qps. Only used if --registry-qps > 0 (default 10)
 	RegistryBurst *int32 `json:"registryBurst,omitempty" flag:"registry-burst"`
-	//TopologyManagerPolicy determines the allocation policy for the topology manager.
+	// TopologyManagerPolicy determines the allocation policy for the topology manager.
 	TopologyManagerPolicy string `json:"topologyManagerPolicy,omitempty" flag:"topology-manager-policy"`
 	// rotateCertificates enables client certificate rotation.
 	RotateCertificates *bool `json:"rotateCertificates,omitempty" flag:"rotate-certificates"`
@@ -230,15 +230,14 @@ type KubeletConfigSpec struct {
 // KubeProxyConfig defines the configuration for a proxy
 type KubeProxyConfig struct {
 	Image string `json:"image,omitempty"`
-	// TODO: Better type ?
 	// CPURequest, cpu request compute resource for kube proxy e.g. "20m"
-	CPURequest string `json:"cpuRequest,omitempty"`
+	CPURequest *resource.Quantity `json:"cpuRequest,omitempty"`
 	// CPULimit, cpu limit compute resource for kube proxy e.g. "30m"
-	CPULimit string `json:"cpuLimit,omitempty"`
+	CPULimit *resource.Quantity `json:"cpuLimit,omitempty"`
 	// MemoryRequest, memory request compute resource for kube proxy e.g. "30Mi"
-	MemoryRequest string `json:"memoryRequest,omitempty"`
+	MemoryRequest *resource.Quantity `json:"memoryRequest,omitempty"`
 	// MemoryLimit, memory limit compute resource for kube proxy e.g. "30Mi"
-	MemoryLimit string `json:"memoryLimit,omitempty"`
+	MemoryLimit *resource.Quantity `json:"memoryLimit,omitempty"`
 	// LogLevel is the logging level of the proxy
 	LogLevel int32 `json:"logLevel,omitempty" flag:"v"`
 	// ClusterCIDR is the CIDR range of the pods in the cluster
@@ -255,8 +254,8 @@ type KubeProxyConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 	// Which proxy mode to use: (userspace, iptables(default), ipvs)
 	ProxyMode string `json:"proxyMode,omitempty" flag:"proxy-mode"`
-	// IPVSExcludeCIDRS is comma-separated list of CIDR's which the ipvs proxier should not touch when cleaning up IPVS rules
-	IPVSExcludeCIDRS []string `json:"ipvsExcludeCidrs,omitempty" flag:"ipvs-exclude-cidrs"`
+	// IPVSExcludeCIDRs is comma-separated list of CIDR's which the ipvs proxier should not touch when cleaning up IPVS rules
+	IPVSExcludeCIDRs []string `json:"ipvsExcludeCIDRs,omitempty" flag:"ipvs-exclude-cidrs"`
 	// IPVSMinSyncPeriod is the minimum interval of how often the ipvs rules can be refreshed as endpoints and services change (e.g. '5s', '1m', '2h22m')
 	IPVSMinSyncPeriod *metav1.Duration `json:"ipvsMinSyncPeriod,omitempty" flag:"ipvs-min-sync-period"`
 	// IPVSScheduler is the ipvs scheduler type when proxy mode is ipvs
@@ -288,9 +287,11 @@ type KubeAPIServerConfig struct {
 	// SecurePort is the port the kube runs on
 	SecurePort int32 `json:"securePort,omitempty" flag:"secure-port"`
 	// InsecurePort is the port the insecure api runs
-	InsecurePort int32 `json:"insecurePort,omitempty" flag:"insecure-port"`
+	InsecurePort *int32 `json:"insecurePort,omitempty" flag:"insecure-port"`
 	// Address is the binding address for the kube api: Deprecated - use insecure-bind-address and bind-address
 	Address string `json:"address,omitempty" flag:"address"`
+	// AdvertiseAddress is the IP address on which to advertise the apiserver to members of the cluster.
+	AdvertiseAddress string `json:"advertiseAddress,omitempty" flag:"advertise-address"`
 	// BindAddress is the binding address for the secure kubernetes API
 	BindAddress string `json:"bindAddress,omitempty" flag:"bind-address"`
 	// InsecureBindAddress is the binding address for the InsecurePort for the insecure kubernetes API
@@ -318,7 +319,7 @@ type KubeAPIServerConfig struct {
 	// EtcdServersOverrides is per-resource etcd servers overrides, comma separated. The individual override format: group/resource#servers, where servers are http://ip:port, semicolon separated
 	EtcdServersOverrides []string `json:"etcdServersOverrides,omitempty" flag:"etcd-servers-overrides"`
 	// EtcdCAFile is the path to a ca certificate
-	EtcdCAFile string `json:"etcdCaFile,omitempty" flag:"etcd-cafile"`
+	EtcdCAFile string `json:"etcdCAFile,omitempty" flag:"etcd-cafile"`
 	// EtcdCertFile is the path to a certificate
 	EtcdCertFile string `json:"etcdCertFile,omitempty" flag:"etcd-certfile"`
 	// EtcdKeyFile is the path to a private key
@@ -426,11 +427,11 @@ type KubeAPIServerConfig struct {
 	// File with webhook configuration for authorization in kubeconfig format. The API server will query the remote service to determine whether to authorize the request.
 	AuthorizationWebhookConfigFile *string `json:"authorizationWebhookConfigFile,omitempty" flag:"authorization-webhook-config-file"`
 	// The duration to cache authorized responses from the webhook token authorizer. Default is 5m. (default 5m0s)
-	AuthorizationWebhookCacheAuthorizedTTL *metav1.Duration `json:"authorizationWebhookCacheAuthorizedTtl,omitempty" flag:"authorization-webhook-cache-authorized-ttl"`
+	AuthorizationWebhookCacheAuthorizedTTL *metav1.Duration `json:"authorizationWebhookCacheAuthorizedTTL,omitempty" flag:"authorization-webhook-cache-authorized-ttl"`
 	// The duration to cache authorized responses from the webhook token authorizer. Default is 30s. (default 30s)
-	AuthorizationWebhookCacheUnauthorizedTTL *metav1.Duration `json:"authorizationWebhookCacheUnauthorizedTtl,omitempty" flag:"authorization-webhook-cache-unauthorized-ttl"`
+	AuthorizationWebhookCacheUnauthorizedTTL *metav1.Duration `json:"authorizationWebhookCacheUnauthorizedTTL,omitempty" flag:"authorization-webhook-cache-unauthorized-ttl"`
 	// AuthorizationRBACSuperUser is the name of the superuser for default rbac
-	AuthorizationRBACSuperUser *string `json:"authorizationRbacSuperUser,omitempty" flag:"authorization-rbac-super-user"`
+	AuthorizationRBACSuperUser *string `json:"authorizationRBACSuperUser,omitempty" flag:"authorization-rbac-super-user"`
 	// EncryptionProviderConfig enables encryption at rest for secrets.
 	EncryptionProviderConfig *string `json:"encryptionProviderConfig,omitempty" flag:"encryption-provider-config"`
 	// ExperimentalEncryptionProviderConfig enables encryption at rest for secrets.
@@ -467,7 +468,7 @@ type KubeAPIServerConfig struct {
 	MinRequestTimeout *int32 `json:"minRequestTimeout,omitempty" flag:"min-request-timeout"`
 
 	// Memory limit for apiserver in MB (used to configure sizes of caches, etc.)
-	TargetRamMb int32 `json:"targetRamMb,omitempty" flag:"target-ram-mb" flag-empty:"0"`
+	TargetRamMB int32 `json:"targetRamMB,omitempty" flag:"target-ram-mb" flag-empty:"0"`
 
 	// File containing PEM-encoded x509 RSA or ECDSA private or public keys, used to verify ServiceAccount tokens.
 	// The specified file can contain multiple keys, and the flag can be specified multiple times with different files.
@@ -492,13 +493,13 @@ type KubeAPIServerConfig struct {
 	APIAudiences []string `json:"apiAudiences,omitempty" flag:"api-audiences"`
 
 	// CPURequest, cpu request compute resource for api server. Defaults to "150m"
-	CPURequest string `json:"cpuRequest,omitempty"`
+	CPURequest *resource.Quantity `json:"cpuRequest,omitempty"`
 	// CPULimit, cpu limit compute resource for api server e.g. "500m"
-	CPULimit string `json:"cpuLimit,omitempty"`
+	CPULimit *resource.Quantity `json:"cpuLimit,omitempty"`
 	// MemoryRequest, memory request compute resource for api server e.g. "30Mi"
-	MemoryRequest string `json:"memoryRequest,omitempty"`
+	MemoryRequest *resource.Quantity `json:"memoryRequest,omitempty"`
 	// MemoryLimit, memory limit compute resource for api server e.g. "30Mi"
-	MemoryLimit string `json:"memoryLimit,omitempty"`
+	MemoryLimit *resource.Quantity `json:"memoryLimit,omitempty"`
 
 	// Amount of time to retain Kubernetes events
 	EventTTL *metav1.Duration `json:"eventTTL,omitempty" flag:"event-ttl"`
@@ -636,7 +637,7 @@ type KubeControllerManagerConfig struct {
 	// The number of serviceaccount objects that are allowed to sync concurrently to create tokens.
 	ConcurrentServiceaccountTokenSyncs *int32 `json:"concurrentServiceaccountTokenSyncs,omitempty" flag:"concurrent-serviceaccount-token-syncs"`
 	// The number of replicationcontroller objects that are allowed to sync concurrently.
-	ConcurrentRcSyncs *int32 `json:"concurrentRcSyncs,omitempty" flag:"concurrent-rc-syncs"`
+	ConcurrentRCSyncs *int32 `json:"concurrentRCSyncs,omitempty" flag:"concurrent-rc-syncs"`
 	// AuthenticationKubeconfig is the path to an Authentication Kubeconfig
 	AuthenticationKubeconfig string `json:"authenticationKubeconfig,omitempty" flag:"authentication-kubeconfig"`
 	// AuthorizationKubeconfig is the path to an Authorization Kubeconfig
@@ -650,6 +651,8 @@ type KubeControllerManagerConfig struct {
 
 	// EnableProfiling enables profiling via web interface host:port/debug/pprof/
 	EnableProfiling *bool `json:"enableProfiling,omitempty" flag:"profiling"`
+	// EnableLeaderMigration enables controller leader migration.
+	EnableLeaderMigration *bool `json:"enableLeaderMigration,omitempty" flag:"enable-leader-migration"`
 }
 
 // CloudControllerManagerConfig is the configuration of the cloud controller
@@ -677,6 +680,8 @@ type CloudControllerManagerConfig struct {
 	LeaderElection *LeaderElectionConfiguration `json:"leaderElection,omitempty"`
 	// UseServiceAccountCredentials controls whether we use individual service account credentials for each controller.
 	UseServiceAccountCredentials *bool `json:"useServiceAccountCredentials,omitempty" flag:"use-service-account-credentials"`
+	// EnableLeaderMigration enables controller leader migration.
+	EnableLeaderMigration *bool `json:"enableLeaderMigration,omitempty" flag:"enable-leader-migration"`
 }
 
 // KubeSchedulerConfig is the configuration for the kube-scheduler
@@ -759,6 +764,7 @@ type OpenstackLoadbalancerConfig struct {
 	SubnetID              *string `json:"subnetID,omitempty"`
 	ManageSecGroups       *bool   `json:"manageSecurityGroups,omitempty"`
 	EnableIngressHostname *bool   `json:"enableIngressHostname,omitempty"`
+	IngressHostnameSuffix *string `json:"ingressHostnameSuffix,omitempty"`
 }
 
 type OpenstackBlockStorageConfig struct {
@@ -813,7 +819,7 @@ type AzureConfiguration struct {
 	// SubscriptionID specifies the subscription used for the cluster installation.
 	SubscriptionID string `json:"subscriptionId,omitempty"`
 	// TenantID is the ID of the tenant that the cluster is deployed in.
-	TenantID string `json:"tenantId"`
+	TenantID string `json:"tenantID"`
 	// ResourceGroupName specifies the name of the resource group
 	// where the cluster is built.
 	// If this is empty, kops will create a new resource group
@@ -847,20 +853,6 @@ type CloudConfiguration struct {
 	// AWS cloud-config options
 	DisableSecurityGroupIngress *bool   `json:"disableSecurityGroupIngress,omitempty"`
 	ElbSecurityGroup            *string `json:"elbSecurityGroup,omitempty"`
-	// VSphereUsername is deprecated and will be removed in a later version
-	VSphereUsername *string `json:"vSphereUsername,omitempty"`
-	// VSpherePassword is deprecated and will be removed in a later version
-	VSpherePassword *string `json:"vSpherePassword,omitempty"`
-	// VSphereServer is deprecated and will be removed in a later version
-	VSphereServer *string `json:"vSphereServer,omitempty"`
-	// VShpereDatacenter is deprecated and will be removed in a later version
-	VSphereDatacenter *string `json:"vSphereDatacenter,omitempty"`
-	// VSphereResourcePool is deprecated and will be removed in a later version
-	VSphereResourcePool *string `json:"vSphereResourcePool,omitempty"`
-	// VSphereDatastore is deprecated and will be removed in a later version
-	VSphereDatastore *string `json:"vSphereDatastore,omitempty"`
-	// VSphereCoreDNSServer is deprecated and will be removed in a later version
-	VSphereCoreDNSServer *string `json:"vSphereCoreDNSServer,omitempty"`
 	// Spotinst cloud-config specs
 	SpotinstProduct     *string `json:"spotinstProduct,omitempty"`
 	SpotinstOrientation *string `json:"spotinstOrientation,omitempty"`
@@ -870,6 +862,8 @@ type CloudConfiguration struct {
 	Azure *AzureConfiguration `json:"azure,omitempty"`
 	// AWSEBSCSIDriver is the config for the AWS EBS CSI driver
 	AWSEBSCSIDriver *AWSEBSCSIDriver `json:"awsEBSCSIDriver,omitempty"`
+	// GCPPDCSIDriver is the config for the GCP PD CSI driver
+	GCPPDCSIDriver *GCPPDCSIDriver `json:"gcpPDCSIDriver,omitempty"`
 }
 
 // AWSEBSCSIDriver is the config for the AWS EBS CSI driver
@@ -889,11 +883,17 @@ type AWSEBSCSIDriver struct {
 	VolumeAttachLimit *int `json:"volumeAttachLimit,omitempty"`
 }
 
+// GCPPDCSIDriver is the config for the GCP PD CSI driver
+type GCPPDCSIDriver struct {
+	// Enabled enables the GCP PD CSI driver
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // SnapshotControllerConfig is the config for the CSI Snapshot Controller
 type SnapshotControllerConfig struct {
-	//Enabled enables the CSI Snapshot Controller
+	// Enabled enables the CSI Snapshot Controller
 	Enabled *bool `json:"enabled,omitempty"`
-	//InstallDefaultClass will install the default VolumeSnapshotClass
+	// InstallDefaultClass will install the default VolumeSnapshotClass
 	InstallDefaultClass bool `json:"installDefaultClass,omitempty"`
 }
 

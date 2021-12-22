@@ -39,16 +39,13 @@ type NetworkingSpec struct {
 
 // ClassicNetworkingSpec is the specification of classic networking mode, integrated into kubernetes.
 // Support been removed since Kubernetes 1.4.
-type ClassicNetworkingSpec struct {
-}
+type ClassicNetworkingSpec struct{}
 
 // KubenetNetworkingSpec is the specification for kubenet networking, largely integrated but intended to replace classic
-type KubenetNetworkingSpec struct {
-}
+type KubenetNetworkingSpec struct{}
 
 // ExternalNetworkingSpec is the specification for networking that is implemented by a user-provided Daemonset that uses the Kubenet kubelet networking plugin.
-type ExternalNetworkingSpec struct {
-}
+type ExternalNetworkingSpec struct{}
 
 // CNINetworkingSpec is the specification for networking that is implemented by a user-provided Daemonset, which uses the CNI kubelet networking plugin.
 type CNINetworkingSpec struct {
@@ -56,8 +53,7 @@ type CNINetworkingSpec struct {
 }
 
 // KopeioNetworkingSpec declares that we want Kopeio networking
-type KopeioNetworkingSpec struct {
-}
+type KopeioNetworkingSpec struct{}
 
 // WeaveNetworkingSpec declares that we want Weave networking
 type WeaveNetworkingSpec struct {
@@ -109,6 +105,9 @@ type CalicoNetworkingSpec struct {
 	// Version overrides the Calico container image tag.
 	Version string `json:"version,omitempty"`
 
+	// AllowIPForwarding enable ip_forwarding setting within the container namespace.
+	// (default: false)
+	AllowIPForwarding bool `json:"allowIPForwarding,omitempty"`
 	// AWSSrcDstCheck enables/disables ENI source/destination checks (AWS only)
 	// Options: Disable (default), Enable, or DoNothing
 	AWSSrcDstCheck string `json:"awsSrcDstCheck,omitempty"`
@@ -212,7 +211,7 @@ type CanalNetworkingSpec struct {
 	DefaultEndpointToHostAction string `json:"defaultEndpointToHostAction,omitempty"`
 	// DisableFlannelForwardRules configures Flannel to NOT add the
 	// default ACCEPT traffic rules to the iptables FORWARD chain
-	DisableFlannelForwardRules bool `json:"disableFlannelForwardRules,omitempty"`
+	FlanneldIptablesForwardRules *bool `json:"disableFlannelForwardRules,omitempty"`
 	// DisableTxChecksumOffloading is unused.
 	// +k8s:conversion-gen=false
 	DisableTxChecksumOffloading bool `json:"disableTxChecksumOffloading,omitempty"`
@@ -245,8 +244,7 @@ type CanalNetworkingSpec struct {
 }
 
 // KuberouterNetworkingSpec declares that we want Kube-router networking
-type KuberouterNetworkingSpec struct {
-}
+type KuberouterNetworkingSpec struct{}
 
 // RomanaNetworkingSpec declares that we want Romana networking
 // Romana is deprecated as of kOps 1.18 and removed as of kOps 1.19.
@@ -260,9 +258,9 @@ type RomanaNetworkingSpec struct {
 // AmazonVPCNetworkingSpec declares that we want Amazon VPC CNI networking
 type AmazonVPCNetworkingSpec struct {
 	// ImageName is the container image name to use.
-	ImageName string `json:"imageName,omitempty"`
+	Image string `json:"imageName,omitempty"`
 	// InitImageName is the init container image name to use.
-	InitImageName string `json:"initImageName,omitempty"`
+	InitImage string `json:"initImageName,omitempty"`
 	// Env is a list of environment variables to set in the container.
 	Env []EnvVar `json:"env,omitempty"`
 }
@@ -271,8 +269,10 @@ const CiliumIpamEni = "eni"
 
 type CiliumEncryptionType string
 
-const CiliumEncryptionTypeIPSec CiliumEncryptionType = "ipsec"
-const CiliumEncryptionTypeWireguard CiliumEncryptionType = "wireguard"
+const (
+	CiliumEncryptionTypeIPSec     CiliumEncryptionType = "ipsec"
+	CiliumEncryptionTypeWireguard CiliumEncryptionType = "wireguard"
+)
 
 // CiliumNetworkingSpec declares that we want Cilium networking
 type CiliumNetworkingSpec struct {
@@ -433,7 +433,7 @@ type CiliumNetworkingSpec struct {
 	// +k8s:conversion-gen=false
 	LogstashProbeTimer uint32 `json:"logstashProbeTimer,omitempty"`
 	// DisableMasquerade disables masquerading traffic to external destinations behind the node IP.
-	DisableMasquerade *bool `json:"disableMasquerade,omitempty"`
+	Masquerade *bool `json:"disableMasquerade,omitempty"`
 	// Nat46Range is unused.
 	// +k8s:conversion-gen=false
 	Nat46Range string `json:"nat46Range,omitempty"`
@@ -514,28 +514,28 @@ type CiliumNetworkingSpec struct {
 	SidecarIstioProxyImage string `json:"sidecarIstioProxyImage,omitempty"`
 	// ClusterName is the name of the cluster. It is only relevant when building a mesh of clusters.
 	ClusterName string `json:"clusterName,omitempty"`
-	// ToFqdnsDNSRejectResponseCode sets the DNS response code for rejecting DNS requests.
+	// ToFQDNsDNSRejectResponseCode sets the DNS response code for rejecting DNS requests.
 	// Possible values are "nameError" or "refused".
 	// Default: refused
-	ToFqdnsDNSRejectResponseCode string `json:"toFqdnsDnsRejectResponseCode,omitempty"`
-	// ToFqdnsEnablePoller replaces the DNS proxy-based implementation of FQDN policies
+	ToFQDNsDNSRejectResponseCode string `json:"toFqdnsDnsRejectResponseCode,omitempty"`
+	// ToFQDNsEnablePoller replaces the DNS proxy-based implementation of FQDN policies
 	// with the less powerful legacy implementation.
 	// Default: false
-	ToFqdnsEnablePoller bool `json:"toFqdnsEnablePoller,omitempty"`
+	ToFQDNsEnablePoller bool `json:"toFqdnsEnablePoller,omitempty"`
 	// ContainerRuntimeLabels is unused.
 	// +k8s:conversion-gen=false
 	ContainerRuntimeLabels string `json:"containerRuntimeLabels,omitempty"`
-	// Ipam specifies the IP address allocation mode to use.
+	// IPAM specifies the IP address allocation mode to use.
 	// Possible values are "crd" and "eni".
 	// "eni" will use AWS native networking for pods. Eni requires masquerade to be set to false.
 	// "crd" will use CRDs for controlling IP address management.
 	// "hostscope" will use hostscope IPAM mode.
 	// "kubernetes" will use addersing based on node pod CIDR.
 	// Default: "kubernetes".
-	Ipam string `json:"ipam,omitempty"`
+	IPAM string `json:"ipam,omitempty"`
 	// IPTablesRulesNoinstall disables installing the base IPTables rules used for masquerading and kube-proxy.
 	// Default: false
-	IPTablesRulesNoinstall bool `json:"IPTablesRulesNoinstall,omitempty"`
+	InstallIptablesRules *bool `json:"IPTablesRulesNoinstall,omitempty"`
 	// AutoDirectNodeRoutes adds automatic L2 routing between nodes.
 	// Default: false
 	AutoDirectNodeRoutes bool `json:"autoDirectNodeRoutes,omitempty"`
@@ -575,6 +575,9 @@ type CiliumNetworkingSpec struct {
 	CniBinPath string `json:"cniBinPath,omitempty"`
 	// DisableCNPStatusUpdates determines if CNP NodeStatus updates will be sent to the Kubernetes api-server.
 	DisableCNPStatusUpdates *bool `json:"disableCNPStatusUpdates,omitempty"`
+
+	// EnableServiceTopology determine if cilium should use topology aware hints.
+	EnableServiceTopology bool `json:"enableServiceTopology,omitempty"`
 }
 
 // HubbleSpec configures the Hubble service on the Cilium agent.
@@ -594,5 +597,4 @@ type LyftVPCNetworkingSpec struct {
 }
 
 // GCENetworkingSpec is the specification of GCE's native networking mode, using IP aliases
-type GCENetworkingSpec struct {
-}
+type GCENetworkingSpec struct{}

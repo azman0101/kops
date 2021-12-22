@@ -253,7 +253,7 @@ func (b *KubeAPIServerBuilder) writeAuthenticationConfig(c *fi.ModelBuilderConte
 		return nil
 	}
 
-	if b.Cluster.Spec.Authentication.Aws != nil {
+	if b.Cluster.Spec.Authentication.AWS != nil {
 		id := "aws-iam-authenticator"
 		kubeAPIServer.AuthenticationTokenWebhookConfigFile = fi.String(PathAuthnConfig)
 
@@ -378,7 +378,7 @@ func (b *KubeAPIServerBuilder) writeServerCertificate(c *fi.ModelBuilderContext,
 		// We also want to be able to reference it locally via https://127.0.0.1
 		alternateNames = append(alternateNames, "127.0.0.1")
 
-		if b.Cluster.Spec.CloudProvider == "openstack" {
+		if b.CloudProvider == kops.CloudProviderOpenstack {
 			if b.Cluster.Spec.Topology != nil && b.Cluster.Spec.Topology.Masters == kops.TopologyPrivate {
 				instanceAddress, err := getInstanceAddress()
 				if err != nil {
@@ -443,28 +443,6 @@ func (b *KubeAPIServerBuilder) writeKubeletAPICertificate(c *fi.ModelBuilderCont
 func (b *KubeAPIServerBuilder) writeStaticCredentials(c *fi.ModelBuilderContext, kubeAPIServer *kops.KubeAPIServerConfig) error {
 	pathSrvKAPI := filepath.Join(b.PathSrvKubernetes(), "kube-apiserver")
 
-	// Support for basic auth was deprecated 1.16 and removed in 1.19
-	// https://github.com/kubernetes/kubernetes/pull/89069
-	if b.IsKubernetesLT("1.19") && b.SecretStore != nil {
-		key := "kube"
-		token, err := b.SecretStore.FindSecret(key)
-		if err != nil {
-			return err
-		}
-		if token == nil {
-			return fmt.Errorf("token not found: %q", key)
-		}
-		csv := string(token.Data) + "," + adminUser + "," + adminUser + "," + adminGroup
-
-		t := &nodetasks.File{
-			Path:     filepath.Join(pathSrvKAPI, "basic_auth.csv"),
-			Contents: fi.NewStringResource(csv),
-			Type:     nodetasks.FileType_File,
-			Mode:     s("0600"),
-		}
-		c.AddTask(t)
-	}
-
 	if b.SecretStore != nil {
 		allTokens, err := b.allAuthTokens()
 		if err != nil {
@@ -487,14 +465,6 @@ func (b *KubeAPIServerBuilder) writeStaticCredentials(c *fi.ModelBuilderContext,
 			Type:     nodetasks.FileType_File,
 			Mode:     s("0600"),
 		})
-	}
-
-	// Support for basic auth was deprecated 1.16 and removed in 1.19
-	// https://github.com/kubernetes/kubernetes/pull/89069
-	if b.IsKubernetesLT("1.19") {
-		if kubeAPIServer.DisableBasicAuth != nil && !*kubeAPIServer.DisableBasicAuth {
-			kubeAPIServer.BasicAuthFile = filepath.Join(pathSrvKAPI, "basic_auth.csv")
-		}
 	}
 
 	return nil
@@ -585,10 +555,12 @@ func (b *KubeAPIServerBuilder) buildPod(kubeAPIServer *kops.KubeAPIServerConfig)
 		Path: "/healthz",
 		Port: intstr.FromInt(wellknownports.KubeAPIServerHealthCheck),
 	}
+
+	insecurePort := fi.Int32Value(kubeAPIServer.InsecurePort)
 	if useHealthcheckProxy {
 		// kube-apiserver-healthcheck sidecar container runs on port 3990
-	} else if kubeAPIServer.InsecurePort != 0 {
-		probeAction.Port = intstr.FromInt(int(kubeAPIServer.InsecurePort))
+	} else if insecurePort != 0 {
+		probeAction.Port = intstr.FromInt(int(insecurePort))
 	} else if kubeAPIServer.SecurePort != 0 {
 		probeAction.Port = intstr.FromInt(int(kubeAPIServer.SecurePort))
 		probeAction.Scheme = v1.URISchemeHTTPS
@@ -598,37 +570,21 @@ func (b *KubeAPIServerBuilder) buildPod(kubeAPIServer *kops.KubeAPIServerConfig)
 	resourceLimits := v1.ResourceList{}
 
 	cpuRequest := resource.MustParse("150m")
-	if kubeAPIServer.CPURequest != "" {
-		var err error
-		cpuRequest, err = resource.ParseQuantity(kubeAPIServer.CPURequest)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing CPURequest=%q", kubeAPIServer.CPURequest)
-		}
+	if kubeAPIServer.CPURequest != nil {
+		cpuRequest = *kubeAPIServer.CPURequest
 	}
 	resourceRequests["cpu"] = cpuRequest
 
-	if kubeAPIServer.CPULimit != "" {
-		cpuLimit, err := resource.ParseQuantity(kubeAPIServer.CPULimit)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing CPULimit=%q", kubeAPIServer.CPULimit)
-		}
-		resourceLimits["cpu"] = cpuLimit
+	if kubeAPIServer.CPULimit != nil {
+		resourceLimits["cpu"] = *kubeAPIServer.CPULimit
 	}
 
-	if kubeAPIServer.MemoryRequest != "" {
-		memoryRequest, err := resource.ParseQuantity(kubeAPIServer.MemoryRequest)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing MemoryRequest=%q", kubeAPIServer.MemoryRequest)
-		}
-		resourceRequests["memory"] = memoryRequest
+	if kubeAPIServer.MemoryRequest != nil {
+		resourceRequests["memory"] = *kubeAPIServer.MemoryRequest
 	}
 
-	if kubeAPIServer.MemoryLimit != "" {
-		memoryLimit, err := resource.ParseQuantity(kubeAPIServer.MemoryLimit)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing MemoryLimit=%q", kubeAPIServer.MemoryLimit)
-		}
-		resourceLimits["memory"] = memoryLimit
+	if kubeAPIServer.MemoryLimit != nil {
+		resourceLimits["memory"] = *kubeAPIServer.MemoryLimit
 	}
 
 	image := kubeAPIServer.Image
@@ -641,7 +597,7 @@ func (b *KubeAPIServerBuilder) buildPod(kubeAPIServer *kops.KubeAPIServerConfig)
 		Image: image,
 		Env:   proxy.GetProxyEnvVars(b.Cluster.Spec.EgressProxy),
 		LivenessProbe: &v1.Probe{
-			Handler: v1.Handler{
+			ProbeHandler: v1.ProbeHandler{
 				HTTPGet: probeAction,
 			},
 			InitialDelaySeconds: 45,
@@ -660,11 +616,11 @@ func (b *KubeAPIServerBuilder) buildPod(kubeAPIServer *kops.KubeAPIServerConfig)
 		},
 	}
 
-	if kubeAPIServer.InsecurePort != 0 {
+	if insecurePort != 0 {
 		container.Ports = append(container.Ports, v1.ContainerPort{
 			Name:          "local",
-			ContainerPort: kubeAPIServer.InsecurePort,
-			HostPort:      kubeAPIServer.InsecurePort,
+			ContainerPort: insecurePort,
+			HostPort:      insecurePort,
 		})
 	}
 
@@ -683,7 +639,7 @@ func (b *KubeAPIServerBuilder) buildPod(kubeAPIServer *kops.KubeAPIServerConfig)
 		container.Command = []string{"/usr/local/bin/kube-apiserver"}
 		container.Args = append(
 			sortedStrings(flags),
-			"--logtostderr=false", //https://github.com/kubernetes/klog/issues/60
+			"--logtostderr=false", // https://github.com/kubernetes/klog/issues/60
 			"--alsologtostderr",
 			"--log-file=/var/log/kube-apiserver.log")
 	}
@@ -720,7 +676,7 @@ func (b *KubeAPIServerBuilder) buildPod(kubeAPIServer *kops.KubeAPIServerConfig)
 	}
 
 	if b.Cluster.Spec.Authentication != nil {
-		if b.Cluster.Spec.Authentication.Kopeio != nil || b.Cluster.Spec.Authentication.Aws != nil {
+		if b.Cluster.Spec.Authentication.Kopeio != nil || b.Cluster.Spec.Authentication.AWS != nil {
 			addHostPathMapping(pod, container, "authn-config", PathAuthnConfig)
 		}
 	}
@@ -744,7 +700,7 @@ func (b *KubeAPIServerBuilder) buildAnnotations() map[string]string {
 	annotations["kubectl.kubernetes.io/default-container"] = "kube-apiserver"
 
 	if b.Cluster.Spec.API != nil {
-		if b.Cluster.Spec.API.LoadBalancer == nil || !b.Cluster.Spec.API.LoadBalancer.UseForInternalApi {
+		if b.Cluster.Spec.API.LoadBalancer == nil || !b.Cluster.Spec.API.LoadBalancer.UseForInternalAPI {
 			annotations["dns.alpha.kubernetes.io/internal"] = b.Cluster.Spec.MasterInternalName
 		}
 

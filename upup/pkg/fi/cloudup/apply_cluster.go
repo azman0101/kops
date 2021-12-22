@@ -45,7 +45,6 @@ import (
 	"k8s.io/kops/pkg/dns"
 	"k8s.io/kops/pkg/featureflag"
 	"k8s.io/kops/pkg/model"
-	"k8s.io/kops/pkg/model/alimodel"
 	"k8s.io/kops/pkg/model/awsmodel"
 	"k8s.io/kops/pkg/model/azuremodel"
 	"k8s.io/kops/pkg/model/components"
@@ -59,7 +58,6 @@ import (
 	"k8s.io/kops/pkg/wellknownports"
 	"k8s.io/kops/upup/models"
 	"k8s.io/kops/upup/pkg/fi"
-	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/azure"
 	"k8s.io/kops/upup/pkg/fi/cloudup/bootstrapchannelbuilder"
@@ -69,7 +67,6 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/openstack"
 	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 	"k8s.io/kops/upup/pkg/fi/cloudup/terraformWriter"
-	"k8s.io/kops/upup/pkg/fi/fitasks"
 	"k8s.io/kops/util/pkg/architectures"
 	"k8s.io/kops/util/pkg/hashing"
 	"k8s.io/kops/util/pkg/mirrors"
@@ -80,15 +77,13 @@ const (
 	starline = "*********************************************************************************"
 
 	// OldestSupportedKubernetesVersion is the oldest kubernetes version that is supported in kOps.
-	OldestSupportedKubernetesVersion = "1.18.0"
+	OldestSupportedKubernetesVersion = "1.19.0"
 	// OldestRecommendedKubernetesVersion is the oldest kubernetes version that is not deprecated in kOps.
-	OldestRecommendedKubernetesVersion = "1.20.0"
+	OldestRecommendedKubernetesVersion = "1.21.0"
 )
 
-var (
-	// TerraformCloudProviders is the list of cloud providers with terraform target support
-	TerraformCloudProviders = []kops.CloudProviderID{kops.CloudProviderAWS, kops.CloudProviderGCE, kops.CloudProviderALI}
-)
+// TerraformCloudProviders is the list of cloud providers with terraform target support
+var TerraformCloudProviders = []kops.CloudProviderID{kops.CloudProviderAWS, kops.CloudProviderGCE}
 
 type ApplyClusterCmd struct {
 	Cloud   fi.Cloud
@@ -415,7 +410,6 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 			if len(sshPublicKeys) == 0 && (c.Cluster.Spec.SSHKeyName == nil || *c.Cluster.Spec.SSHKeyName == "") {
 				return fmt.Errorf("SSH public key must be specified when running with DigitalOcean (create with `kops create secret --name %s sshpublickey admin -i ~/.ssh/id_rsa.pub`)", cluster.ObjectMeta.Name)
 			}
-
 		}
 	case kops.CloudProviderAWS:
 		{
@@ -433,24 +427,6 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 			}
 		}
 
-	case kops.CloudProviderALI:
-		{
-			fmt.Println("")
-			fmt.Println("aliyun support has been deprecated due to lack of maintainers. It may be removed in a future version of kOps.")
-			fmt.Println("")
-
-			if !featureflag.AlphaAllowALI.Enabled() {
-				return fmt.Errorf("aliyun support is currently alpha, and is feature-gated.  export KOPS_FEATURE_FLAGS=AlphaAllowALI")
-			}
-
-			if len(sshPublicKeys) == 0 {
-				return fmt.Errorf("SSH public key must be specified when running with ALICloud (create with `kops create secret --name %s sshpublickey admin -i ~/.ssh/id_rsa.pub`)", cluster.ObjectMeta.Name)
-			}
-
-			if len(sshPublicKeys) != 1 {
-				return fmt.Errorf("exactly one 'admin' SSH public key can be specified when running with ALICloud; please delete a key using `kops delete secret`")
-			}
-		}
 	case kops.CloudProviderAzure:
 		{
 			if !featureflag.Azure.Enabled() {
@@ -612,6 +588,7 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 			)
 		case kops.CloudProviderGCE:
 			gceModelContext := &gcemodel.GCEModelContext{
+				ProjectID:        project,
 				KopsModelContext: modelContext,
 			}
 
@@ -629,21 +606,8 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 				&gcemodel.NetworkModelBuilder{GCEModelContext: gceModelContext, Lifecycle: networkLifecycle},
 				&gcemodel.StorageAclBuilder{GCEModelContext: gceModelContext, Cloud: cloud.(gce.GCECloud), Lifecycle: storageACLLifecycle},
 				&gcemodel.AutoscalingGroupModelBuilder{GCEModelContext: gceModelContext, BootstrapScriptBuilder: bootstrapScriptBuilder, Lifecycle: clusterLifecycle},
+				&gcemodel.ServiceAccountsBuilder{GCEModelContext: gceModelContext, Lifecycle: clusterLifecycle},
 			)
-		case kops.CloudProviderALI:
-			aliModelContext := &alimodel.ALIModelContext{
-				KopsModelContext: modelContext,
-			}
-			l.Builders = append(l.Builders,
-				&alimodel.APILoadBalancerModelBuilder{ALIModelContext: aliModelContext, Lifecycle: clusterLifecycle},
-				&alimodel.NetworkModelBuilder{ALIModelContext: aliModelContext, Lifecycle: clusterLifecycle},
-				&alimodel.RAMModelBuilder{ALIModelContext: aliModelContext, Lifecycle: clusterLifecycle},
-				&alimodel.SSHKeyModelBuilder{ALIModelContext: aliModelContext, Lifecycle: clusterLifecycle},
-				&alimodel.FirewallModelBuilder{ALIModelContext: aliModelContext, Lifecycle: clusterLifecycle},
-				&alimodel.ExternalAccessModelBuilder{ALIModelContext: aliModelContext, Lifecycle: clusterLifecycle},
-				&alimodel.ScalingGroupModelBuilder{ALIModelContext: aliModelContext, BootstrapScriptBuilder: bootstrapScriptBuilder, Lifecycle: clusterLifecycle},
-			)
-
 		case kops.CloudProviderAzure:
 			azureModelContext := &azuremodel.AzureModelContext{
 				KopsModelContext: modelContext,
@@ -690,8 +654,6 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 			target = do.NewDOAPITarget(cloud.(do.DOCloud))
 		case kops.CloudProviderOpenstack:
 			target = openstack.NewOpenstackAPITarget(cloud.(openstack.OpenstackCloud))
-		case kops.CloudProviderALI:
-			target = aliup.NewALIAPITarget(cloud.(aliup.ALICloud))
 		case kops.CloudProviderAzure:
 			target = azure.NewAzureAPITarget(cloud.(azure.AzureCloud))
 		default:
@@ -797,7 +759,7 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 		}
 	}
 
-	err = target.Finish(c.TaskMap) //This will finish the apply, and print the changes
+	err = target.Finish(c.TaskMap) // This will finish the apply, and print the changes
 	if err != nil {
 		return fmt.Errorf("error closing target: %v", err)
 	}
@@ -1014,7 +976,6 @@ func (c *ApplyClusterCmd) validateKubernetesVersion() error {
 
 // addFileAssets adds the file assets within the assetBuilder
 func (c *ApplyClusterCmd) addFileAssets(assetBuilder *assets.AssetBuilder) error {
-
 	var baseURL string
 	if components.IsBaseURL(c.Cluster.Spec.KubernetesVersion) {
 		baseURL = c.Cluster.Spec.KubernetesVersion
@@ -1275,7 +1236,7 @@ func newNodeUpConfigBuilder(cluster *kops.Cluster, assetBuilder *assets.AssetBui
 }
 
 // BuildConfig returns the NodeUp config and auxiliary config.
-func (n *nodeUpConfigBuilder) BuildConfig(ig *kops.InstanceGroup, apiserverAdditionalIPs []string, caTasks map[string]*fitasks.Keypair) (*nodeup.Config, *nodeup.BootConfig, error) {
+func (n *nodeUpConfigBuilder) BuildConfig(ig *kops.InstanceGroup, apiserverAdditionalIPs []string, keysets map[string]*fi.Keyset) (*nodeup.Config, *nodeup.BootConfig, error) {
 	cluster := n.cluster
 
 	if ig == nil {
@@ -1302,63 +1263,63 @@ func (n *nodeUpConfigBuilder) BuildConfig(ig *kops.InstanceGroup, apiserverAddit
 	}
 
 	if role != kops.InstanceGroupRoleBastion {
-		if err := getTasksCertificate(caTasks, fi.CertificateIDCA, config, true); err != nil {
+		if err := loadCertificates(keysets, fi.CertificateIDCA, config, true); err != nil {
 			return nil, nil, err
 		}
-		if caTasks["etcd-clients-ca-cilium"] != nil {
-			if err := getTasksCertificate(caTasks, "etcd-clients-ca-cilium", config, hasAPIServer || apiModel.UseKopsControllerForNodeBootstrap(n.cluster)); err != nil {
+		if keysets["etcd-clients-ca-cilium"] != nil {
+			if err := loadCertificates(keysets, "etcd-clients-ca-cilium", config, hasAPIServer || apiModel.UseKopsControllerForNodeBootstrap(n.cluster)); err != nil {
 				return nil, nil, err
 			}
 		}
 
 		if isMaster {
-			if err := getTasksCertificate(caTasks, "etcd-clients-ca", config, true); err != nil {
+			if err := loadCertificates(keysets, "etcd-clients-ca", config, true); err != nil {
 				return nil, nil, err
 			}
 			for _, etcdCluster := range cluster.Spec.EtcdClusters {
 				k := etcdCluster.Name
-				if err := getTasksCertificate(caTasks, "etcd-manager-ca-"+k, config, true); err != nil {
+				if err := loadCertificates(keysets, "etcd-manager-ca-"+k, config, true); err != nil {
 					return nil, nil, err
 				}
-				if err := getTasksCertificate(caTasks, "etcd-peers-ca-"+k, config, true); err != nil {
+				if err := loadCertificates(keysets, "etcd-peers-ca-"+k, config, true); err != nil {
 					return nil, nil, err
 				}
 				if k != "events" && k != "main" {
-					if err := getTasksCertificate(caTasks, "etcd-clients-ca-"+k, config, true); err != nil {
+					if err := loadCertificates(keysets, "etcd-clients-ca-"+k, config, true); err != nil {
 						return nil, nil, err
 					}
 				}
 			}
-			config.KeypairIDs["service-account"] = caTasks["service-account"].Keyset().Primary.Id
+			config.KeypairIDs["service-account"] = keysets["service-account"].Primary.Id
 		} else {
-			if caTasks["etcd-client-cilium"] != nil {
-				config.KeypairIDs["etcd-client-cilium"] = caTasks["etcd-client-cilium"].Keyset().Primary.Id
+			if keysets["etcd-client-cilium"] != nil {
+				config.KeypairIDs["etcd-client-cilium"] = keysets["etcd-client-cilium"].Primary.Id
 			}
 		}
 
 		if hasAPIServer {
-			if err := getTasksCertificate(caTasks, "apiserver-aggregator-ca", config, true); err != nil {
+			if err := loadCertificates(keysets, "apiserver-aggregator-ca", config, true); err != nil {
 				return nil, nil, err
 			}
-			if caTasks["etcd-clients-ca"] != nil {
-				if err := getTasksCertificate(caTasks, "etcd-clients-ca", config, true); err != nil {
+			if keysets["etcd-clients-ca"] != nil {
+				if err := loadCertificates(keysets, "etcd-clients-ca", config, true); err != nil {
 					return nil, nil, err
 				}
 			}
 			if cluster.Spec.KubeAPIServer != nil && fi.StringValue(cluster.Spec.KubeAPIServer.ServiceAccountIssuer) != "" {
-				config.KeypairIDs["service-account"] = caTasks["service-account"].Keyset().Primary.Id
+				config.KeypairIDs["service-account"] = keysets["service-account"].Primary.Id
 			}
 
 			config.APIServerConfig.EncryptionConfigSecretHash = n.encryptionConfigSecretHash
-			var err error
-			config.APIServerConfig.ServiceAccountPublicKeys, err = caTasks["service-account"].Keyset().ToPublicKeys()
+			serviceAccountPublicKeys, err := keysets["service-account"].ToPublicKeys()
 			if err != nil {
 				return nil, nil, fmt.Errorf("encoding service-account keys: %w", err)
 			}
+			config.APIServerConfig.ServiceAccountPublicKeys = serviceAccountPublicKeys
 		} else {
 			for _, key := range []string{"kubelet", "kube-proxy", "kube-router"} {
-				if caTasks[key] != nil {
-					config.KeypairIDs[key] = caTasks[key].Keyset().Primary.Id
+				if keysets[key] != nil {
+					config.KeypairIDs[key] = keysets[key].Primary.Id
 				}
 			}
 		}
@@ -1427,7 +1388,7 @@ func (n *nodeUpConfigBuilder) BuildConfig(ig *kops.InstanceGroup, apiserverAddit
 		config.ContainerdConfig = cluster.Spec.Containerd
 	}
 
-	if cluster.Spec.Containerd.NvidiaGPU != nil {
+	if cluster.Spec.Containerd != nil && cluster.Spec.Containerd.NvidiaGPU != nil {
 		config.NvidiaGPU = cluster.Spec.Containerd.NvidiaGPU
 	}
 
@@ -1438,15 +1399,21 @@ func (n *nodeUpConfigBuilder) BuildConfig(ig *kops.InstanceGroup, apiserverAddit
 	return config, bootConfig, nil
 }
 
-func getTasksCertificate(caTasks map[string]*fitasks.Keypair, name string, config *nodeup.Config, includeKeypairID bool) error {
-	cas, err := fi.ResourceAsString(caTasks[name].Certificates())
-	if err != nil {
-		// CA task may not have run yet; we'll retry
-		return fmt.Errorf("failed to read %s certificates: %w", name, err)
+func loadCertificates(keysets map[string]*fi.Keyset, name string, config *nodeup.Config, includeKeypairID bool) error {
+	keyset := keysets[name]
+	if keyset == nil {
+		return fmt.Errorf("key %q not found", name)
 	}
-	config.CAs[name] = cas
+	certificates, err := keyset.ToCertificateBytes()
+	if err != nil {
+		return fmt.Errorf("failed to read %q certificates: %w", name, err)
+	}
+	config.CAs[name] = string(certificates)
 	if includeKeypairID {
-		config.KeypairIDs[name] = caTasks[name].Keyset().Primary.Id
+		if keyset.Primary == nil {
+			return fmt.Errorf("key %q did not have primary set", name)
+		}
+		config.KeypairIDs[name] = keyset.Primary.Id
 	}
 	return nil
 }
@@ -1462,7 +1429,8 @@ func (n *nodeUpConfigBuilder) buildWarmPoolImages(ig *kops.InstanceGroup) []stri
 	// Add component and addon images that impact startup time
 	// TODO: Exclude images that only run on control-plane nodes in a generic way
 	desiredImagePrefixes := []string{
-		"602401143452.dkr.ecr.us-west-2.amazonaws.com/", // Amazon VPC CNI
+		// Ignore images hosted in private ECR repositories as containerd cannot actually pull these
+		//"602401143452.dkr.ecr.us-west-2.amazonaws.com/", // Amazon VPC CNI
 		// Ignore images hosted on docker.io until a solution for rate limiting is implemented
 		//"docker.io/calico/",
 		//"docker.io/cilium/",

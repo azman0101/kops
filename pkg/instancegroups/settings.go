@@ -18,6 +18,7 @@ package instancegroups
 
 import (
 	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/featureflag"
 	"k8s.io/kops/upup/pkg/fi"
@@ -47,14 +48,14 @@ func resolveSettings(cluster *kops.Cluster, group *kops.InstanceGroup, numInstan
 
 	if rollingUpdate.MaxSurge == nil {
 		val := intstr.FromInt(0)
-		if kops.CloudProviderID(cluster.Spec.CloudProvider) == kops.CloudProviderAWS && !featureflag.Spotinst.Enabled() {
+		if kops.CloudProviderID(cluster.Spec.CloudProvider) == kops.CloudProviderAWS && !featureflag.Spotinst.Enabled() && group.Spec.Manager != kops.InstanceManagerKarpenter {
 			val = intstr.FromInt(1)
 		}
 		rollingUpdate.MaxSurge = &val
 	}
 
 	if rollingUpdate.MaxSurge.Type == intstr.String {
-		surge, _ := intstr.GetValueFromIntOrPercent(rollingUpdate.MaxSurge, numInstances, true)
+		surge, _ := intstr.GetScaledValueFromIntOrPercent(rollingUpdate.MaxSurge, numInstances, true)
 		surgeInt := intstr.FromInt(surge)
 		rollingUpdate.MaxSurge = &surgeInt
 	}
@@ -68,7 +69,7 @@ func resolveSettings(cluster *kops.Cluster, group *kops.InstanceGroup, numInstan
 	}
 
 	if rollingUpdate.MaxUnavailable.Type == intstr.String {
-		unavailable, _ := intstr.GetValueFromIntOrPercent(rollingUpdate.MaxUnavailable, numInstances, false)
+		unavailable, _ := intstr.GetScaledValueFromIntOrPercent(rollingUpdate.MaxUnavailable, numInstances, false)
 		if unavailable <= 0 {
 			// While we round down, percentages should resolve to a minimum of 1
 			unavailable = 1

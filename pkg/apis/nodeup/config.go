@@ -78,6 +78,8 @@ type Config struct {
 	APIServerConfig *APIServerConfig `json:",omitempty"`
 	// NvidiaGPU contains the configuration for nvidia
 	NvidiaGPU *kops.NvidiaGPUConfig `json:",omitempty"`
+	// UseInstanceIDForNodeName uses the instance ID instead of the hostname for the node name.
+	UseInstanceIDForNodeName bool `json:"useInstanceIDForNodeName,omitempty"`
 }
 
 // BootConfig is the configuration for the nodeup binary that might be too big to fit in userdata.
@@ -206,7 +208,15 @@ func NewConfig(cluster *kops.Cluster, instanceGroup *kops.InstanceGroup) (*Confi
 		config.DefaultMachineType = fi.String(strings.Split(instanceGroup.Spec.MachineType, ",")[0])
 	}
 
+	if UsesInstanceIDForNodeName(cluster) {
+		config.UseInstanceIDForNodeName = true
+	}
+
 	return &config, &bootConfig
+}
+
+func UsesInstanceIDForNodeName(cluster *kops.Cluster) bool {
+	return cluster.Spec.ExternalCloudControllerManager != nil && cluster.IsKubernetesGTE("1.23") && kops.CloudProviderID(cluster.Spec.CloudProvider) == kops.CloudProviderAWS
 }
 
 func filterFileAssets(f []kops.FileAssetSpec, role kops.InstanceGroupRole) []kops.FileAssetSpec {

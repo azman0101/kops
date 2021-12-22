@@ -18,7 +18,7 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 	"testing"
@@ -38,16 +38,31 @@ func TestConversionMinimal(t *testing.T) {
 	runTest(t, "minimal", "v1alpha3", "v1alpha2")
 }
 
+func TestConversionAWS(t *testing.T) {
+	runTest(t, "aws", "v1alpha2", "v1alpha3")
+	runTest(t, "aws", "v1alpha3", "v1alpha2")
+}
+
+func TestConversionCanal(t *testing.T) {
+	runTest(t, "canal", "v1alpha2", "v1alpha3")
+	runTest(t, "canal", "v1alpha3", "v1alpha2")
+}
+
+func TestConversionCilium(t *testing.T) {
+	runTest(t, "cilium", "v1alpha2", "v1alpha3")
+	runTest(t, "cilium", "v1alpha3", "v1alpha2")
+}
+
 func runTest(t *testing.T, srcDir string, fromVersion string, toVersion string) {
 	t.Run(fromVersion+"-"+toVersion, func(t *testing.T) {
 		sourcePath := path.Join(srcDir, fromVersion+".yaml")
-		sourceBytes, err := ioutil.ReadFile(sourcePath)
+		sourceBytes, err := os.ReadFile(sourcePath)
 		if err != nil {
 			t.Fatalf("unexpected error reading sourcePath %q: %v", sourcePath, err)
 		}
 
 		expectedPath := path.Join(srcDir, toVersion+".yaml")
-		expectedBytes, err := ioutil.ReadFile(expectedPath)
+		expectedBytes, err := os.ReadFile(expectedPath)
 		if err != nil {
 			t.Fatalf("unexpected error reading expectedPath %q: %v", expectedPath, err)
 		}

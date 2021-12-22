@@ -49,6 +49,7 @@ data:
   enable-l7-proxy: "true"
   enable-node-port: "false"
   enable-remote-node-identity: "true"
+  enable-service-topology: "false"
   identity-allocation-mode: crd
   identity-change-grace-period: 5s
   install-iptables-rules: "true"
@@ -342,15 +343,6 @@ spec:
                 operator: In
                 values:
                 - linux
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: k8s-app
-                operator: In
-                values:
-                - cilium
-            topologyKey: kubernetes.io/hostname
       containers:
       - args:
         - --config-dir=/tmp/cilium/config-map
@@ -385,7 +377,7 @@ spec:
           value: api.internal.minimal-warmpool.example.com
         - name: KUBERNETES_SERVICE_PORT
           value: "443"
-        image: quay.io/cilium/cilium:v1.10.4
+        image: quay.io/cilium/cilium:v1.10.5
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -481,7 +473,7 @@ spec:
               key: clean-cilium-bpf-state
               name: cilium-config
               optional: true
-        image: quay.io/cilium/cilium:v1.10.4
+        image: quay.io/cilium/cilium:v1.10.5
         imagePullPolicy: IfNotPresent
         name: clean-cilium-state
         resources:
@@ -605,7 +597,7 @@ spec:
           value: api.internal.minimal-warmpool.example.com
         - name: KUBERNETES_SERVICE_PORT
           value: "443"
-        image: quay.io/cilium/operator:v1.10.4
+        image: quay.io/cilium/operator:v1.10.5
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
@@ -634,6 +626,21 @@ spec:
       serviceAccountName: cilium-operator
       tolerations:
       - operator: Exists
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            io.cilium/app: operator
+            name: cilium-operator
+        maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+      - labelSelector:
+          matchLabels:
+            io.cilium/app: operator
+            name: cilium-operator
+        maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
       volumes:
       - configMap:
           name: cilium-config

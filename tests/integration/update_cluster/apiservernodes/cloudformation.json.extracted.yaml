@@ -41,7 +41,7 @@ Resources.AWSEC2LaunchTemplateapiserverapiserversminimalexamplecom.Properties.La
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -64,7 +64,7 @@ Resources.AWSEC2LaunchTemplateapiserverapiserversminimalexamplecom.Properties.La
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -126,19 +126,19 @@ Resources.AWSEC2LaunchTemplateapiserverapiserversminimalexamplecom.Properties.La
   cat > conf/cluster_spec.yaml << '__EOF_CLUSTER_SPEC'
   cloudConfig:
     awsEBSCSIDriver:
-      enabled: false
+      enabled: true
+      version: v1.5.0
     manageStorageClasses: true
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
-    hostnameOverride: '@aws'
-    image: k8s.gcr.io/kube-proxy:v1.21.0
+    image: k8s.gcr.io/kube-proxy:v1.22.0
     logLevel: 2
   kubelet:
     anonymousAuth: false
@@ -149,12 +149,14 @@ Resources.AWSEC2LaunchTemplateapiserverapiserversminimalexamplecom.Properties.La
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
+    featureGates:
+      CSIMigrationAWS: "true"
+      InTreePluginAWSUnregister: "true"
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
+    protectKernelDefaults: true
 
   __EOF_CLUSTER_SPEC
 
@@ -163,7 +165,7 @@ Resources.AWSEC2LaunchTemplateapiserverapiserversminimalexamplecom.Properties.La
   ConfigBase: memfs://clusters.example.com/minimal.example.com
   InstanceGroupName: apiserver
   InstanceGroupRole: APIServer
-  NodeupConfigHash: ibfeoFZlebuojxrJv9vE9XNiuiE7pnf2iP9eodm0+K0=
+  NodeupConfigHash: HHeS5YAGQXjQVnKAFPz+rvdZednKJaLC27ZnxjBkSqc=
 
   __EOF_KUBE_ENV
 
@@ -212,7 +214,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalexamplecom.Properties.
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -235,7 +237,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalexamplecom.Properties.
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -297,20 +299,21 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalexamplecom.Properties.
   cat > conf/cluster_spec.yaml << '__EOF_CLUSTER_SPEC'
   cloudConfig:
     awsEBSCSIDriver:
-      enabled: false
+      enabled: true
+      version: v1.5.0
     manageStorageClasses: true
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   encryptionConfig: null
   etcdClusters:
     events:
-      version: 3.4.13
+      version: 3.5.1
     main:
-      version: 3.4.13
+      version: 3.5.1
   kubeAPIServer:
     allowPrivileged: true
     anonymousAuth: false
@@ -334,7 +337,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalexamplecom.Properties.
     - https://127.0.0.1:4001
     etcdServersOverrides:
     - /events#https://127.0.0.1:4002
-    image: k8s.gcr.io/kube-apiserver:v1.21.0
+    image: k8s.gcr.io/kube-apiserver:v1.22.0
     kubeletPreferredAddressTypes:
     - InternalIP
     - Hostname
@@ -360,7 +363,9 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalexamplecom.Properties.
     clusterCIDR: 100.96.0.0/11
     clusterName: minimal.example.com
     configureCloudRoutes: false
-    image: k8s.gcr.io/kube-controller-manager:v1.21.0
+    featureGates:
+      CSIMigrationAWS: "true"
+    image: k8s.gcr.io/kube-controller-manager:v1.22.0
     leaderElection:
       leaderElect: true
     logLevel: 2
@@ -368,11 +373,10 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalexamplecom.Properties.
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
-    hostnameOverride: '@aws'
-    image: k8s.gcr.io/kube-proxy:v1.21.0
+    image: k8s.gcr.io/kube-proxy:v1.22.0
     logLevel: 2
   kubeScheduler:
-    image: k8s.gcr.io/kube-scheduler:v1.21.0
+    image: k8s.gcr.io/kube-scheduler:v1.22.0
     leaderElection:
       leaderElect: true
     logLevel: 2
@@ -385,12 +389,14 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalexamplecom.Properties.
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
+    featureGates:
+      CSIMigrationAWS: "true"
+      InTreePluginAWSUnregister: "true"
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
+    protectKernelDefaults: true
   masterKubelet:
     anonymousAuth: false
     cgroupDriver: systemd
@@ -400,12 +406,14 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalexamplecom.Properties.
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
+    featureGates:
+      CSIMigrationAWS: "true"
+      InTreePluginAWSUnregister: "true"
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
+    protectKernelDefaults: true
     registerSchedulable: false
 
   __EOF_CLUSTER_SPEC
@@ -415,7 +423,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalexamplecom.Properties.
   ConfigBase: memfs://clusters.example.com/minimal.example.com
   InstanceGroupName: master-us-test-1a
   InstanceGroupRole: Master
-  NodeupConfigHash: nB3wN4ezsgELqmkcSfp203g1PJwvvlhsjMO2IdRIvZ4=
+  NodeupConfigHash: tw1EcHOT+CcX9dGUJcVAc99vW9f32gPf179XMBsLblA=
 
   __EOF_KUBE_ENV
 
@@ -464,7 +472,7 @@ Resources.AWSEC2LaunchTemplatenodesminimalexamplecom.Properties.LaunchTemplateDa
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -487,7 +495,7 @@ Resources.AWSEC2LaunchTemplatenodesminimalexamplecom.Properties.LaunchTemplateDa
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -549,19 +557,19 @@ Resources.AWSEC2LaunchTemplatenodesminimalexamplecom.Properties.LaunchTemplateDa
   cat > conf/cluster_spec.yaml << '__EOF_CLUSTER_SPEC'
   cloudConfig:
     awsEBSCSIDriver:
-      enabled: false
+      enabled: true
+      version: v1.5.0
     manageStorageClasses: true
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
-    hostnameOverride: '@aws'
-    image: k8s.gcr.io/kube-proxy:v1.21.0
+    image: k8s.gcr.io/kube-proxy:v1.22.0
     logLevel: 2
   kubelet:
     anonymousAuth: false
@@ -572,12 +580,14 @@ Resources.AWSEC2LaunchTemplatenodesminimalexamplecom.Properties.LaunchTemplateDa
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
+    featureGates:
+      CSIMigrationAWS: "true"
+      InTreePluginAWSUnregister: "true"
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
+    protectKernelDefaults: true
 
   __EOF_CLUSTER_SPEC
 
@@ -586,7 +596,7 @@ Resources.AWSEC2LaunchTemplatenodesminimalexamplecom.Properties.LaunchTemplateDa
   ConfigBase: memfs://clusters.example.com/minimal.example.com
   InstanceGroupName: nodes
   InstanceGroupRole: Node
-  NodeupConfigHash: /xc0hHryd87G4ro46rYwe9mCe7j9bWZRSru2pMpqqNs=
+  NodeupConfigHash: 70li4o70yQBXGTruZPCveo57wl3eefKmIjxt/fK2pd8=
 
   __EOF_KUBE_ENV
 

@@ -43,7 +43,7 @@ func DownloadURL(url string, dest string, hash *hashing.Hash) (*hashing.Hash, er
 		}
 	}
 
-	dirMode := os.FileMode(0755)
+	dirMode := os.FileMode(0o755)
 	err := downloadURLAlways(url, dest, dirMode)
 	if err != nil {
 		return nil, err
@@ -91,7 +91,7 @@ func downloadURLAlways(url string, destPath string, dirMode os.FileMode) error {
 				KeepAlive: 30 * time.Second,
 			}).DialContext,
 			TLSHandshakeTimeout:   10 * time.Second,
-			ResponseHeaderTimeout: 10 * time.Second,
+			ResponseHeaderTimeout: 30 * time.Second,
 			IdleConnTimeout:       30 * time.Second,
 		},
 	}

@@ -29,6 +29,9 @@ type Options struct {
 
 	// EnableCloudIPAM enables the cloud IPAM controller.
 	EnableCloudIPAM bool `json:"enableCloudIPAM,omitempty"`
+
+	// Discovery configures options relating to discovery, particularly for gossip mode.
+	Discovery *DiscoveryOptions `json:"discovery,omitempty"`
 }
 
 func (o *Options) PopulateDefaults() {
@@ -52,9 +55,18 @@ type ServerOptions struct {
 	SigningCAs []string `json:"signingCAs"`
 	// CertNames is the list of active certificate names.
 	CertNames []string `json:"certNames"`
+
+	// UseInstanceIDForNodeName uses the instance ID instead of the hostname for the node name.
+	UseInstanceIDForNodeName bool `json:"useInstanceIDForNodeName,omitempty"`
 }
 
 type ServerProviderOptions struct {
 	AWS *awsup.AWSVerifierOptions  `json:"aws,omitempty"`
 	GCE *gcetpm.TPMVerifierOptions `json:"gce,omitempty"`
+}
+
+// DiscoveryOptions configures our support for discovery, particularly gossip DNS (i.e. k8s.local)
+type DiscoveryOptions struct {
+	// Enabled specifies whether support for discovery population is enabled.
+	Enabled bool `json:"enabled"`
 }

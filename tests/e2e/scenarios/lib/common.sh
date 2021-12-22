@@ -90,7 +90,9 @@ function kops-download-from-base() {
 }
 
 function kops-base-from-marker() {
-    if [[ "${1}" == "latest" ]]; then
+    if [[ "${1}" =~ ^https: ]]; then
+        echo "${1}"
+    elif [[ "${1}" == "latest" ]]; then
         curl -s "https://storage.googleapis.com/kops-ci/bin/latest-ci-updown-green.txt"
     else
         curl -s "https://storage.googleapis.com/k8s-staging-kops/kops/releases/markers/release-${1}/latest-ci.txt"
@@ -120,9 +122,12 @@ function kops-up() {
     if [[ -n "${ZONES-}" ]]; then
         create_args="${create_args} --zones=${ZONES}"
     fi
+    if [[ -z "${K8S_VERSION-}" ]]; then
+        K8S_VERSION="1.22.1"
+    fi
     ${KUBETEST2} \
         --up \
         --kops-binary-path="${KOPS}" \
-        --kubernetes-version="1.22.1" \
+        --kubernetes-version="${K8S_VERSION}" \
         --create-args="${create_args}"
 }

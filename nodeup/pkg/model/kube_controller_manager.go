@@ -165,7 +165,8 @@ func (b *KubeControllerManagerBuilder) buildPod(kcm *kops.KubeControllerManagerC
 	// Configure CA certificate to be used to sign keys
 	flags = append(flags, []string{
 		"--cluster-signing-cert-file=" + filepath.Join(pathSrvKCM, "ca.crt"),
-		"--cluster-signing-key-file=" + filepath.Join(pathSrvKCM, "ca.key")}...)
+		"--cluster-signing-key-file=" + filepath.Join(pathSrvKCM, "ca.key"),
+	}...)
 
 	pod := &v1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -215,7 +216,7 @@ func (b *KubeControllerManagerBuilder) buildPod(kcm *kops.KubeControllerManagerC
 		Image: image,
 		Env:   proxy.GetProxyEnvVars(b.Cluster.Spec.EgressProxy),
 		LivenessProbe: &v1.Probe{
-			Handler: v1.Handler{
+			ProbeHandler: v1.ProbeHandler{
 				HTTPGet: &v1.HTTPGetAction{
 					Host:   "127.0.0.1",
 					Path:   "/healthz",
@@ -248,7 +249,7 @@ func (b *KubeControllerManagerBuilder) buildPod(kcm *kops.KubeControllerManagerC
 		container.Command = []string{"/usr/local/bin/kube-controller-manager"}
 		container.Args = append(
 			sortedStrings(flags),
-			"--logtostderr=false", //https://github.com/kubernetes/klog/issues/60
+			"--logtostderr=false", // https://github.com/kubernetes/klog/issues/60
 			"--alsologtostderr",
 			"--log-file=/var/log/kube-controller-manager.log")
 	}

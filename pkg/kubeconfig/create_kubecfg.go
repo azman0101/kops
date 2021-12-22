@@ -25,7 +25,6 @@ import (
 
 	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops"
-	"k8s.io/kops/pkg/apis/kops/util"
 	"k8s.io/kops/pkg/dns"
 	"k8s.io/kops/pkg/pki"
 	"k8s.io/kops/pkg/rbac"
@@ -164,33 +163,13 @@ func BuildKubecfg(cluster *kops.Cluster, keyStore fi.Keystore, secretStore fi.Se
 			"--cluster=" + clusterName,
 			"--state=" + kopsStateStore,
 		}
+
+		// If there's an existing client-cert / client-key, we need to clear it so it won't be used
+		b.ClientCert = nil
+		b.ClientKey = nil
 	}
 
 	b.Server = server
-
-	k8sVersion, err := util.ParseKubernetesVersion(cluster.Spec.KubernetesVersion)
-	if err != nil || k8sVersion == nil {
-		klog.Warningf("unable to parse KubernetesVersion %q", cluster.Spec.KubernetesVersion)
-		k8sVersion, _ = util.ParseKubernetesVersion("1.0.0")
-	}
-
-	basicAuthEnabled := false
-	if !util.IsKubernetesGTE("1.19", *k8sVersion) {
-		if cluster.Spec.KubeAPIServer != nil && cluster.Spec.KubeAPIServer.DisableBasicAuth != nil && !*cluster.Spec.KubeAPIServer.DisableBasicAuth {
-			basicAuthEnabled = true
-		}
-	}
-
-	if basicAuthEnabled && secretStore != nil {
-		secret, err := secretStore.FindSecret("kube")
-		if err != nil {
-			return nil, err
-		}
-		if secret != nil {
-			b.KubeUser = "admin"
-			b.KubePassword = string(secret.Data)
-		}
-	}
 
 	if configUser == "" {
 		b.User = cluster.ObjectMeta.Name

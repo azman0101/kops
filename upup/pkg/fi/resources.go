@@ -35,11 +35,6 @@ type HasIsReady interface {
 	IsReady() bool
 }
 
-type TemplateResource interface {
-	Resource
-	Curry(args []string) TemplateResource
-}
-
 func ResourcesMatch(a, b Resource) (bool, error) {
 	aReader, err := a.Open()
 	if err != nil {
@@ -209,9 +204,11 @@ type TaskDependentResource struct {
 	Task     Task     `json:"task,omitempty"`
 }
 
-var _ Resource = &TaskDependentResource{}
-var _ HasDependencies = &TaskDependentResource{}
-var _ HasIsReady = &TaskDependentResource{}
+var (
+	_ Resource        = &TaskDependentResource{}
+	_ HasDependencies = &TaskDependentResource{}
+	_ HasIsReady      = &TaskDependentResource{}
+)
 
 func (r *TaskDependentResource) Open() (io.Reader, error) {
 	if r.Resource == nil {
@@ -227,4 +224,29 @@ func (r *TaskDependentResource) GetDependencies(tasks map[string]Task) []Task {
 // IsReady implements HasIsReady::IsReady
 func (r *TaskDependentResource) IsReady() bool {
 	return r.Resource != nil
+}
+
+// FunctionToResource converts a function to a Resource.  The result of executing the function is cached.
+func FunctionToResource(fn func() ([]byte, error)) Resource {
+	return &functionResource{
+		fn: fn,
+	}
+}
+
+type functionResource struct {
+	data []byte
+	fn   func() ([]byte, error)
+}
+
+func (r *functionResource) Open() (io.Reader, error) {
+	b := r.data
+	if b == nil {
+		data, err := r.fn()
+		if err != nil {
+			return nil, err
+		}
+		r.data = data
+		b = data
+	}
+	return bytes.NewReader(b), nil
 }

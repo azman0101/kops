@@ -41,7 +41,7 @@ type Instance struct {
 	Preemptible    *bool
 	Image          *string
 	Disks          map[string]*Disk
-	ServiceAccount *string
+	ServiceAccount *ServiceAccount
 
 	CanIPForward *bool
 	IPAddress    *Address
@@ -263,7 +263,7 @@ func (e *Instance) mapToGCE(project string, ipAddressResolver func(*Address) (*s
 				scopes = append(scopes, s)
 			}
 			serviceAccounts = append(serviceAccounts, &compute.ServiceAccount{
-				Email:  fi.StringValue(e.ServiceAccount),
+				Email:  fi.StringValue(e.ServiceAccount.Email),
 				Scopes: scopes,
 			})
 		}
@@ -397,7 +397,7 @@ type terraformInstance struct {
 	Name                  string                              `json:"name" cty:"name"`
 	CanIPForward          bool                                `json:"can_ip_forward" cty:"can_ip_forward"`
 	MachineType           string                              `json:"machine_type,omitempty" cty:"machine_type"`
-	ServiceAccount        *terraformServiceAccount            `json:"service_account,omitempty" cty:"service_account"`
+	ServiceAccounts       []*terraformTemplateServiceAccount  `json:"service_account,omitempty" cty:"service_account"`
 	Scheduling            *terraformScheduling                `json:"scheduling,omitempty" cty:"scheduling"`
 	Disks                 []*terraformInstanceAttachedDisk    `json:"disk,omitempty" cty:"disk"`
 	NetworkInterfaces     []*terraformNetworkInterface        `json:"network_interface,omitempty" cty:"network_interface"`
@@ -446,7 +446,7 @@ func (_ *Instance) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *
 		tf.Zone = *e.Zone
 	}
 
-	tf.ServiceAccount = addServiceAccounts(i.ServiceAccounts)
+	tf.ServiceAccounts = mapServiceAccountsToTerraform([]*ServiceAccount{e.ServiceAccount}, e.Scopes)
 
 	for _, d := range i.Disks {
 		tfd := &terraformInstanceAttachedDisk{

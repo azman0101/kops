@@ -49,7 +49,7 @@ download-or-bust() {
     if ! validate-hash "${file}" "${hash}"; then
       rm -f "${file}"
     else
-      return
+      return 0
     fi
   fi
 
@@ -72,7 +72,7 @@ download-or-bust() {
           rm -f "${file}"
         else
           echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-          return
+          return 0
         fi
       done
     done
@@ -131,9 +131,9 @@ function download-release() {
 echo "== nodeup node config starting =="
 ensure-install-dir
 
-echo "H4sIAAAAAAAA/+xWT5Pbtg+9+1Nw5jeZXGLJSvaXtpoc6thp1028de2k6ZUmYZk1RSogKa/76TsgJf/ZXTfT6bGdzGRXAAgCDw+PK7QNcmLNRlXlgDG+d+/eriar2RRVC0gmxsDwtQZZsg3XDgaM1dzwClbeIq9gorlz4ErmMcBAWOO5MoDLYLyqoWRHizw5JSXWtvoALeiSKbOxA8ZaQKesKVmR3WRFMZBW7FINbqeamXGea93dA0bgofHKmq54ZoLWA/BCTnRwHtDRQWjBeJfaOKZ/RelfxT6Uedq3C2sYL2YrwA4FrrXdL1C1SkNFWMQqGOPGmkNtgxsHvz0hxBs1DlKBERBvHzLKiAY8uMy1IpOw4UH7FJqumdhgfMkKsgW/taj+4NTg3Eoo2Vjv+cGNqYwBY2tl5FhKBOdKNsrivwFjcZoLtK2SgCVNc9CPbyxr5ajHhQ6VMl1Vd7wG13ABH9QGxEFoiOYPqlZ+yU0FGL+pQCVgLATVGE3T1MA5Cc7tH60GjOWvQFgjk3MePPfKVMdiPsN6a+0uOn/lWsnr7jsrYQnOoxKUNtqW4GxAAb8E6zm16oVMYHb9bb1vXJnnxctvIkhFeTMaFZeRP7eAqGQ/qDxx5n9PHn05YEzVvIKS7b51WSUwUzan2Q55o1yiS1tkL4s4D3Jo8AuEDSBCP7KPh6a/bWY8oOF6toift9Z5w+s0hXf3Z77TtlANCF8COL8FLgEjKUDGWaasvKoQKu4tPox9d++R38ZfqSp13x/5bbiE2noYxojhw3M/og1NOvfwQHQ9jP/kqPQanj5CXlprEAFhYdGX7ObmVbScE23mXCAe96PgjcpUB1gmbN0QmBnc87rRQIZHGX76/H71aTn7Gyly24BRMm+L/Pf9zp0ydrIyW8S9KFkxGmWvb4gaeRQTlzbhLRc7MLKMDEtCMrHGo9UacB6F8ygognsgWk9m06U7SYr3XGynQP8vaXmE0rA6GLEAVFaWrKhH7tqyi1QlZUwlfvc6lVicnEQU0uUn8RNRTgPChNIvbfCk7b2uXeG+OHY4rLsWT0ugE/E0xL1NentmO/Z9yfDg4FJ1JggSjFdc91DR1Qu094fyq403YZnYGX3U57bbtH77S/b8e753z6832cSrzvo6q5cCVmILMug03is53DHmn+HTCUt5/QUSFa1l94wzd3Aeanm0L631Jcu/wqLp3eqM58XozGPj29l/ZsRlfXxrprAOVaVMdcuN1LT+fQ/QJvW+5ShLVkNt8ZDxlitN594Uo9FcvTBWwsZdmJ/1RkU/3Q8I8Ob/z15ElB+F9taL2L8eOeGZmL/ghGLecsy1Wucd0Pkp4BFTDfi9xV16V7vdMooc1sy5+xIAedrxS9EgOBsr59yoDTjfXQxe5Ke/FfK687pBzQnp9/8N/t82eHpZK0VodwpD/fbz/hMAAP//AQAA///A3MigwAsAAA==" | base64 -d | gzip -d > conf/cluster_spec.yaml
+echo "H4sIAAAAAAAA/+xV32/jNgx+918hYLi3ix233W0z7iWXdGt2bZcld7u9KhLjaJElj5LcZn/9QMlO0h/BYdjTgKFAW5MU9ZH8+EloG+TUmo2qq4wx/uCuP6ymq/kMVQdIJsbA8LUGWbEN1w4yxhpueA0rb5HXMNXcOXAV8xggE9Z4rgzgMhivGqjYwSKPTkmJta1voQNdMWU2NmOsA3TKmoqV+VVeXmTSil3C4HaqnRvnudb9PWAE7luvrOnBMxO0zsALOdXBeUBHB6ED410q45D+ktJfxjqUed23C2uYLOYrwL4LXGv7sEDVKQ019SKiYIwba/aNDW4S/PbYId6qSZAKjIB4+4hRRjTgweWuE7mEDQ/ap9B0zdQG4ytWki34rUX1F6cC76yEik30A9+7CcHIGFsrIydSIjhXsXEefzLG4jQXaDslASuaZjaMbyIb5ajGhQ61Mj2qe96Aa7mAW7UBsRcaovlWNcovuakB4zcBVAImQhDGaJqlAk5JcGr/ZDVghL8CYY1MzrvguVemPoD5Auuttbvo/I1rJc+7762EJTiPSlDaaFuCswEF/Bqs51SqFzI1s69v633rqqIoL76LTSqrq/G4fBr5SweISg6DKhJnvnn16EXGmGp4DRXbfe/yWmCubEGzHfFWuUSXrswvyjgPcmjwC4QNIMIwsk/7drhtbjyg4Xq+iJ831nnDmzSF68cT33FbCAPCnwGc3wKXgJEUIOMsU1Ze1wg19xafx14/euQ38V9CpR6HI7+PltBYD6MYMXp+7ie0oU3nnh+Irufxnx1Bb+D1I+SltQYREBYWfcWuri6j5ZRoc+cC8XgYBW9VrvqG5cI2LTUzh0fetBrI8CLDz18+rj4v5/8gRWFbMEoWXVn88bBzx4y9rMwXcS8qVo7H+bsrokYRxcSlTfjAxQ6MrCLDkpBMrfFotQa8i8J5EBTBPRCtp/PZ0h0lxXsutjOg30taHqE0rPZGLACVlRUrm7E7t+wioaSMCeIP7xLE8ugkopAuv9o/EeU0IEwp/dIGT9o+6NoZ7otDhaOmL/G4BDoRT0Pc26S3J7ZD3U8ZHhw8VZ0pggTjFddDq+jqBdrHffXVwtuwTOyMvuZ8JW3MdwL+BBQFrMQWZNBphmdyuEPMv2tCrx7V+WdG1LR7/VvN3N55aOTBvrTWV6z4ClVm96sTMpfjE4+ND+TwmRNh9eFBmcE61LUy9Q03UtOODzVAlyT6hqOsWAONxX3OO640nXtfjsd36q2xEjbuifnNYFT01/2IAO+/ffM2dvlF6GB9EttLbuLwglOrio5jodW66LtZHANecM6Af7C4Sy9kvyVGZYy1Vt5xozbgfJ8VvCiOT3rR9F6XNZx69fH/0f33RkdPWK2oX/2WE+JhYn8DAAD//wEAAP//8XQOzSkLAAA=" | base64 -d | gzip -d > conf/cluster_spec.yaml
 
-echo "H4sIAAAAAAAA/1TOQU+EMBAF4Ht/Rf8Ay26yq7tNvEgMmCAiIXIe2wFJWqZ2WvTnG/TE9eV7L6+wlEwbaJ0NBiXhm0VByzhPj8CopEM3sspzbRNHDHzAH3De4kGTyzU5H5B3oXheOMKisQyUfANuG4GtmyXOInLMTrBHHVlU8uUPiYYMJv9/oQL+VLItp8tw5f52V7vb9b5PH1+ns3lbq9oM9bF57Sxd4OndnNPxQfwCAAD//wEAAP//rSr2M88AAAA=" | base64 -d | gzip -d > conf/kube_env.yaml
+echo "H4sIAAAAAAAA/1TOQUvEMBAF4Ht+Re7SrSsLqwEv7mLrwSIi1OuYTG000wmZxNZ/L3VPvT6+93inwMW9JP7xDpPRMIs68TT4zwcQNJqQBjF1bUORjEl2uADFgDvLVFummFA2oXqaJMNksUlcYge0jsDarYpUGSVXe9iiVw5o9PM/Uh07LPFyoQUZjf7253B0+9+3vFx3/a0Nx0SHx6u7m9FT8zUczvO7az94bnu5V38AAAD//wEAAP//1fbh888AAAA=" | base64 -d | gzip -d > conf/kube_env.yaml
 
 download-release
 echo "== nodeup node config done =="

@@ -282,6 +282,7 @@ func (c *populateClusterSpec) run(clientset simple.Clientset) error {
 			codeModels = append(codeModels, &components.NodeProblemDetectorOptionsBuilder{OptionsContext: optionsContext})
 			codeModels = append(codeModels, &components.AWSEBSCSIDriverOptionsBuilder{OptionsContext: optionsContext})
 			codeModels = append(codeModels, &components.AWSCloudControllerManagerOptionsBuilder{OptionsContext: optionsContext})
+			codeModels = append(codeModels, &components.GCPPDCSIDriverOptionsBuilder{OptionsContext: optionsContext})
 		}
 	}
 
@@ -296,7 +297,7 @@ func (c *populateClusterSpec) run(clientset simple.Clientset) error {
 
 	// TODO: This should not be needed...
 	completed.Topology = c.InputCluster.Spec.Topology
-	//completed.Topology.Bastion = c.InputCluster.Spec.Topology.Bastion
+	// completed.Topology.Bastion = c.InputCluster.Spec.Topology.Bastion
 
 	fullCluster := &kopsapi.Cluster{}
 	*fullCluster = *cluster

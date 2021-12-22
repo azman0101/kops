@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -107,7 +107,7 @@ func getMetadata(url string) (string, error) {
 		return "", fmt.Errorf("droplet metadata returned non-200 status code: %d", resp.StatusCode)
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read metadata information %s: %v", url, err)
 	}
@@ -151,7 +151,6 @@ func (i *nodeIdentifier) IdentifyNode(ctx context.Context, node *corev1.Node) (*
 }
 
 func (i *nodeIdentifier) getInstanceGroup(instanceID int) (string, error) {
-
 	ctx := context.TODO()
 	droplet, _, err := i.doClient.Droplets.Get(ctx, instanceID)
 	if err != nil {

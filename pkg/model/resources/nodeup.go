@@ -19,14 +19,21 @@ package resources
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"fmt"
 	"mime/multipart"
 	"net/textproto"
+	"strings"
+	"text/template"
 
 	"k8s.io/kops/pkg/apis/kops"
+	"k8s.io/kops/upup/pkg/fi"
+	"k8s.io/kops/util/pkg/architectures"
+	"k8s.io/kops/util/pkg/mirrors"
 )
 
-var NodeUpTemplate = `#!/bin/bash
+var nodeUpTemplate = `#!/bin/bash
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -63,7 +70,7 @@ download-or-bust() {
     if ! validate-hash "${file}" "${hash}"; then
       rm -f "${file}"
     else
-      return
+      return 0
     fi
   fi
 
@@ -86,7 +93,7 @@ download-or-bust() {
           rm -f "${file}"
         else
           echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-          return
+          return 0
         fi
       done
     done
@@ -165,11 +172,106 @@ download-release
 echo "== nodeup node config done =="
 `
 
-// AWSNodeUpTemplate returns a MIME Multi Part Archive containing the nodeup (bootstrap) script
-// and any additional User Data passed to using AdditionalUserData in the IG Spec
-func AWSNodeUpTemplate(ig *kops.InstanceGroup) (string, error) {
+// NodeUpScript is responsible for creating the nodeup script
+type NodeUpScript struct {
+	NodeUpAssets         map[architectures.Architecture]*mirrors.MirroredAsset
+	KubeEnv              string
+	CompressUserData     bool
+	SetSysctls           string
+	ProxyEnv             func() (string, error)
+	EnvironmentVariables func() (string, error)
+	ClusterSpec          func() (string, error)
+}
 
-	userDataTemplate := NodeUpTemplate
+func funcEmptyString() (string, error) {
+	return "", nil
+}
+
+func (b *NodeUpScript) Build() (fi.Resource, error) {
+	if b.ProxyEnv == nil {
+		b.ProxyEnv = funcEmptyString
+	}
+	if b.EnvironmentVariables == nil {
+		b.EnvironmentVariables = funcEmptyString
+	}
+	if b.ClusterSpec == nil {
+		b.ClusterSpec = funcEmptyString
+	}
+
+	functions := template.FuncMap{
+		"NodeUpSourceAmd64": func() string {
+			if b.NodeUpAssets[architectures.ArchitectureAmd64] != nil {
+				return strings.Join(b.NodeUpAssets[architectures.ArchitectureAmd64].Locations, ",")
+			}
+			return ""
+		},
+		"NodeUpSourceHashAmd64": func() string {
+			if b.NodeUpAssets[architectures.ArchitectureAmd64] != nil {
+				return b.NodeUpAssets[architectures.ArchitectureAmd64].Hash.Hex()
+			}
+			return ""
+		},
+		"NodeUpSourceArm64": func() string {
+			if b.NodeUpAssets[architectures.ArchitectureArm64] != nil {
+				return strings.Join(b.NodeUpAssets[architectures.ArchitectureArm64].Locations, ",")
+			}
+			return ""
+		},
+		"NodeUpSourceHashArm64": func() string {
+			if b.NodeUpAssets[architectures.ArchitectureArm64] != nil {
+				return b.NodeUpAssets[architectures.ArchitectureArm64].Hash.Hex()
+			}
+			return ""
+		},
+
+		"KubeEnv": func() string {
+			return b.KubeEnv
+		},
+
+		"GzipBase64": func(data string) (string, error) {
+			return gzipBase64(data)
+		},
+
+		"CompressUserData": func() bool {
+			return b.CompressUserData
+		},
+
+		"SetSysctls": func() string {
+			return b.SetSysctls
+		},
+
+		"ProxyEnv":             b.ProxyEnv,
+		"EnvironmentVariables": b.EnvironmentVariables,
+		"ClusterSpec":          b.ClusterSpec,
+	}
+
+	return newTemplateResource("nodeup", nodeUpTemplate, functions, nil)
+}
+
+func gzipBase64(data string) (string, error) {
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+
+	_, err := gz.Write([]byte(data))
+	if err != nil {
+		return "", err
+	}
+
+	if err = gz.Flush(); err != nil {
+		return "", err
+	}
+
+	if err = gz.Close(); err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(b.Bytes()), nil
+}
+
+// AWSMultipartMIME returns a MIME Multi Part Archive containing the nodeup (bootstrap) script
+// and any additional User Data passed to using AdditionalUserData in the IG Spec
+func AWSMultipartMIME(bootScript string, ig *kops.InstanceGroup) (string, error) {
+	userData := bootScript
 
 	if len(ig.Spec.AdditionalUserData) > 0 {
 		/* Create a buffer to hold the user-data*/
@@ -189,7 +291,7 @@ func AWSNodeUpTemplate(ig *kops.InstanceGroup) (string, error) {
 
 		var err error
 		if !ig.IsBastion() {
-			err := writeUserDataPart(mimeWriter, "nodeup.sh", "text/x-shellscript", []byte(userDataTemplate))
+			err := writeUserDataPart(mimeWriter, "nodeup.sh", "text/x-shellscript", []byte(bootScript))
 			if err != nil {
 				return "", err
 			}
@@ -207,11 +309,10 @@ func AWSNodeUpTemplate(ig *kops.InstanceGroup) (string, error) {
 		writer.Flush()
 		mimeWriter.Close()
 
-		userDataTemplate = buffer.String()
+		userData = buffer.String()
 	}
 
-	return userDataTemplate, nil
-
+	return userData, nil
 }
 
 func writeUserDataPart(mimeWriter *multipart.Writer, fileName string, contentType string, content []byte) error {

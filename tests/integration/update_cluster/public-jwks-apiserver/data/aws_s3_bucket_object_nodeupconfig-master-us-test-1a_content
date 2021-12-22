@@ -25,6 +25,7 @@ APIServerConfig:
     featureGates:
       ServiceAccountIssuerDiscovery: "true"
     image: k8s.gcr.io/kube-apiserver:v1.19.0
+    insecurePort: 0
     kubeletPreferredAddressTypes:
     - InternalIP
     - Hostname
@@ -240,7 +241,6 @@ KubeletConfig:
   clusterDomain: cluster.local
   enableDebuggingHandlers: true
   evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-  hostnameOverride: '@aws'
   kubeconfigPath: /var/lib/kubelet/kubeconfig
   logLevel: 2
   networkPluginName: cni
@@ -250,7 +250,6 @@ KubeletConfig:
     node-role.kubernetes.io/control-plane: ""
     node-role.kubernetes.io/master: ""
     node.kubernetes.io/exclude-from-external-load-balancers: ""
-  nonMasqueradeCIDR: 100.64.0.0/10
   podInfraContainerImage: k8s.gcr.io/pause:3.5
   podManifestPath: /etc/kubernetes/manifests
   registerSchedulable: false

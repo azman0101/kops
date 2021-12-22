@@ -31,6 +31,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path"
 	"sort"
@@ -42,13 +43,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/yaml"
+
 	kopscontrollerconfig "k8s.io/kops/cmd/kops-controller/pkg/config"
 	"k8s.io/kops/pkg/apis/kops"
 	apiModel "k8s.io/kops/pkg/apis/kops/model"
 	"k8s.io/kops/pkg/apis/kops/util"
+	"k8s.io/kops/pkg/apis/nodeup"
 	"k8s.io/kops/pkg/dns"
 	"k8s.io/kops/pkg/featureflag"
+	"k8s.io/kops/pkg/kubemanifest"
 	"k8s.io/kops/pkg/model"
+	"k8s.io/kops/pkg/model/components/kopscontroller"
 	"k8s.io/kops/pkg/resources/spotinst"
 	"k8s.io/kops/pkg/wellknownports"
 	"k8s.io/kops/upup/pkg/fi"
@@ -56,7 +62,6 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
 	gcetpm "k8s.io/kops/upup/pkg/fi/cloudup/gce/tpm"
 	"k8s.io/kops/util/pkg/env"
-	"sigs.k8s.io/yaml"
 )
 
 // TemplateFunctions provides a collection of methods used throughout the templates
@@ -72,9 +77,11 @@ type TemplateFunctions struct {
 func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretStore) (err error) {
 	cluster := tf.Cluster
 
-	dest["SharedVPC"] = tf.SharedVPC
 	dest["ToJSON"] = tf.ToJSON
 	dest["ToYAML"] = tf.ToYAML
+	dest["KubeObjectToApplyYAML"] = kubemanifest.KubeObjectToApplyYAML
+
+	dest["SharedVPC"] = tf.SharedVPC
 	dest["UseBootstrapTokens"] = tf.UseBootstrapTokens
 	// Remember that we may be on a different arch from the target.  Hard-code for now.
 	dest["replace"] = func(s, find, replace string) string {
@@ -83,6 +90,7 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 	dest["join"] = func(a []string, sep string) string {
 		return strings.Join(a, sep)
 	}
+	dest["joinHostPort"] = net.JoinHostPort
 
 	sprigTxtFuncMap := sprig.TxtFuncMap()
 	dest["nindent"] = sprigTxtFuncMap["nindent"]
@@ -110,6 +118,16 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 		return cluster.Spec.KubeDNS
 	}
 
+	dest["GossipDomains"] = func() []string {
+		var names []string
+
+		if dns.IsGossipHostname(cluster.Spec.MasterInternalName) {
+			names = append(names, "k8s.local")
+		}
+
+		return names
+	}
+
 	dest["NodeLocalDNSClusterIP"] = func() string {
 		if cluster.Spec.KubeProxy.ProxyMode == "ipvs" {
 			return cluster.Spec.KubeDNS.ServerIP
@@ -122,6 +140,7 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 
 	dest["KopsControllerArgv"] = tf.KopsControllerArgv
 	dest["KopsControllerConfig"] = tf.KopsControllerConfig
+	kopscontroller.AddTemplateFunctions(cluster, dest)
 	dest["DnsControllerArgv"] = tf.DNSControllerArgv
 	dest["ExternalDnsArgv"] = tf.ExternalDNSArgv
 	dest["CloudControllerConfigArgv"] = tf.CloudControllerConfigArgv
@@ -161,6 +180,12 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 			}
 			for _, e := range c.Env {
 				envVars[e.Name] = e.Value
+			}
+			envVars["ENABLE_IPv4"] = strconv.FormatBool(!cluster.Spec.IsIPv6Only())
+			envVars["ENABLE_IPv6"] = strconv.FormatBool(cluster.Spec.IsIPv6Only())
+			if cluster.Spec.IsIPv6Only() {
+				envVars["ENABLE_PREFIX_DELEGATION"] = "true"
+				envVars["WARM_PREFIX_TARGET"] = "1"
 			}
 			return envVars
 		}
@@ -255,6 +280,14 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 		}
 
 		dest["EnableSQSTerminationDraining"] = func() bool { return *cluster.Spec.NodeTerminationHandler.EnableSQSTerminationDraining }
+	}
+
+	dest["ArchitectureOfAMI"] = tf.architectureOfAMI
+
+	dest["ParseTaint"] = parseTaint
+
+	dest["UsesInstanceIDForNodeName"] = func() bool {
+		return nodeup.UsesInstanceIDForNodeName(tf.Cluster)
 	}
 
 	return nil
@@ -562,6 +595,10 @@ func (tf *TemplateFunctions) KopsControllerConfig() (string, error) {
 				Region:     tf.Region,
 			}
 
+			if cluster.Spec.ExternalCloudControllerManager != nil && cluster.IsKubernetesGTE("1.23") {
+				config.Server.UseInstanceIDForNodeName = true
+			}
+
 		case kops.CloudProviderGCE:
 			c := tf.cloud.(gce.GCECloud)
 
@@ -576,8 +613,14 @@ func (tf *TemplateFunctions) KopsControllerConfig() (string, error) {
 		}
 	}
 
-	if tf.Cluster.Spec.IsKopsControllerIPAM() {
+	if cluster.Spec.IsKopsControllerIPAM() {
 		config.EnableCloudIPAM = true
+	}
+
+	if dns.IsGossipHostname(cluster.Spec.MasterInternalName) {
+		config.Discovery = &kopscontrollerconfig.DiscoveryOptions{
+			Enabled: true,
+		}
 	}
 
 	// To avoid indentation problems, we marshal as json.  json is a subset of yaml
@@ -623,7 +666,7 @@ func (tf *TemplateFunctions) ExternalDNSArgv() ([]string, error) {
 	}
 
 	argv = append(argv, "--events")
-	if fi.BoolValue(externalDNS.WatchIngress) {
+	if externalDNS.WatchIngress == nil || *externalDNS.WatchIngress {
 		argv = append(argv, "--source=ingress")
 	}
 	argv = append(argv, "--source=pod")
@@ -701,4 +744,49 @@ func (tf *TemplateFunctions) GetNodeInstanceGroups() map[string]kops.InstanceGro
 		}
 	}
 	return nodegroups
+}
+
+func (tf *TemplateFunctions) architectureOfAMI(amiID string) string {
+	image, _ := tf.cloud.(awsup.AWSCloud).ResolveImage(amiID)
+	switch *image.Architecture {
+	case "x86_64":
+		return "amd64"
+	}
+	return "arm64"
+}
+
+// parseTaint takes a string and returns a map of its value
+// it mimics the function from https://github.com/kubernetes/kubernetes/blob/master/pkg/util/taints/taints.go
+// but returns a map instead of a v1.Taint
+func parseTaint(st string) (map[string]string, error) {
+	taint := make(map[string]string)
+
+	var key string
+	var value string
+	var effect string
+
+	parts := strings.Split(st, ":")
+	switch len(parts) {
+	case 1:
+		key = parts[0]
+	case 2:
+		effect = parts[1]
+
+		partsKV := strings.Split(parts[0], "=")
+		if len(partsKV) > 2 {
+			return taint, fmt.Errorf("invalid taint spec: %v", st)
+		}
+		key = partsKV[0]
+		if len(partsKV) == 2 {
+			value = partsKV[1]
+		}
+	default:
+		return taint, fmt.Errorf("invalid taint spec: %v", st)
+	}
+
+	taint["key"] = key
+	taint["value"] = value
+	taint["effect"] = effect
+
+	return taint, nil
 }

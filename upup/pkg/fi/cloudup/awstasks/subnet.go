@@ -43,13 +43,14 @@ type Subnet struct {
 
 	Lifecycle fi.Lifecycle
 
-	ID               *string
-	VPC              *VPC
-	AmazonIPv6CIDR   *VPCAmazonIPv6CIDRBlock
-	AvailabilityZone *string
-	CIDR             *string
-	IPv6CIDR         *string
-	Shared           *bool
+	ID                  *string
+	VPC                 *VPC
+	AmazonIPv6CIDR      *VPCAmazonIPv6CIDRBlock
+	AvailabilityZone    *string
+	CIDR                *string
+	IPv6CIDR            *string
+	ResourceBasedNaming *bool
+	Shared              *bool
 
 	Tags map[string]string
 }
@@ -101,6 +102,16 @@ func (e *Subnet) Find(c *fi.Context) (*Subnet, error) {
 
 		actual.IPv6CIDR = association.Ipv6CidrBlock
 		break
+	}
+
+	actual.ResourceBasedNaming = fi.Bool(aws.StringValue(subnet.PrivateDnsNameOptionsOnLaunch.HostnameType) == ec2.HostnameTypeResourceName)
+	if *actual.ResourceBasedNaming {
+		if !aws.BoolValue(subnet.PrivateDnsNameOptionsOnLaunch.EnableResourceNameDnsARecord) {
+			actual.ResourceBasedNaming = nil
+		}
+		if fi.StringValue(actual.IPv6CIDR) != "" && !aws.BoolValue(subnet.PrivateDnsNameOptionsOnLaunch.EnableResourceNameDnsAAAARecord) {
+			actual.ResourceBasedNaming = nil
+		}
 	}
 
 	klog.V(2).Infof("found matching subnet %q", *actual.ID)
@@ -192,6 +203,12 @@ func (s *Subnet) CheckChanges(a, e, changes *Subnet) error {
 		if changes.IPv6CIDR != nil && a.IPv6CIDR != nil {
 			errors = append(errors, fi.FieldIsImmutable(e.IPv6CIDR, a.IPv6CIDR, fieldPath.Child("IPv6CIDR")))
 		}
+
+		if fi.BoolValue(e.Shared) {
+			if changes.IPv6CIDR != nil && a.IPv6CIDR == nil {
+				errors = append(errors, field.Forbidden(fieldPath.Child("IPv6CIDR"), "field cannot be set on shared subnet"))
+			}
+		}
 	}
 
 	if len(errors) != 0 {
@@ -201,12 +218,20 @@ func (s *Subnet) CheckChanges(a, e, changes *Subnet) error {
 	return nil
 }
 
+func (_ *Subnet) ShouldCreate(a, e, changes *Subnet) (bool, error) {
+	if fi.BoolValue(e.Shared) {
+		changes.ResourceBasedNaming = nil
+		return changes.Tags != nil, nil
+	}
+	return true, nil
+}
+
 func (_ *Subnet) RenderAWS(t *awsup.AWSAPITarget, a, e, changes *Subnet) error {
 	shared := fi.BoolValue(e.Shared)
 	if shared {
 		// Verify the subnet was found
 		if a == nil {
-			return fmt.Errorf("Subnet with id %q not found", fi.StringValue(e.ID))
+			return fmt.Errorf("subnet with id %q not found", fi.StringValue(e.ID))
 		}
 	}
 
@@ -257,6 +282,41 @@ func (_ *Subnet) RenderAWS(t *awsup.AWSAPITarget, a, e, changes *Subnet) error {
 			_, err := t.Cloud.EC2().AssociateSubnetCidrBlock(request)
 			if err != nil {
 				return fmt.Errorf("error associating subnet cidr block: %v", err)
+			}
+		}
+	}
+
+	if changes.ResourceBasedNaming != nil {
+		hostnameType := ec2.HostnameTypeIpName
+		if *changes.ResourceBasedNaming {
+			hostnameType = ec2.HostnameTypeResourceName
+		}
+		request := &ec2.ModifySubnetAttributeInput{
+			SubnetId:                       e.ID,
+			PrivateDnsHostnameTypeOnLaunch: &hostnameType,
+		}
+		_, err := t.Cloud.EC2().ModifySubnetAttribute(request)
+		if err != nil {
+			return fmt.Errorf("error modifying hostname type: %w", err)
+		}
+
+		request = &ec2.ModifySubnetAttributeInput{
+			SubnetId:                             e.ID,
+			EnableResourceNameDnsARecordOnLaunch: &ec2.AttributeBooleanValue{Value: changes.ResourceBasedNaming},
+		}
+		_, err = t.Cloud.EC2().ModifySubnetAttribute(request)
+		if err != nil {
+			return fmt.Errorf("error modifying A records: %w", err)
+		}
+
+		if fi.StringValue(e.IPv6CIDR) != "" {
+			request = &ec2.ModifySubnetAttributeInput{
+				SubnetId:                                e.ID,
+				EnableResourceNameDnsAAAARecordOnLaunch: &ec2.AttributeBooleanValue{Value: changes.ResourceBasedNaming},
+			}
+			_, err = t.Cloud.EC2().ModifySubnetAttribute(request)
+			if err != nil {
+				return fmt.Errorf("error modifying AAAA records: %w", err)
 			}
 		}
 	}

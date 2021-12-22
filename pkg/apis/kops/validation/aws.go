@@ -44,8 +44,8 @@ func awsValidateCluster(c *kops.Cluster) field.ErrorList {
 
 	allErrs = append(allErrs, awsValidateExternalCloudControllerManager(c)...)
 
-	if c.Spec.Authentication != nil && c.Spec.Authentication.Aws != nil {
-		allErrs = append(allErrs, awsValidateIAMAuthenticator(field.NewPath("spec", "authentication", "aws"), c.Spec.Authentication.Aws)...)
+	if c.Spec.Authentication != nil && c.Spec.Authentication.AWS != nil {
+		allErrs = append(allErrs, awsValidateIAMAuthenticator(field.NewPath("spec", "authentication", "aws"), c.Spec.Authentication.AWS)...)
 	}
 
 	return allErrs
@@ -63,7 +63,6 @@ func awsValidateExternalCloudControllerManager(cluster *kops.Cluster) (allErrs f
 			"AWS external CCM cannot be used without enabling spec.cloudConfig.AWSEBSCSIDriver."))
 	}
 	return allErrs
-
 }
 
 func awsValidateInstanceGroup(ig *kops.InstanceGroup, cloud awsup.AWSCloud) field.ErrorList {
@@ -324,7 +323,7 @@ func awsValidateCPUCredits(fieldPath *field.Path, spec *kops.InstanceGroupSpec, 
 	return allErrs
 }
 
-func awsValidateIAMAuthenticator(fieldPath *field.Path, spec *kops.AwsAuthenticationSpec) field.ErrorList {
+func awsValidateIAMAuthenticator(fieldPath *field.Path, spec *kops.AWSAuthenticationSpec) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	if !strings.Contains(spec.BackendMode, "CRD") && len(spec.IdentityMappings) > 0 {

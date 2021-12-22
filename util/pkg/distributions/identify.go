@@ -18,7 +18,7 @@ package distributions
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 
@@ -28,7 +28,7 @@ import (
 // FindDistribution identifies the distribution on which we are running
 func FindDistribution(rootfs string) (Distribution, error) {
 	// All supported distros have an /etc/os-release file
-	osReleaseBytes, err := ioutil.ReadFile(path.Join(rootfs, "etc/os-release"))
+	osReleaseBytes, err := os.ReadFile(path.Join(rootfs, "etc/os-release"))
 	osRelease := make(map[string]string)
 	if err == nil {
 		for _, line := range strings.Split(string(osReleaseBytes), "\n") {
@@ -50,20 +50,10 @@ func FindDistribution(rootfs string) (Distribution, error) {
 	switch distro {
 	case "amzn-2":
 		return DistributionAmazonLinux2, nil
-	case "centos-7":
-		return DistributionCentos7, nil
-	case "centos-8":
-		return DistributionCentos8, nil
-	case "debian-9":
-		return DistributionDebian9, nil
 	case "debian-10":
 		return DistributionDebian10, nil
 	case "debian-11":
 		return DistributionDebian11, nil
-	case "ubuntu-16.04":
-		return DistributionUbuntu1604, nil
-	case "ubuntu-18.04":
-		return DistributionUbuntu1804, nil
 	case "ubuntu-20.04":
 		return DistributionUbuntu2004, nil
 	case "ubuntu-20.10":
@@ -72,6 +62,8 @@ func FindDistribution(rootfs string) (Distribution, error) {
 		return DistributionUbuntu2104, nil
 	case "ubuntu-21.10":
 		return DistributionUbuntu2110, nil
+	case "ubuntu-22.04":
+		return DistributionUbuntu2204, nil
 	}
 
 	// Some distros have a more verbose VERSION_ID
@@ -80,9 +72,6 @@ func FindDistribution(rootfs string) (Distribution, error) {
 	}
 	if strings.HasPrefix(distro, "flatcar-") {
 		return DistributionFlatcar, nil
-	}
-	if strings.HasPrefix(distro, "rhel-7.") {
-		return DistributionRhel7, nil
 	}
 	if strings.HasPrefix(distro, "rhel-8.") {
 		return DistributionRhel8, nil

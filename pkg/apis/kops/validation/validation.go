@@ -34,8 +34,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/dns"
+	"k8s.io/kops/pkg/featureflag"
 	"k8s.io/kops/pkg/model/components"
 	"k8s.io/kops/pkg/model/iam"
 	"k8s.io/kops/upup/pkg/fi"
@@ -123,6 +125,10 @@ func validateClusterSpec(spec *kops.ClusterSpec, c *kops.Cluster, fieldPath *fie
 		allErrs = append(allErrs, validateKubeAPIServer(spec.KubeAPIServer, c, fieldPath.Child("kubeAPIServer"))...)
 	}
 
+	if spec.ExternalCloudControllerManager == nil && spec.IsIPv6Only() {
+		allErrs = append(allErrs, field.Required(fieldPath.Child("cloudControllerManager"), "IPv6 requires external Cloud Controller Manager"))
+	}
+
 	if spec.KubeProxy != nil {
 		allErrs = append(allErrs, validateKubeProxy(spec.KubeProxy, fieldPath.Child("kubeProxy"))...)
 	}
@@ -164,7 +170,6 @@ func validateClusterSpec(spec *kops.ClusterSpec, c *kops.Cluster, fieldPath *fie
 
 	if spec.MetricsServer != nil {
 		allErrs = append(allErrs, validateMetricsServer(c, spec.MetricsServer, fieldPath.Child("metricsServer"))...)
-
 	}
 
 	if spec.AWSLoadBalancerController != nil {
@@ -173,7 +178,6 @@ func validateClusterSpec(spec *kops.ClusterSpec, c *kops.Cluster, fieldPath *fie
 
 	if spec.SnapshotController != nil {
 		allErrs = append(allErrs, validateSnapshotController(c, spec.SnapshotController, fieldPath.Child("snapshotController"))...)
-
 	}
 
 	// IAM additional policies
@@ -205,7 +209,7 @@ func validateClusterSpec(spec *kops.ClusterSpec, c *kops.Cluster, fieldPath *fie
 	}
 
 	if spec.ContainerRuntime != "" {
-		allErrs = append(allErrs, validateContainerRuntime(&spec.ContainerRuntime, fieldPath.Child("containerRuntime"))...)
+		allErrs = append(allErrs, validateContainerRuntime(c, spec.ContainerRuntime, fieldPath.Child("containerRuntime"))...)
 	}
 
 	if spec.Containerd != nil {
@@ -229,10 +233,10 @@ func validateClusterSpec(spec *kops.ClusterSpec, c *kops.Cluster, fieldPath *fie
 	if spec.API != nil && spec.API.LoadBalancer != nil && spec.CloudProvider == "aws" {
 		value := string(spec.API.LoadBalancer.Class)
 		allErrs = append(allErrs, IsValidValue(fieldPath.Child("class"), &value, kops.SupportedLoadBalancerClasses)...)
-		if spec.API.LoadBalancer.SSLCertificate != "" && spec.API.LoadBalancer.Class != kops.LoadBalancerClassNetwork && c.IsKubernetesGTE("1.19") {
+		if spec.API.LoadBalancer.SSLCertificate != "" && spec.API.LoadBalancer.Class != kops.LoadBalancerClassNetwork {
 			allErrs = append(allErrs, field.Forbidden(fieldPath, "sslCertificate requires network loadbalancer for K8s 1.19+ see https://github.com/kubernetes/kops/blob/master/permalinks/acm_nlb.md"))
 		}
-		if spec.API.LoadBalancer.Class == kops.LoadBalancerClassNetwork && spec.API.LoadBalancer.UseForInternalApi && spec.API.LoadBalancer.Type == kops.LoadBalancerTypeInternal {
+		if spec.API.LoadBalancer.Class == kops.LoadBalancerClassNetwork && spec.API.LoadBalancer.UseForInternalAPI && spec.API.LoadBalancer.Type == kops.LoadBalancerTypeInternal {
 			allErrs = append(allErrs, field.Forbidden(fieldPath, "useForInternalApi cannot be used with internal NLB due lack of hairpinning support"))
 		}
 	}
@@ -259,6 +263,12 @@ func validateClusterSpec(spec *kops.ClusterSpec, c *kops.Cluster, fieldPath *fie
 				allErrs = append(allErrs, field.Forbidden(fieldPath.Child("iam", "serviceAccountExternalPermissions"), "serviceAccountExternalPermissions requires AWS OIDC Provider to be enabled"))
 			}
 			allErrs = append(allErrs, validateSAExternalPermissions(spec.IAM.ServiceAccountExternalPermissions, fieldPath.Child("iam", "serviceAccountExternalPermissions"))...)
+		}
+	}
+
+	if spec.Karpenter != nil && spec.Karpenter.Enabled {
+		if !featureflag.Karpenter.Enabled() {
+			allErrs = append(allErrs, field.Forbidden(fieldPath.Child("karpenter", "enabled"), "karpenter requires the Karpenter feature flag"))
 		}
 	}
 
@@ -457,8 +467,8 @@ func validateSubnet(subnet *kops.ClusterSubnetSpec, fieldPath *field.Path) field
 			allErrs = append(allErrs, field.Invalid(fieldPath.Child("egress"), subnet.Egress,
 				"egress must be of type NAT Gateway, NAT Gateway with existing ElasticIP, NAT EC2 Instance, Transit Gateway, or External"))
 		}
-		if subnet.Egress != kops.EgressExternal && subnet.Type != "Private" {
-			allErrs = append(allErrs, field.Forbidden(fieldPath.Child("egress"), "egress can only be specified for private subnets"))
+		if subnet.Egress != kops.EgressExternal && subnet.Type != "Private" && (subnet.IPv6CIDR == "" || subnet.Type != "Public") {
+			allErrs = append(allErrs, field.Forbidden(fieldPath.Child("egress"), "egress can only be specified for private or IPv6-capable public subnets"))
 		}
 	}
 	return allErrs
@@ -482,7 +492,7 @@ func validateHookSpec(v *kops.HookSpec, fieldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
 	// if this unit is disabled, short-circuit and do not validate
-	if v.Disabled {
+	if v.Enabled != nil && !*v.Enabled {
 		return allErrs
 	}
 
@@ -568,7 +578,7 @@ func validateKubeAPIServer(v *kops.KubeAPIServerConfig, c *kops.Cluster, fldPath
 					allErrs = append(allErrs, IsValidValue(fldPath.Child("authorizationMode"), &mode, []string{"ABAC", "Webhook", "Node", "RBAC", "AlwaysAllow", "AlwaysDeny"})...)
 				}
 			}
-			if kops.CloudProviderID(c.Spec.CloudProvider) == kops.CloudProviderAWS && c.IsKubernetesGTE("1.19") {
+			if kops.CloudProviderID(c.Spec.CloudProvider) == kops.CloudProviderAWS {
 				if !hasNode || !hasRBAC {
 					allErrs = append(allErrs, field.Required(fldPath.Child("authorizationMode"), "As of kubernetes 1.19 on AWS, authorizationMode must include RBAC and Node"))
 				}
@@ -580,6 +590,16 @@ func validateKubeAPIServer(v *kops.KubeAPIServerConfig, c *kops.Cluster, fldPath
 		allErrs = append(allErrs, IsValidValue(fldPath.Child("logFormat"), &v.LogFormat, []string{"text", "json"})...)
 	}
 
+	if v.InsecurePort != nil {
+		insecurePort := *v.InsecurePort
+		if c.IsKubernetesGTE("1.20") && insecurePort != 0 {
+			field.Forbidden(fldPath.Child("insecurePort"), "insecurePort can only be 0 as of Kubernetes 1.20")
+		}
+		if c.IsKubernetesGTE("1.24") {
+			field.Forbidden(fldPath.Child("insecurePort"), "insecurePort must not be set as of Kubernetes 1.24")
+		}
+	}
+
 	return allErrs
 }
 
@@ -588,7 +608,7 @@ func validateKubeProxy(k *kops.KubeProxyConfig, fldPath *field.Path) field.Error
 
 	master := k.Master
 
-	for i, x := range k.IPVSExcludeCIDRS {
+	for i, x := range k.IPVSExcludeCIDRs {
 		if _, _, err := net.ParseCIDR(x); err != nil {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("ipvsExcludeCidrs").Index(i), x, "Invalid network CIDR"))
 		}
@@ -705,7 +725,9 @@ func validateNetworking(cluster *kops.Cluster, v *kops.NetworkingSpec, fldPath *
 		}
 		optionTaken = true
 
-		if cluster.Spec.IsIPv6Only() {
+		if cluster.IsKubernetesGTE("1.23") {
+			allErrs = append(allErrs, field.Forbidden(fldPath.Child("weave"), "Weave is not supported for Kubernetes >= 1.23"))
+		} else if cluster.Spec.IsIPv6Only() {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("weave"), "Weave does not support IPv6"))
 		}
 	}
@@ -857,8 +879,8 @@ func validateNetworkingCilium(cluster *kops.Cluster, v *kops.CiliumNetworkingSpe
 			allErrs = append(allErrs, field.Invalid(versionFld, v.Version, "Could not parse as semantic version"))
 		}
 
-		if !(version.Minor >= 8 && version.Minor <= 10) {
-			allErrs = append(allErrs, field.Invalid(versionFld, v.Version, "Only versions 1.8 through 1.10 are supported"))
+		if !(version.Minor >= 8 && version.Minor <= 11) {
+			allErrs = append(allErrs, field.Invalid(versionFld, v.Version, "Only versions 1.8 through 1.11 are supported"))
 		}
 
 		if version.Minor < 10 && c.IsIPv6Only() {
@@ -873,6 +895,12 @@ func validateNetworkingCilium(cluster *kops.Cluster, v *kops.CiliumNetworkingSpe
 
 		if version.Minor < 10 && v.EncryptionType == kops.CiliumEncryptionTypeWireguard {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("encryptionType"), "Cilium EncryptionType=WireGuard is not available for Cilium version < 1.10.0."))
+		}
+
+		if version.Minor < 11 {
+			if v.EnableServiceTopology {
+				allErrs = append(allErrs, field.Forbidden(fldPath.Child("enableServiceTopology"), "Service topology requires Cilium 1.11"))
+			}
 		}
 	}
 
@@ -918,20 +946,20 @@ func validateNetworkingCilium(cluster *kops.Cluster, v *kops.CiliumNetworkingSpe
 		}
 	}
 
-	if fi.BoolValue(v.EnableL7Proxy) && v.IPTablesRulesNoinstall {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("enableL7Proxy"), "Cilium L7 Proxy requires IPTablesRules to be installed."))
+	if fi.BoolValue(v.EnableL7Proxy) && v.InstallIptablesRules != nil && !*v.InstallIptablesRules {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("enableL7Proxy"), "Cilium L7 Proxy requires installIptablesRules."))
 	}
 
-	if v.Ipam != "" {
+	if v.IPAM != "" {
 		// "azure" not supported by kops
-		allErrs = append(allErrs, IsValidValue(fldPath.Child("ipam"), &v.Ipam, []string{"hostscope", "kubernetes", "crd", "eni"})...)
+		allErrs = append(allErrs, IsValidValue(fldPath.Child("ipam"), &v.IPAM, []string{"hostscope", "kubernetes", "crd", "eni"})...)
 
-		if v.Ipam == kops.CiliumIpamEni {
+		if v.IPAM == kops.CiliumIpamEni {
 			if c.CloudProvider != string(kops.CloudProviderAWS) {
 				allErrs = append(allErrs, field.Forbidden(fldPath.Child("ipam"), "Cilum ENI IPAM is supported only in AWS"))
 			}
-			if v.DisableMasquerade != nil && !*v.DisableMasquerade {
-				allErrs = append(allErrs, field.Forbidden(fldPath.Child("disableMasquerade"), "Masquerade must be disabled when ENI IPAM is used"))
+			if v.Masquerade != nil && *v.Masquerade {
+				allErrs = append(allErrs, field.Forbidden(fldPath.Child("masquerade"), "Masquerade must be disabled when ENI IPAM is used"))
 			}
 			if c.IsIPv6Only() {
 				allErrs = append(allErrs, field.Forbidden(fldPath.Child("ipam"), "Cilium ENI IPAM does not support IPv6"))
@@ -1020,9 +1048,8 @@ func validateExternalPolicies(role string, policies []string, fldPath *field.Pat
 func validateEtcdClusterSpec(spec kops.EtcdClusterSpec, c *kops.Cluster, fieldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	if spec.Name == "" {
-		allErrs = append(allErrs, field.Required(fieldPath.Child("name"), "etcdCluster did not have name"))
-	}
+	allErrs = append(allErrs, IsValidValue(fieldPath.Child("name"), &spec.Name, []string{"cilium", "main", "events"})...)
+
 	if spec.Provider != "" {
 		value := string(spec.Provider)
 		allErrs = append(allErrs, IsValidValue(fieldPath.Child("provider"), &value, []string{string(kops.EtcdProviderTypeManager)})...)
@@ -1080,7 +1107,7 @@ func validateEtcdVersion(spec kops.EtcdClusterSpec, fieldPath *field.Path, minim
 
 	version := spec.Version
 	if spec.Version == "" {
-		version = components.DefaultEtcd3Version_1_17
+		version = components.DefaultEtcd3Version_1_19
 	}
 
 	sem, err := semver.Parse(strings.TrimPrefix(version, "v"))
@@ -1268,11 +1295,15 @@ func validateCalicoEncapsulationMode(mode string, fldPath *field.Path) field.Err
 	return allErrs
 }
 
-func validateContainerRuntime(runtime *string, fldPath *field.Path) field.ErrorList {
+func validateContainerRuntime(c *kops.Cluster, runtime string, fldPath *field.Path) field.ErrorList {
 	valid := []string{"containerd", "docker"}
 
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, IsValidValue(fldPath, runtime, valid)...)
+	allErrs = append(allErrs, IsValidValue(fldPath, &runtime, valid)...)
+
+	if runtime == "docker" && c.IsKubernetesGTE("1.24") {
+		allErrs = append(allErrs, field.Forbidden(fldPath, "Docker CRI support was removed in Kubernetes 1.24: https://kubernetes.io/blog/2020/12/02/dockershim-faq"))
+	}
 
 	return allErrs
 }
@@ -1419,7 +1450,7 @@ func validateNvidiaConfig(spec *kops.ClusterSpec, nvidia *kops.NvidiaGPUConfig, 
 	if kops.CloudProviderID(spec.CloudProvider) != kops.CloudProviderAWS {
 		allErrs = append(allErrs, field.Forbidden(fldPath, "Nvidia is only supported on AWS"))
 	}
-	if spec.ContainerRuntime != "containerd" {
+	if spec.ContainerRuntime != "" && spec.ContainerRuntime != "containerd" {
 		allErrs = append(allErrs, field.Forbidden(fldPath, "Nvidia is only supported using containerd"))
 	}
 	return allErrs
@@ -1430,7 +1461,7 @@ func validateRollingUpdate(rollingUpdate *kops.RollingUpdate, fldpath *field.Pat
 	var err error
 	unavailable := 1
 	if rollingUpdate.MaxUnavailable != nil {
-		unavailable, err = intstr.GetValueFromIntOrPercent(rollingUpdate.MaxUnavailable, 1, false)
+		unavailable, err = intstr.GetScaledValueFromIntOrPercent(rollingUpdate.MaxUnavailable, 1, false)
 		if err != nil {
 			allErrs = append(allErrs, field.Invalid(fldpath.Child("maxUnavailable"), rollingUpdate.MaxUnavailable,
 				fmt.Sprintf("Unable to parse: %v", err)))
@@ -1440,7 +1471,7 @@ func validateRollingUpdate(rollingUpdate *kops.RollingUpdate, fldpath *field.Pat
 		}
 	}
 	if rollingUpdate.MaxSurge != nil {
-		surge, err := intstr.GetValueFromIntOrPercent(rollingUpdate.MaxSurge, 1000, true)
+		surge, err := intstr.GetScaledValueFromIntOrPercent(rollingUpdate.MaxSurge, 1000, true)
 		if err != nil {
 			allErrs = append(allErrs, field.Invalid(fldpath.Child("maxSurge"), rollingUpdate.MaxSurge,
 				fmt.Sprintf("Unable to parse: %v", err)))
@@ -1492,7 +1523,7 @@ func validateClusterAutoscaler(cluster *kops.Cluster, spec *kops.ClusterAutoscal
 }
 
 func validateExternalDNS(cluster *kops.Cluster, spec *kops.ExternalDNSConfig, fldPath *field.Path) (allErrs field.ErrorList) {
-	allErrs = append(allErrs, IsValidValue(fldPath.Child("provider"), (*string)(&spec.Provider), []string{"", "dns-controller", "external-dns"})...)
+	allErrs = append(allErrs, IsValidValue(fldPath.Child("provider"), (*string)(&spec.Provider), []string{"", "dns-controller", "external-dns", "none"})...)
 
 	if spec.WatchNamespace != "" {
 		if spec.WatchNamespace != "kube-system" {
@@ -1507,7 +1538,6 @@ func validateExternalDNS(cluster *kops.Cluster, spec *kops.ExternalDNSConfig, fl
 	}
 
 	return allErrs
-
 }
 
 func validateNodeTerminationHandler(cluster *kops.Cluster, spec *kops.NodeTerminationHandlerConfig, fldPath *field.Path) (allErrs field.ErrorList) {

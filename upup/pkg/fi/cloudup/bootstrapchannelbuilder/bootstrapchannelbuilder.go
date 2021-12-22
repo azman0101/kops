@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"k8s.io/klog/v2"
+
 	channelsapi "k8s.io/kops/channels/pkg/api"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/assets"
@@ -35,6 +36,7 @@ import (
 	"k8s.io/kops/pkg/model/components/addonmanifests/clusterautoscaler"
 	"k8s.io/kops/pkg/model/components/addonmanifests/dnscontroller"
 	"k8s.io/kops/pkg/model/components/addonmanifests/externaldns"
+	"k8s.io/kops/pkg/model/components/addonmanifests/karpenter"
 	"k8s.io/kops/pkg/model/components/addonmanifests/nodeterminationhandler"
 	"k8s.io/kops/pkg/model/iam"
 	"k8s.io/kops/pkg/templates"
@@ -365,7 +367,6 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 	}
 
 	if kubeDNS.Provider == "KubeDNS" {
-
 		{
 			key := "kube-dns.addons.k8s.io"
 
@@ -451,6 +452,37 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 		}
 	}
 
+	if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderAWS &&
+		b.IsKubernetesGTE("1.23") &&
+		b.IsKubernetesLT("1.26") {
+		// AWS KCM-to-CCM leader migration
+		key := "leader-migration.rbac.addons.k8s.io"
+
+		if b.IsKubernetesLT("1.25") {
+			location := key + "/k8s-1.23.yaml"
+			id := "k8s-1.23"
+
+			addons.Add(&channelsapi.AddonSpec{
+				Name:     fi.String(key),
+				Selector: map[string]string{"k8s-addon": key},
+				Manifest: fi.String(location),
+				Id:       id,
+			})
+		}
+
+		if b.IsKubernetesGTE("1.25") {
+			location := key + "/k8s-1.25.yaml"
+			id := "k8s-1.25"
+
+			addons.Add(&channelsapi.AddonSpec{
+				Name:     fi.String(key),
+				Selector: map[string]string{"k8s-addon": key},
+				Manifest: fi.String(location),
+				Id:       id,
+			})
+		}
+	}
+
 	{
 		key := "limit-range.addons.k8s.io"
 		version := "1.5.0"
@@ -464,34 +496,30 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 	}
 
 	if b.Cluster.Spec.ExternalDNS == nil || b.Cluster.Spec.ExternalDNS.Provider == kops.ExternalDNSProviderDNSController {
-		// @check the dns-controller has not been disabled
-		externalDNS := b.Cluster.Spec.ExternalDNS
-		if externalDNS == nil || !externalDNS.Disable {
-			{
-				key := "dns-controller.addons.k8s.io"
-				location := key + "/k8s-1.12.yaml"
-				id := "k8s-1.12"
+		{
+			key := "dns-controller.addons.k8s.io"
+			location := key + "/k8s-1.12.yaml"
+			id := "k8s-1.12"
 
-				addons.Add(&channelsapi.AddonSpec{
-					Name:     fi.String(key),
-					Selector: map[string]string{"k8s-addon": key},
-					Manifest: fi.String(location),
-					Id:       id,
-				})
-			}
-
-			// Generate dns-controller ServiceAccount IAM permissions
-			if b.UseServiceAccountExternalPermissions() {
-				serviceAccountRoles = append(serviceAccountRoles, &dnscontroller.ServiceAccount{})
-			}
+			addons.Add(&channelsapi.AddonSpec{
+				Name:     fi.String(key),
+				Selector: map[string]string{"k8s-addon": key},
+				Manifest: fi.String(location),
+				Id:       id,
+			})
 		}
-	} else {
+
+		// Generate dns-controller ServiceAccount IAM permissions
+		if b.UseServiceAccountExternalPermissions() {
+			serviceAccountRoles = append(serviceAccountRoles, &dnscontroller.ServiceAccount{})
+		}
+	} else if b.Cluster.Spec.ExternalDNS.Provider == kops.ExternalDNSProviderExternalDNS {
 		{
 			key := "external-dns.addons.k8s.io"
 
 			{
-				location := key + "/k8s-1.12.yaml"
-				id := "k8s-1.12"
+				location := key + "/k8s-1.19.yaml"
+				id := "k8s-1.19"
 
 				addons.Add(&channelsapi.AddonSpec{
 					Name:     fi.String(key),
@@ -717,6 +745,20 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 				Id:       id,
 			})
 		}
+
+		if b.Cluster.Spec.CloudConfig != nil && b.Cluster.Spec.CloudConfig.GCPPDCSIDriver != nil && fi.BoolValue(b.Cluster.Spec.CloudConfig.GCPPDCSIDriver.Enabled) {
+			key := "gcp-pd-csi-driver.addons.k8s.io"
+			{
+				id := "k8s-1.23"
+				location := key + "/" + id + ".yaml"
+				addons.Add(&channelsapi.AddonSpec{
+					Name:     fi.String(key),
+					Manifest: fi.String(location),
+					Selector: map[string]string{"k8s-addon": key},
+					Id:       id,
+				})
+			}
+		}
 	}
 
 	if featureflag.Spotinst.Enabled() && featureflag.SpotinstController.Enabled() {
@@ -901,7 +943,7 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 				})
 			}
 		}
-		if b.Cluster.Spec.Authentication.Aws != nil {
+		if b.Cluster.Spec.Authentication.AWS != nil {
 			key := "authentication.aws"
 
 			{
@@ -1016,6 +1058,23 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 				NeedsPKI: true,
 				Id:       id,
 			})
+		}
+	}
+	if b.Cluster.Spec.Karpenter != nil && fi.BoolValue(&b.Cluster.Spec.Karpenter.Enabled) {
+		key := "karpenter.sh"
+
+		{
+			id := "k8s-1.19"
+			location := key + "/" + id + ".yaml"
+			addons.Add(&channelsapi.AddonSpec{
+				Name:     fi.String(key),
+				Manifest: fi.String(location),
+				Selector: map[string]string{"k8s-addon": key},
+				Id:       id,
+			})
+			if b.UseServiceAccountExternalPermissions() {
+				serviceAccountRoles = append(serviceAccountRoles, &karpenter.ServiceAccount{})
+			}
 		}
 	}
 

@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/klog/v2"
 	addonsapi "k8s.io/kops/channels/pkg/api"
 	"k8s.io/kops/pkg/assets"
 	"k8s.io/kops/pkg/kubemanifest"
@@ -33,6 +32,7 @@ import (
 	"k8s.io/kops/pkg/model/components/addonmanifests/clusterautoscaler"
 	"k8s.io/kops/pkg/model/components/addonmanifests/dnscontroller"
 	"k8s.io/kops/pkg/model/components/addonmanifests/externaldns"
+	"k8s.io/kops/pkg/model/components/addonmanifests/karpenter"
 	"k8s.io/kops/pkg/model/components/addonmanifests/nodeterminationhandler"
 	"k8s.io/kops/pkg/model/iam"
 	"k8s.io/kops/upup/pkg/fi"
@@ -73,8 +73,7 @@ func RemapAddonManifest(addon *addonsapi.AddonSpec, context *model.KopsModelCont
 	{
 		remapped, err := assetBuilder.RemapManifest(manifest)
 		if err != nil {
-			klog.Infof("invalid manifest: %s", string(manifest))
-			return nil, fmt.Errorf("error remapping manifest %s: %v", manifest, err)
+			return nil, fmt.Errorf("error remapping manifest %s: %v", name, err)
 		}
 		manifest = remapped
 	}
@@ -128,13 +127,14 @@ func getWellknownServiceAccount(name string) iam.Subject {
 		return &awscloudcontrollermanager.ServiceAccount{}
 	case "external-dns":
 		return &externaldns.ServiceAccount{}
+	case "karpenter":
+		return &karpenter.ServiceAccount{}
 	default:
 		return nil
 	}
 }
 
 func addLabels(addon *addonsapi.AddonSpec, objects kubemanifest.ObjectList) error {
-
 	for _, object := range objects {
 		meta := &metav1.ObjectMeta{}
 		err := object.Reparse(meta, "metadata")

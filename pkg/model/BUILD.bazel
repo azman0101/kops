@@ -11,7 +11,6 @@ go_library(
         "master_volumes.go",
         "names.go",
         "pki.go",
-        "template_resource.go",
     ],
     importpath = "k8s.io/kops/pkg/model",
     visibility = ["//visibility:public"],
@@ -34,8 +33,6 @@ go_library(
         "//pkg/rbac:go_default_library",
         "//pkg/tokens:go_default_library",
         "//upup/pkg/fi:go_default_library",
-        "//upup/pkg/fi/cloudup/alitasks:go_default_library",
-        "//upup/pkg/fi/cloudup/aliup:go_default_library",
         "//upup/pkg/fi/cloudup/awstasks:go_default_library",
         "//upup/pkg/fi/cloudup/awsup:go_default_library",
         "//upup/pkg/fi/cloudup/azure:go_default_library",
@@ -65,7 +62,10 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["bootstrapscript_test.go"],
+    srcs = [
+        "bootstrapscript_test.go",
+        "master_volumes_test.go",
+    ],
     data = glob(["tests/**"]),  #keep
     embed = [":go_default_library"],
     deps = [
@@ -79,6 +79,7 @@ go_test(
         "//util/pkg/hashing:go_default_library",
         "//util/pkg/mirrors:go_default_library",
         "//vendor/github.com/stretchr/testify/require:go_default_library",
+        "//vendor/k8s.io/apimachinery/pkg/api/resource:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
     ],
 )

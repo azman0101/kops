@@ -76,6 +76,12 @@ data:
           fallthrough in-addr.arpa ip6.arpa
           ttl 30
         }
+    {{- if GossipDomains }}
+        hosts /etc/coredns/hosts {{ join GossipDomains " " }} {
+          ttl 30
+          fallthrough
+        }
+    {{- end }}
         prometheus :9153
         forward . {{ or (join KubeDNS.UpstreamNameservers " ") "/etc/resolv.conf" }} {
           max_concurrent 1000
@@ -84,6 +90,9 @@ data:
         loop
         reload
         loadbalance
+        {{- if IsIPv6Only }}
+        dns64
+        {{- end }}
     }
   {{- end }}
 ---
@@ -125,21 +134,24 @@ spec:
         {{- end }}
       nodeSelector:
         kubernetes.io/os: linux
+{{- if .KubeDNS.Affinity }}
       affinity:
-        {{- if .KubeDNS.Affinity }}
 {{ ToYAML .KubeDNS.Affinity | indent 8 }}
-        {{- else }}
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                  - key: k8s-app
-                    operator: In
-                    values: ["kube-dns"]
-              topologyKey: kubernetes.io/hostname
-        {{- end }}
+{{- end }}
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: "topology.kubernetes.io/zone"
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      - maxSkew: 1
+        topologyKey: "kubernetes.io/hostname"
+        # Normally we use DoNotSchedule here, but because CoreDNS autoscales, we cannot guarantee this constraint can be satisfied
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            k8s-app: kube-dns
       containers:
       - name: coredns
         image: {{ if KubeDNS.CoreDNSImage }}{{ KubeDNS.CoreDNSImage }}{{ else }}k8s.gcr.io/coredns/coredns:v1.8.5{{ end }}
@@ -192,9 +204,6 @@ spec:
         - name: config-volume
           configMap:
             name: coredns
-            items:
-            - key: Corefile
-              path: Corefile
 ---
 apiVersion: v1
 kind: Service
@@ -236,7 +245,7 @@ spec:
   selector:
     matchLabels:
       k8s-app: kube-dns
-  minAvailable: 1
+  maxUnavailable: 50%
 ---
 
 # CoreDNS Autoscaler

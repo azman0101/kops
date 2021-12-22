@@ -21,8 +21,10 @@ import (
 	"strings"
 
 	"k8s.io/klog/v2"
+
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi"
+	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
 	"k8s.io/kops/upup/pkg/fi/loader"
 )
 
@@ -57,7 +59,6 @@ func (b *KubeletOptionsBuilder) BuildOptions(o interface{}) error {
 	clusterSpec.Kubelet.PodManifestPath = "/etc/kubernetes/manifests"
 	clusterSpec.Kubelet.LogLevel = fi.Int32(2)
 	clusterSpec.Kubelet.ClusterDomain = clusterSpec.ClusterDNSDomain
-	clusterSpec.Kubelet.NonMasqueradeCIDR = clusterSpec.NonMasqueradeCIDR
 
 	// AllowPrivileged is deprecated and removed in v1.14.
 	// See https://github.com/kubernetes/kubernetes/pull/71835
@@ -126,17 +127,10 @@ func (b *KubeletOptionsBuilder) BuildOptions(o interface{}) error {
 	klog.V(1).Infof("Cloud Provider: %s", cloudProvider)
 	if cloudProvider == kops.CloudProviderAWS {
 		clusterSpec.Kubelet.CloudProvider = "aws"
-
-		// Use the hostname from the AWS metadata service
-		// if hostnameOverride is not set.
-		if clusterSpec.Kubelet.HostnameOverride == "" {
-			clusterSpec.Kubelet.HostnameOverride = "@aws"
-		}
 	}
 
 	if cloudProvider == kops.CloudProviderDO {
 		clusterSpec.Kubelet.CloudProvider = "external"
-		clusterSpec.Kubelet.HostnameOverride = "@digitalocean"
 	}
 
 	if cloudProvider == kops.CloudProviderGCE {
@@ -147,31 +141,16 @@ func (b *KubeletOptionsBuilder) BuildOptions(o interface{}) error {
 			clusterSpec.CloudConfig = &kops.CloudConfiguration{}
 		}
 		clusterSpec.CloudConfig.Multizone = fi.Bool(true)
-		clusterSpec.CloudConfig.NodeTags = fi.String(GCETagForRole(b.ClusterName, kops.InstanceGroupRoleNode))
+		clusterSpec.CloudConfig.NodeTags = fi.String(gce.TagForRole(b.ClusterName, kops.InstanceGroupRoleNode))
 
-		// Use the hostname from the GCE metadata service
-		// if hostnameOverride is not set.
-		if clusterSpec.Kubelet.HostnameOverride == "" {
-			clusterSpec.Kubelet.HostnameOverride = "@gce"
-		}
 	}
 
 	if cloudProvider == kops.CloudProviderOpenstack {
 		clusterSpec.Kubelet.CloudProvider = "openstack"
 	}
 
-	if cloudProvider == kops.CloudProviderALI {
-		clusterSpec.Kubelet.CloudProvider = "alicloud"
-		clusterSpec.Kubelet.HostnameOverride = "@alicloud"
-	}
-
 	if cloudProvider == kops.CloudProviderAzure {
 		clusterSpec.Kubelet.CloudProvider = "azure"
-		// We don't set hostname override in Azure since Azure hostnames are
-		// not always valid characters that can be used for pod names.
-		// More specifically, VMs created from VM Scale Sets contain '_' in their
-		// names, which is not a valid character in pod names. K8s API server will fail
-		// to start as its pod name contains a hostname as suffix (kube-apiserver-<hostname>).
 	}
 
 	if clusterSpec.ExternalCloudControllerManager != nil {
@@ -182,13 +161,11 @@ func (b *KubeletOptionsBuilder) BuildOptions(o interface{}) error {
 		networking := clusterSpec.Networking
 		if networking == nil {
 			return fmt.Errorf("no networking mode set")
-
 		}
 		if UsesKubenet(networking) {
 			clusterSpec.Kubelet.NetworkPluginName = "kubenet"
-
-			// AWS MTU is 9001
 			clusterSpec.Kubelet.NetworkPluginMTU = fi.Int32(9001)
+			clusterSpec.Kubelet.NonMasqueradeCIDR = clusterSpec.NonMasqueradeCIDR
 		}
 
 		// Specify our pause image

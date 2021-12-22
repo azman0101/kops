@@ -183,9 +183,7 @@ func (b *APILoadBalancerBuilder) Build(c *fi.ModelBuilderContext) error {
 			Type:          fi.String("network"),
 			IpAddressType: fi.String("ipv4"),
 		}
-		// DualStack can only be used for public NLB
-		// https://aws.amazon.com/premiumsupport/knowledge-center/elb-configure-with-ipv6
-		if b.UseIPv6ForAPI() && lbSpec.Type == kops.LoadBalancerTypePublic {
+		if b.UseIPv6ForAPI() {
 			nlb.IpAddressType = fi.String("dualstack")
 		}
 
@@ -211,6 +209,11 @@ func (b *APILoadBalancerBuilder) Build(c *fi.ModelBuilderContext) error {
 
 			ConnectionSettings: &awstasks.ClassicLoadBalancerConnectionSettings{
 				IdleTimeout: fi.Int64(int64(idleTimeout.Seconds())),
+			},
+
+			ConnectionDraining: &awstasks.ClassicLoadBalancerConnectionDraining{
+				Enabled: fi.Bool(true),
+				Timeout: fi.Int64(300),
 			},
 
 			Tags: tags,
@@ -405,7 +408,6 @@ func (b *APILoadBalancerBuilder) Build(c *fi.ModelBuilderContext) error {
 
 	if b.APILoadBalancerClass() == kops.LoadBalancerClassNetwork {
 		for _, cidr := range b.Cluster.Spec.KubernetesAPIAccess {
-
 			for _, masterGroup := range masterGroups {
 				{
 					t := &awstasks.SecurityGroupRule{

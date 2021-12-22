@@ -41,7 +41,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalipv6examplecom.Propert
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -64,7 +64,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalipv6examplecom.Propert
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -126,7 +126,8 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalipv6examplecom.Propert
   cat > conf/cluster_spec.yaml << '__EOF_CLUSTER_SPEC'
   cloudConfig:
     awsEBSCSIDriver:
-      enabled: false
+      enabled: true
+      version: v1.5.0
     manageStorageClasses: true
     nodeIPFamilies:
     - ipv6
@@ -134,7 +135,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalipv6examplecom.Propert
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   encryptionConfig: null
@@ -151,7 +152,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalipv6examplecom.Propert
     apiServerCount: 1
     authorizationMode: AlwaysAllow
     bindAddress: '::'
-    cloudProvider: aws
+    cloudProvider: external
     enableAdmissionPlugins:
     - NamespaceLifecycle
     - LimitRanger
@@ -188,12 +189,14 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalipv6examplecom.Propert
   kubeControllerManager:
     allocateNodeCIDRs: false
     attachDetachReconcileSyncPeriod: 1m0s
-    cloudProvider: aws
+    cloudProvider: external
     clusterName: minimal-ipv6.example.com
     configureCloudRoutes: false
     controllers:
     - '*'
     - -nodeipam
+    featureGates:
+      CSIMigrationAWS: "true"
     image: k8s.gcr.io/kube-controller-manager:v1.21.0
     leaderElection:
       leaderElect: true
@@ -201,7 +204,6 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalipv6examplecom.Propert
     useServiceAccountCredentials: true
   kubeProxy:
     cpuRequest: 100m
-    hostnameOverride: '@aws'
     image: k8s.gcr.io/kube-proxy:v1.21.0
     logLevel: 2
   kubeScheduler:
@@ -213,31 +215,33 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalipv6examplecom.Propert
     anonymousAuth: false
     cgroupDriver: systemd
     cgroupRoot: /
-    cloudProvider: aws
+    cloudProvider: external
     clusterDNS: fd00:5e4f:ce::a
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
+    featureGates:
+      CSIMigrationAWS: "true"
+      InTreePluginAWSUnregister: "true"
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: ::/0
     podManifestPath: /etc/kubernetes/manifests
   masterKubelet:
     anonymousAuth: false
     cgroupDriver: systemd
     cgroupRoot: /
-    cloudProvider: aws
+    cloudProvider: external
     clusterDNS: fd00:5e4f:ce::a
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
+    featureGates:
+      CSIMigrationAWS: "true"
+      InTreePluginAWSUnregister: "true"
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: ::/0
     podManifestPath: /etc/kubernetes/manifests
     registerSchedulable: false
 
@@ -248,7 +252,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimalipv6examplecom.Propert
   ConfigBase: memfs://clusters.example.com/minimal-ipv6.example.com
   InstanceGroupName: master-us-test-1a
   InstanceGroupRole: Master
-  NodeupConfigHash: E/2UN3GhVLTRD3ByNw5y9wNYgvXfvosAyFhP1X5utsw=
+  NodeupConfigHash: 125RlQGI9pGb/KE6nPLwc48XGm9VQ4cnTWB2ijOHGtw=
 
   __EOF_KUBE_ENV
 
@@ -297,7 +301,7 @@ Resources.AWSEC2LaunchTemplatenodesminimalipv6examplecom.Properties.LaunchTempla
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -320,7 +324,7 @@ Resources.AWSEC2LaunchTemplatenodesminimalipv6examplecom.Properties.LaunchTempla
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -382,7 +386,8 @@ Resources.AWSEC2LaunchTemplatenodesminimalipv6examplecom.Properties.LaunchTempla
   cat > conf/cluster_spec.yaml << '__EOF_CLUSTER_SPEC'
   cloudConfig:
     awsEBSCSIDriver:
-      enabled: false
+      enabled: true
+      version: v1.5.0
     manageStorageClasses: true
     nodeIPFamilies:
     - ipv6
@@ -390,28 +395,28 @@ Resources.AWSEC2LaunchTemplatenodesminimalipv6examplecom.Properties.LaunchTempla
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   kubeProxy:
     cpuRequest: 100m
-    hostnameOverride: '@aws'
     image: k8s.gcr.io/kube-proxy:v1.21.0
     logLevel: 2
   kubelet:
     anonymousAuth: false
     cgroupDriver: systemd
     cgroupRoot: /
-    cloudProvider: aws
+    cloudProvider: external
     clusterDNS: fd00:5e4f:ce::a
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
+    featureGates:
+      CSIMigrationAWS: "true"
+      InTreePluginAWSUnregister: "true"
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: ::/0
     podManifestPath: /etc/kubernetes/manifests
 
   __EOF_CLUSTER_SPEC
@@ -421,7 +426,7 @@ Resources.AWSEC2LaunchTemplatenodesminimalipv6examplecom.Properties.LaunchTempla
   ConfigBase: memfs://clusters.example.com/minimal-ipv6.example.com
   InstanceGroupName: nodes
   InstanceGroupRole: Node
-  NodeupConfigHash: Mqfc35n7HWWI03aEiC/9tG99xKZd6sr0kJSCwJvzhKA=
+  NodeupConfigHash: Pyc1ooFcHOEr89bybwfSkbPNXGlCaXmLybVqMYEbaZo=
 
   __EOF_KUBE_ENV
 

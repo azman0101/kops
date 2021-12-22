@@ -27,7 +27,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
@@ -37,6 +36,8 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"sigs.k8s.io/yaml"
+
 	"k8s.io/kops/cmd/kops/util"
 	"k8s.io/kops/pkg/apis/kops/model"
 	"k8s.io/kops/pkg/diff"
@@ -49,7 +50,6 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
-	"sigs.k8s.io/yaml"
 )
 
 // updateClusterTestBase is added automatically to the srcDir on all
@@ -136,6 +136,16 @@ func (i *integrationTest) withCiliumEtcd() *integrationTest {
 	return i
 }
 
+func (i *integrationTest) withDedicatedAPIServer() *integrationTest {
+	i.expectTerraformFilenames = append(i.expectTerraformFilenames,
+		"aws_iam_role_apiservers."+i.clusterName+"_policy",
+		"aws_iam_role_policy_apiservers."+i.clusterName+"_policy",
+		"aws_launch_template_apiserver.apiservers."+i.clusterName+"_user_data",
+		"aws_s3_bucket_object_nodeupconfig-apiserver_content",
+	)
+	return i
+}
+
 func (i *integrationTest) withNTH() *integrationTest {
 	i.nth = true
 	return i
@@ -167,12 +177,42 @@ func (i *integrationTest) withAddons(addons ...string) *integrationTest {
 	return i
 }
 
-const dnsControllerAddon = "dns-controller.addons.k8s.io-k8s-1.12"
+const (
+	dnsControllerAddon  = "dns-controller.addons.k8s.io-k8s-1.12"
+	awsCCMAddon         = "aws-cloud-controller.addons.k8s.io-k8s-1.18"
+	awsEBSCSIAddon      = "aws-ebs-csi-driver.addons.k8s.io-k8s-1.17"
+	leaderElectionAddon = "leader-migration.rbac.addons.k8s.io-k8s-1.23"
+)
 
 // TestMinimal runs the test on a minimum configuration, similar to kops create cluster minimal.example.com --zones us-west-1a
 func TestMinimal(t *testing.T) {
 	newIntegrationTest("minimal.example.com", "minimal").
 		withAddons(dnsControllerAddon).
+		runTestTerraformAWS(t)
+	newIntegrationTest("minimal.example.com", "minimal").runTestCloudformation(t)
+}
+
+// TestMinimal runs the test on a minimum configuration
+func TestMinimal_v1_23(t *testing.T) {
+	newIntegrationTest("minimal.example.com", "minimal-1.23").
+		withAddons(
+			awsEBSCSIAddon,
+			dnsControllerAddon,
+			leaderElectionAddon,
+		).
+		runTestTerraformAWS(t)
+	newIntegrationTest("minimal.example.com", "minimal").runTestCloudformation(t)
+}
+
+// TestMinimal runs the test on a minimum configuration
+func TestMinimal_v1_24(t *testing.T) {
+	newIntegrationTest("minimal.example.com", "minimal-1.24").
+		withAddons(
+			awsEBSCSIAddon,
+			dnsControllerAddon,
+			awsCCMAddon,
+			leaderElectionAddon,
+		).
 		runTestTerraformAWS(t)
 	newIntegrationTest("minimal.example.com", "minimal").runTestCloudformation(t)
 }
@@ -197,14 +237,14 @@ func TestMinimalGossip(t *testing.T) {
 // TestMinimalGCE runs tests on a minimal GCE configuration
 func TestMinimalGCE(t *testing.T) {
 	newIntegrationTest("minimal-gce.example.com", "minimal_gce").
-		withAddons(dnsControllerAddon).
+		withAddons(dnsControllerAddon, "gcp-pd-csi-driver.addons.k8s.io-k8s-1.23").
 		runTestTerraformGCE(t)
 }
 
 // TestMinimalGCE runs tests on a minimal GCE configuration with private topology.
 func TestMinimalGCEPrivate(t *testing.T) {
 	newIntegrationTest("minimal-gce-private.example.com", "minimal_gce_private").
-		withAddons(dnsControllerAddon).
+		withAddons(dnsControllerAddon, "rbac.addons.k8s.io-k8s-1.8").
 		runTestTerraformGCE(t)
 }
 
@@ -219,7 +259,7 @@ func TestHA(t *testing.T) {
 // --zones us-test1-a,us-test1-b,us-test1-c --master-count=3
 func TestHighAvailabilityGCE(t *testing.T) {
 	newIntegrationTest("ha-gce.example.com", "ha_gce").withZones(3).
-		withAddons(dnsControllerAddon).
+		withAddons(dnsControllerAddon, "rbac.addons.k8s.io-k8s-1.8").
 		runTestTerraformGCE(t)
 }
 
@@ -251,9 +291,16 @@ func TestExternalPolicies(t *testing.T) {
 // TestMinimalIPv6 runs the test on a minimum IPv6 configuration
 func TestMinimalIPv6(t *testing.T) {
 	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6").
-		withAddons(dnsControllerAddon).
+		withAddons(awsCCMAddon, awsEBSCSIAddon, dnsControllerAddon).
 		runTestTerraformAWS(t)
 	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6").runTestCloudformation(t)
+}
+
+// TestMinimalIPv6 runs the test on a minimum IPv6 configuration
+func TestMinimalIPv6Private(t *testing.T) {
+	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6-private").
+		withAddons(awsCCMAddon, awsEBSCSIAddon, dnsControllerAddon).
+		runTestTerraformAWS(t)
 }
 
 // TestMinimalIPv6Calico runs the test on a minimum IPv6 configuration with Calico
@@ -264,7 +311,7 @@ func TestMinimalIPv6Calico(t *testing.T) {
 	}
 	defer unsetFeatureFlags()
 	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6-calico").
-		withAddons(calicoAddon, dnsControllerAddon).
+		withAddons(awsCCMAddon, awsEBSCSIAddon, calicoAddon, dnsControllerAddon).
 		runTestTerraformAWS(t)
 	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6-calico").runTestCloudformation(t)
 }
@@ -277,7 +324,7 @@ func TestMinimalIPv6Cilium(t *testing.T) {
 	}
 	defer unsetFeatureFlags()
 	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6-cilium").
-		withAddons(ciliumAddon, dnsControllerAddon).
+		withAddons(awsCCMAddon, awsEBSCSIAddon, ciliumAddon, dnsControllerAddon).
 		runTestTerraformAWS(t)
 	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6-cilium").runTestCloudformation(t)
 }
@@ -369,7 +416,7 @@ func TestPrivateCilium(t *testing.T) {
 func TestPrivateCilium2(t *testing.T) {
 	newIntegrationTest("privatecilium.example.com", "privatecilium2").
 		withPrivate().
-		withAddons("networking.cilium.io-k8s-1.12", "rbac.addons.k8s.io-k8s-1.8", dnsControllerAddon).
+		withAddons("networking.cilium.io-k8s-1.12", dnsControllerAddon).
 		withKubeDNS().
 		runTestTerraformAWS(t)
 	newIntegrationTest("privatecilium.example.com", "privatecilium2").
@@ -459,16 +506,13 @@ func TestDiscoveryFeatureGate(t *testing.T) {
 		withOIDCDiscovery().
 		withKubeDNS().
 		runTestTerraformAWS(t)
-
 }
 
 func TestVFSServiceAccountIssuerDiscovery(t *testing.T) {
-
 	newIntegrationTest("minimal.example.com", "vfs-said").
 		withAddons(dnsControllerAddon).
 		withOIDCDiscovery().
 		runTestTerraformAWS(t)
-
 }
 
 // TestAWSLBController runs a simple configuration, but with AWS LB controller and UseServiceAccountExternalPermissions enabled
@@ -537,7 +581,7 @@ func TestCCM(t *testing.T) {
 
 func TestExternalDNS(t *testing.T) {
 	newIntegrationTest("minimal.example.com", "external_dns").
-		withAddons("external-dns.addons.k8s.io-k8s-1.12").
+		withAddons("external-dns.addons.k8s.io-k8s-1.19").
 		runTestTerraformAWS(t)
 	newIntegrationTest("minimal.example.com", "external_dns").runTestCloudformation(t)
 }
@@ -545,9 +589,29 @@ func TestExternalDNS(t *testing.T) {
 func TestExternalDNSIRSA(t *testing.T) {
 	newIntegrationTest("minimal.example.com", "external_dns_irsa").
 		withOIDCDiscovery().
-		withAddons("external-dns.addons.k8s.io-k8s-1.12").
+		withAddons("external-dns.addons.k8s.io-k8s-1.19").
 		withServiceAccountRole("external-dns.kube-system", true).
 		runTestTerraformAWS(t)
+}
+
+func TestKarpenter(t *testing.T) {
+	featureflag.ParseFlags("+Karpenter")
+	unsetFeatureFlags := func() {
+		featureflag.ParseFlags("-Karpenter")
+	}
+	defer unsetFeatureFlags()
+
+	test := newIntegrationTest("minimal.example.com", "karpenter").
+		withOIDCDiscovery().
+		withAddons(dnsControllerAddon).
+		withServiceAccountRole("dns-controller.kube-system", true).
+		withAddons("karpenter.sh-k8s-1.19").
+		withServiceAccountRole("karpenter.kube-system", true)
+	test.expectTerraformFilenames = append(test.expectTerraformFilenames,
+		"aws_launch_template_karpenter-nodes.minimal.example.com_user_data",
+		"aws_s3_bucket_object_nodeupconfig-karpenter-nodes_content",
+	)
+	test.runTestTerraformAWS(t)
 }
 
 // TestSharedSubnet runs the test on a configuration with a shared subnet (and VPC)
@@ -654,6 +718,10 @@ func TestAPIServerNodes(t *testing.T) {
 
 	newIntegrationTest("minimal.example.com", "apiservernodes").
 		runTestCloudformation(t)
+	newIntegrationTest("minimal.example.com", "apiservernodes").
+		withAddons(dnsControllerAddon, awsEBSCSIAddon).
+		withDedicatedAPIServer().
+		runTestTerraformAWS(t)
 }
 
 // TestNTHQueueProcessor tests the output for resources required by NTH Queue Processor mode
@@ -730,7 +798,7 @@ func (i *integrationTest) runTest(t *testing.T, h *testutils.IntegrationTestHarn
 
 	// Compare main files
 	{
-		files, err := ioutil.ReadDir(path.Join(h.TempDir, "out"))
+		files, err := os.ReadDir(path.Join(h.TempDir, "out"))
 		if err != nil {
 			t.Fatalf("failed to read dir: %v", err)
 		}
@@ -752,7 +820,7 @@ func (i *integrationTest) runTest(t *testing.T, h *testutils.IntegrationTestHarn
 			t.Fatalf("unexpected files.  actual=%q, expected=%q, test=%q", actualFilenames, expectedFilenames, testDataTFPath)
 		}
 
-		actualTF, err := ioutil.ReadFile(path.Join(h.TempDir, "out", actualTFPath))
+		actualTF, err := os.ReadFile(path.Join(h.TempDir, "out", actualTFPath))
 		if err != nil {
 			t.Fatalf("unexpected error reading actual terraform output: %v", err)
 		}
@@ -763,7 +831,7 @@ func (i *integrationTest) runTest(t *testing.T, h *testutils.IntegrationTestHarn
 	// Compare data files if they are provided
 	if len(expectedDataFilenames) > 0 {
 		actualDataPath := path.Join(h.TempDir, "out", "data")
-		files, err := ioutil.ReadDir(actualDataPath)
+		files, err := os.ReadDir(actualDataPath)
 		if err != nil {
 			t.Fatalf("failed to read data dir: %v", err)
 		}
@@ -794,8 +862,7 @@ func (i *integrationTest) runTest(t *testing.T, h *testutils.IntegrationTestHarn
 		expectedDataPath := path.Join(i.srcDir, "data")
 		{
 			for _, dataFileName := range expectedDataFilenames {
-				actualDataContent, err :=
-					ioutil.ReadFile(path.Join(actualDataPath, dataFileName))
+				actualDataContent, err := os.ReadFile(path.Join(actualDataPath, dataFileName))
 				if err != nil {
 					t.Fatalf("failed to read actual data file: %v", err)
 				}
@@ -803,7 +870,7 @@ func (i *integrationTest) runTest(t *testing.T, h *testutils.IntegrationTestHarn
 			}
 		}
 
-		existingExpectedFiles, err := ioutil.ReadDir(expectedDataPath)
+		existingExpectedFiles, err := os.ReadDir(expectedDataPath)
 		if err != nil {
 			t.Fatalf("failed to read data dir: %v", err)
 		}
@@ -1148,7 +1215,6 @@ func (i *integrationTest) runTestTerraformGCE(t *testing.T) {
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-kubelet-api.rbac.addons.k8s.io-k8s-1.9_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-limit-range.addons.k8s.io_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-metadata-proxy.addons.k8s.io-v0.1.12_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-rbac.addons.k8s.io-k8s-1.8_content",
 		"aws_s3_bucket_object_"+i.clusterName+"-addons-storage-gce.addons.k8s.io-v1.7.0_content")
 
 	for j := 0; j < i.zones; j++ {
@@ -1200,7 +1266,7 @@ func (i *integrationTest) runTestCloudformation(t *testing.T) {
 
 	// Compare main files
 	{
-		files, err := ioutil.ReadDir(path.Join(h.TempDir, "out"))
+		files, err := os.ReadDir(path.Join(h.TempDir, "out"))
 		if err != nil {
 			t.Fatalf("failed to read dir: %v", err)
 		}
@@ -1218,7 +1284,7 @@ func (i *integrationTest) runTestCloudformation(t *testing.T) {
 		}
 
 		actualPath := path.Join(h.TempDir, "out", "kubernetes.json")
-		actualCF, err := ioutil.ReadFile(actualPath)
+		actualCF, err := os.ReadFile(actualPath)
 		if err != nil {
 			t.Fatalf("unexpected error reading actual cloudformation output: %v", err)
 		}
@@ -1293,7 +1359,7 @@ func MakeSSHKeyPair(publicKeyPath string, privateKeyPath string) error {
 	if err := pem.Encode(&privateKeyBytes, privateKeyPEM); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(privateKeyPath, privateKeyBytes.Bytes(), os.FileMode(0700)); err != nil {
+	if err := os.WriteFile(privateKeyPath, privateKeyBytes.Bytes(), os.FileMode(0o700)); err != nil {
 		return err
 	}
 
@@ -1302,7 +1368,7 @@ func MakeSSHKeyPair(publicKeyPath string, privateKeyPath string) error {
 		return err
 	}
 	publicKeyBytes := ssh.MarshalAuthorizedKey(publicKey)
-	if err := ioutil.WriteFile(publicKeyPath, publicKeyBytes, os.FileMode(0744)); err != nil {
+	if err := os.WriteFile(publicKeyPath, publicKeyBytes, os.FileMode(0o744)); err != nil {
 		return err
 	}
 

@@ -22,11 +22,10 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/apis/kops/model"
 	"k8s.io/kops/upup/pkg/fi"
-	"k8s.io/kops/upup/pkg/fi/cloudup/alitasks"
-	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awstasks"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/azure"
@@ -46,7 +45,6 @@ const (
 	DefaultAWSEtcdVolumeGp3Iops       = 3000
 	DefaultAWSEtcdVolumeGp3Throughput = 125
 	DefaultGCEEtcdVolumeType          = "pd-ssd"
-	DefaultALIEtcdVolumeType          = "cloud_ssd"
 )
 
 // MasterVolumeBuilder builds master EBS volumes
@@ -110,8 +108,6 @@ func (b *MasterVolumeBuilder) Build(c *fi.ModelBuilderContext) error {
 				if err != nil {
 					return err
 				}
-			case kops.CloudProviderALI:
-				b.addALIVolume(c, name, volumeSize, zone, etcd, m, allMembers)
 			case kops.CloudProviderAzure:
 				b.addAzureVolume(c, name, volumeSize, zone, etcd, m, allMembers)
 			default:
@@ -128,7 +124,7 @@ func (b *MasterVolumeBuilder) addAWSVolume(c *fi.ModelBuilderContext, name strin
 	if volumeType == "" {
 		volumeType = DefaultAWSEtcdVolumeType
 	}
-	volumeIops := fi.Int32Value(m.VolumeIops)
+	volumeIops := fi.Int32Value(m.VolumeIOPS)
 	volumeThroughput := fi.Int32Value(m.VolumeThroughput)
 	switch volumeType {
 	case ec2.VolumeTypeIo1, ec2.VolumeTypeIo2:
@@ -143,24 +139,9 @@ func (b *MasterVolumeBuilder) addAWSVolume(c *fi.ModelBuilderContext, name strin
 			volumeThroughput = DefaultAWSEtcdVolumeGp3Throughput
 		}
 	}
-	volumeIopsSizeRatio := float64(volumeIops) / float64(volumeSize)
-	volumeThroughputIopsRatio := float64(volumeThroughput) / float64(volumeIops)
-	switch volumeType {
-	case ec2.VolumeTypeIo1:
-		if volumeIopsSizeRatio >= 50.0 {
-			return fmt.Errorf("volumeIops to volumeSize ratio must be lower than 50. For %s ratio is %.02f", name, volumeIopsSizeRatio)
-		}
-	case ec2.VolumeTypeIo2:
-		if volumeIopsSizeRatio >= 500.0 {
-			return fmt.Errorf("volumeIops to volumeSize ratio must be lower than 500. For %s ratio is %.02f", name, volumeIopsSizeRatio)
-		}
-	case ec2.VolumeTypeGp3:
-		if volumeIops > 3000 && volumeIopsSizeRatio >= 500.0 {
-			return fmt.Errorf("volumeIops to volumeSize ratio must be lower than 500. For %s ratio is %.02f", name, volumeIopsSizeRatio)
-		}
-		if volumeThroughputIopsRatio >= 0.25 {
-			return fmt.Errorf("volumeThroughput to volumeIops ratio must be lower than 0.25. For %s ratio is %.02f", name, volumeThroughputIopsRatio)
-		}
+
+	if err := validateAWSVolume(name, volumeType, volumeSize, volumeIops, volumeThroughput); err != nil {
+		return err
 	}
 
 	// The tags are how protokube knows to mount the volume and use it for etcd
@@ -171,7 +152,7 @@ func (b *MasterVolumeBuilder) addAWSVolume(c *fi.ModelBuilderContext, name strin
 		tags[k] = v
 	}
 
-	//tags[awsup.TagClusterName] = b.C.cluster.Name
+	// tags[awsup.TagClusterName] = b.C.cluster.Name
 	// This is the configuration of the etcd cluster
 	tags[awsup.TagNameEtcdClusterPrefix+etcd.Name] = m.Name + "/" + strings.Join(allMembers, ",")
 	// This says "only mount on a master"
@@ -189,7 +170,7 @@ func (b *MasterVolumeBuilder) addAWSVolume(c *fi.ModelBuilderContext, name strin
 		AvailabilityZone: fi.String(zone),
 		SizeGB:           fi.Int64(int64(volumeSize)),
 		VolumeType:       fi.String(volumeType),
-		KmsKeyId:         m.KmsKeyId,
+		KmsKeyId:         m.KmsKeyID,
 		Encrypted:        fi.Bool(encrypted),
 		Tags:             tags,
 	}
@@ -203,6 +184,29 @@ func (b *MasterVolumeBuilder) addAWSVolume(c *fi.ModelBuilderContext, name strin
 
 	c.AddTask(t)
 
+	return nil
+}
+
+func validateAWSVolume(name, volumeType string, volumeSize, volumeIops, volumeThroughput int32) error {
+	volumeIopsSizeRatio := float64(volumeIops) / float64(volumeSize)
+	volumeThroughputIopsRatio := float64(volumeThroughput) / float64(volumeIops)
+	switch volumeType {
+	case ec2.VolumeTypeIo1:
+		if volumeIopsSizeRatio > 50.0 {
+			return fmt.Errorf("volumeIops to volumeSize ratio must be lower than 50. For %s ratio is %.02f", name, volumeIopsSizeRatio)
+		}
+	case ec2.VolumeTypeIo2:
+		if volumeIopsSizeRatio > 500.0 {
+			return fmt.Errorf("volumeIops to volumeSize ratio must be lower than 500. For %s ratio is %.02f", name, volumeIopsSizeRatio)
+		}
+	case ec2.VolumeTypeGp3:
+		if volumeIops > 3000 && volumeIopsSizeRatio > 500.0 {
+			return fmt.Errorf("volumeIops to volumeSize ratio must be lower than 500. For %s ratio is %.02f", name, volumeIopsSizeRatio)
+		}
+		if volumeThroughputIopsRatio > 0.25 {
+			return fmt.Errorf("volumeThroughput to volumeIops ratio must be lower than 0.25. For %s ratio is %.02f", name, volumeThroughputIopsRatio)
+		}
+	}
 	return nil
 }
 
@@ -309,44 +313,6 @@ func (b *MasterVolumeBuilder) addOpenstackVolume(c *fi.ModelBuilderContext, name
 	c.AddTask(t)
 
 	return nil
-}
-
-func (b *MasterVolumeBuilder) addALIVolume(c *fi.ModelBuilderContext, name string, volumeSize int32, zone string, etcd kops.EtcdClusterSpec, m kops.EtcdMemberSpec, allMembers []string) {
-	//Alicloud does not support volumeName starts with number
-	name = "v" + name
-	volumeType := fi.StringValue(m.VolumeType)
-	if volumeType == "" {
-		volumeType = DefaultALIEtcdVolumeType
-	}
-
-	// The tags are how protokube knows to mount the volume and use it for etcd
-	tags := make(map[string]string)
-
-	// Apply all user defined labels on the volumes
-	for k, v := range b.Cluster.Spec.CloudLabels {
-		tags[k] = v
-	}
-
-	// This is the configuration of the etcd cluster
-	tags[aliup.TagNameEtcdClusterPrefix+etcd.Name] = m.Name + "/" + strings.Join(allMembers, ",")
-	// This says "only mount on a master"
-	tags[aliup.TagNameRolePrefix+"master"] = "1"
-	// We always add an owned tags (these can't be shared)
-	tags["kubernetes.io/cluster/"+b.Cluster.ObjectMeta.Name] = "owned"
-
-	encrypted := fi.BoolValue(m.EncryptedVolume)
-
-	t := &alitasks.Disk{
-		Lifecycle:    b.Lifecycle,
-		Name:         fi.String(name),
-		ZoneId:       fi.String(zone),
-		SizeGB:       fi.Int(int(volumeSize)),
-		DiskCategory: fi.String(volumeType),
-		Encrypted:    fi.Bool(encrypted),
-		Tags:         tags,
-	}
-
-	c.AddTask(t)
 }
 
 func (b *MasterVolumeBuilder) addAzureVolume(

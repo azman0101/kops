@@ -10,6 +10,8 @@ spec:
     alwaysAllow: {}
   channel: stable
   cloudConfig:
+    gcpPDCSIDriver:
+      enabled: false
     manageStorageClasses: true
     multizone: true
     nodeTags: ha-gce-example-com-k8s-io-role-node
@@ -20,7 +22,7 @@ spec:
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   dnsZone: "1"
   docker:
     skipInstall: true
@@ -116,10 +118,9 @@ spec:
     nodeLocalDNS:
       cpuRequest: 25m
       enabled: false
-      image: k8s.gcr.io/dns/k8s-dns-node-cache:1.20.0
+      image: k8s.gcr.io/dns/k8s-dns-node-cache:1.21.3
       memoryRequest: 5Mi
     provider: CoreDNS
-    replicas: 2
     serverIP: 100.64.0.10
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
@@ -141,11 +142,9 @@ spec:
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
     hairpinMode: promiscuous-bridge
-    hostnameOverride: '@gce'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
   kubernetesApiAccess:
   - 0.0.0.0/0
@@ -162,11 +161,9 @@ spec:
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
     hairpinMode: promiscuous-bridge
-    hostnameOverride: '@gce'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
     registerSchedulable: false
   masterPublicName: api.ha-gce.example.com

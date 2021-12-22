@@ -24,7 +24,7 @@ import (
 	"k8s.io/kops/upup/pkg/fi/loader"
 )
 
-// KubeControllerManagerOptionsBuilder adds options for the kubernetes controller manager to the model.
+// AWSCloudControllerManagerOptionsBuilder adds options for the kubernetes controller manager to the model.
 type AWSCloudControllerManagerOptionsBuilder struct {
 	*OptionsContext
 }
@@ -33,12 +33,19 @@ var _ loader.OptionsBuilder = &AWSCloudControllerManagerOptionsBuilder{}
 
 // BuildOptions generates the configurations used for the AWS cloud controller manager manifest
 func (b *AWSCloudControllerManagerOptionsBuilder) BuildOptions(o interface{}) error {
-
 	clusterSpec := o.(*kops.ClusterSpec)
+
+	if kops.CloudProviderID(clusterSpec.CloudProvider) != kops.CloudProviderAWS {
+		return nil
+	}
+
+	if clusterSpec.ExternalCloudControllerManager == nil && b.IsKubernetesGTE("1.24") {
+		clusterSpec.ExternalCloudControllerManager = &kops.CloudControllerManagerConfig{}
+	}
 
 	eccm := clusterSpec.ExternalCloudControllerManager
 
-	if eccm == nil || kops.CloudProviderID(eccm.CloudProvider) != kops.CloudProviderAWS {
+	if eccm == nil {
 		return nil
 	}
 
@@ -76,8 +83,6 @@ func (b *AWSCloudControllerManagerOptionsBuilder) BuildOptions(o interface{}) er
 	if eccm.Image == "" {
 		// See https://us.gcr.io/k8s-artifacts-prod/provider-aws/cloud-controller-manager
 		switch b.KubernetesVersion.Minor {
-		case 18:
-			eccm.Image = "k8s.gcr.io/provider-aws/cloud-controller-manager:v1.18.0-alpha.1"
 		case 19:
 			eccm.Image = "k8s.gcr.io/provider-aws/cloud-controller-manager:v1.19.0-alpha.1"
 		case 20:
@@ -89,6 +94,10 @@ func (b *AWSCloudControllerManagerOptionsBuilder) BuildOptions(o interface{}) er
 		default:
 			eccm.Image = "gcr.io/k8s-staging-provider-aws/cloud-controller-manager:latest"
 		}
+	}
+
+	if b.IsKubernetesGTE("1.24") && b.IsKubernetesLT("1.25") {
+		eccm.EnableLeaderMigration = fi.Bool(true)
 	}
 
 	return nil

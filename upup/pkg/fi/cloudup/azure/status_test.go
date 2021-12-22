@@ -37,7 +37,6 @@ var _ VMScaleSetsClient = &mockVMScaleSetsClient{}
 
 // CreateOrUpdate creates or updates a VM Scale Set.
 func (c *mockVMScaleSetsClient) CreateOrUpdate(ctx context.Context, resourceGroupName, vmScaleSetName string, parameters compute.VirtualMachineScaleSet) (*compute.VirtualMachineScaleSet, error) {
-
 	return nil, fmt.Errorf("unimplemented")
 }
 
@@ -127,15 +126,15 @@ func TestFindEtcdStatus(t *testing.T) {
 	expected := map[string]*kops.EtcdMemberStatus{
 		"a": {
 			Name:     "a",
-			VolumeId: "d0",
+			VolumeID: "d0",
 		},
 		"b": {
 			Name:     "b",
-			VolumeId: "d1",
+			VolumeID: "d1",
 		},
 		"c": {
 			Name:     "c",
-			VolumeId: "d2",
+			VolumeID: "d2",
 		},
 	}
 

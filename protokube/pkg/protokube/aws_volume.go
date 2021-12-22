@@ -31,6 +31,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"k8s.io/klog/v2"
+
 	"k8s.io/kops/protokube/pkg/etcd"
 	"k8s.io/kops/protokube/pkg/gossip"
 	gossipaws "k8s.io/kops/protokube/pkg/gossip/aws"
@@ -125,7 +126,10 @@ func (a *AWSVolumes) discoverTags() error {
 
 	a.clusterTag = clusterID
 
-	a.internalIP = net.ParseIP(aws.StringValue(instance.PrivateIpAddress))
+	a.internalIP = net.ParseIP(aws.StringValue(instance.Ipv6Address))
+	if a.internalIP == nil {
+		a.internalIP = net.ParseIP(aws.StringValue(instance.PrivateIpAddress))
+	}
 	if a.internalIP == nil {
 		return fmt.Errorf("Internal IP not found on this instance (%q)", a.instanceId)
 	}
@@ -144,7 +148,6 @@ func (a *AWSVolumes) describeInstance() (*ec2.Instance, error) {
 		}
 		return true
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("error querying for EC2 instance %q: %v", a.instanceId, err)
 	}
@@ -206,7 +209,7 @@ func (a *AWSVolumes) findVolumes(request *ec2.DescribeVolumesInput) ([]*Volume, 
 					{
 						// Ignore
 					}
-				//case TagNameMasterId:
+				// case TagNameMasterId:
 				//	id, err := strconv.Atoi(v)
 				//	if err != nil {
 				//		klog.Warningf("error parsing master-id tag on volume %q %s=%s; skipping volume", volumeID, k, v)
@@ -240,7 +243,6 @@ func (a *AWSVolumes) findVolumes(request *ec2.DescribeVolumesInput) ([]*Volume, 
 		}
 		return true
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("error querying for EC2 volumes: %v", err)
 	}

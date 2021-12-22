@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"k8s.io/kops/pkg/model/components"
 
@@ -31,6 +32,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
+
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/flagbuilder"
 	"k8s.io/kops/pkg/nodelabels"
@@ -59,7 +61,6 @@ var _ fi.ModelBuilder = &KubeletBuilder{}
 
 // Build is responsible for building the kubelet configuration
 func (b *KubeletBuilder) Build(c *fi.ModelBuilderContext) error {
-
 	err := b.buildKubeletServingCertificate(c)
 	if err != nil {
 		return fmt.Errorf("error building kubelet server cert: %v", err)
@@ -121,14 +122,7 @@ func (b *KubeletBuilder) Build(c *fi.ModelBuilderContext) error {
 		if b.HasAPIServer || !b.UseBootstrapTokens() {
 			var kubeconfig fi.Resource
 			if b.HasAPIServer {
-				if b.IsKubernetesGTE("1.19") || b.UseBootstrapTokens() {
-					kubeconfig, err = b.buildMasterKubeletKubeconfig(c)
-				} else {
-					kubeconfig = b.BuildIssuedKubeconfig("kubelet", nodetasks.PKIXName{
-						CommonName:   "kubelet",
-						Organization: []string{rbac.NodesGroup},
-					}, c)
-				}
+				kubeconfig, err = b.buildMasterKubeletKubeconfig(c)
 			} else {
 				kubeconfig, err = b.BuildBootstrapKubeconfig("kubelet", c)
 			}
@@ -155,6 +149,49 @@ func (b *KubeletBuilder) Build(c *fi.ModelBuilderContext) error {
 
 	if err := b.addContainerizedMounter(c); err != nil {
 		return err
+	}
+
+	if kubeletConfig.CgroupDriver == "systemd" && b.Cluster.Spec.ContainerRuntime == "containerd" {
+
+		{
+			cgroup := kubeletConfig.KubeletCgroups
+			if cgroup != "" {
+				c.EnsureTask(b.buildCgroupService(cgroup))
+			}
+
+		}
+		{
+			cgroup := kubeletConfig.RuntimeCgroups
+			if cgroup != "" {
+				c.EnsureTask(b.buildCgroupService(cgroup))
+			}
+
+		}
+		/* Kubelet incorrectly interprets this value when CgroupDriver is systemd
+		See https://github.com/kubernetes/kubernetes/issues/101189
+		{
+			cgroup := kubeletConfig.KubeReservedCgroup
+			if cgroup != "" {
+				c.EnsureTask(b.buildCgroupService(cgroup))
+			}
+		}
+		*/
+
+		{
+			cgroup := kubeletConfig.SystemCgroups
+			if cgroup != "" {
+				c.EnsureTask(b.buildCgroupService(cgroup))
+			}
+		}
+
+		/* This suffers from the same issue as KubeReservedCgroup
+		{
+			cgroup := kubeletConfig.SystemReservedCgroup
+			if cgroup != "" {
+				c.EnsureTask(b.buildCgroupService(cgroup))
+			}
+		}
+		*/
 	}
 
 	c.AddTask(b.buildSystemdService())
@@ -292,6 +329,13 @@ func (b *KubeletBuilder) buildSystemdService() *nodetasks.Service {
 
 	manifest.Set("Install", "WantedBy", "multi-user.target")
 
+	if b.Cluster.Spec.Kubelet.CgroupDriver == "systemd" && b.Cluster.Spec.ContainerRuntime == "containerd" {
+		cgroup := b.Cluster.Spec.Kubelet.KubeletCgroups
+		if cgroup != "" {
+			manifest.Set("Service", "Slice", strings.Trim(cgroup, "/")+".slice")
+		}
+	}
+
 	manifestString := manifest.Render()
 
 	klog.V(8).Infof("Built service manifest %q\n%s", "kubelet", manifestString)
@@ -304,7 +348,6 @@ func (b *KubeletBuilder) buildSystemdService() *nodetasks.Service {
 	service.InitDefaults()
 
 	if b.ConfigurationMode == "Warming" {
-
 		service.Running = fi.Bool(false)
 	}
 
@@ -525,11 +568,11 @@ func (b *KubeletBuilder) buildKubeletConfigSpec() (*kops.KubeletConfigSpec, erro
 	// For bootstrapping reasons, protokube sets the critical labels for kops-controller to run.
 	c.NodeLabels = nil
 
-	if c.AuthorizationMode == "" && b.Cluster.IsKubernetesGTE("1.19") {
+	if c.AuthorizationMode == "" {
 		c.AuthorizationMode = "Webhook"
 	}
 
-	if c.AuthenticationTokenWebhook == nil && b.Cluster.IsKubernetesGTE("1.19") {
+	if c.AuthenticationTokenWebhook == nil {
 		c.AuthenticationTokenWebhook = fi.Bool(true)
 	}
 
@@ -551,7 +594,6 @@ func (b *KubeletBuilder) buildMasterKubeletKubeconfig(c *fi.ModelBuilderContext)
 }
 
 func (b *KubeletBuilder) buildKubeletServingCertificate(c *fi.ModelBuilderContext) error {
-
 	if b.UseKopsControllerForNodeBootstrap() {
 		name := "kubelet-server"
 		dir := b.PathSrvKubernetes()
@@ -599,11 +641,10 @@ func (b *KubeletBuilder) buildKubeletServingCertificate(c *fi.ModelBuilderContex
 		}
 	}
 	return nil
-
 }
 
 func (b *KubeletBuilder) kubeletNames() ([]string, error) {
-	if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) != kops.CloudProviderAWS {
+	if b.CloudProvider != kops.CloudProviderAWS {
 		name, err := os.Hostname()
 		if err != nil {
 			return nil, err
@@ -623,5 +664,24 @@ func (b *KubeletBuilder) kubeletNames() ([]string, error) {
 		return nil, fmt.Errorf("error describing instances: %v", err)
 	}
 
-	return awsup.GetInstanceCertificateNames(result)
+	useInstanceIDForNodeName := b.Cluster.Spec.ExternalCloudControllerManager != nil && b.IsKubernetesGTE("1.23")
+	return awsup.GetInstanceCertificateNames(result, useInstanceIDForNodeName)
+}
+
+func (b *KubeletBuilder) buildCgroupService(name string) *nodetasks.Service {
+	name = strings.Trim(name, "/")
+
+	manifest := &systemd.Manifest{}
+	manifest.Set("Unit", "Documentation", "man:systemd.special(7)")
+	manifest.Set("Unit", "Before", "slices.target")
+	manifest.Set("Unit", "DefaultDependencies", "no")
+
+	manifestString := manifest.Render()
+
+	service := &nodetasks.Service{
+		Name:       name + ".slice",
+		Definition: s(manifestString),
+	}
+
+	return service
 }

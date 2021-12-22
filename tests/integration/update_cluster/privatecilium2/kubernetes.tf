@@ -321,7 +321,9 @@ resource "aws_eip" "us-test-1a-privatecilium-example-com" {
 }
 
 resource "aws_elb" "api-privatecilium-example-com" {
-  cross_zone_load_balancing = false
+  connection_draining         = true
+  connection_draining_timeout = 300
+  cross_zone_load_balancing   = false
   health_check {
     healthy_threshold   = 2
     interval            = 10
@@ -900,14 +902,6 @@ resource "aws_s3_bucket_object" "privatecilium-example-com-addons-networking-cil
   bucket                 = "testingBucket"
   content                = file("${path.module}/data/aws_s3_bucket_object_privatecilium.example.com-addons-networking.cilium.io-k8s-1.12_content")
   key                    = "clusters.example.com/privatecilium.example.com/addons/networking.cilium.io/k8s-1.12-v1.8.yaml"
-  provider               = aws.files
-  server_side_encryption = "AES256"
-}
-
-resource "aws_s3_bucket_object" "privatecilium-example-com-addons-rbac-addons-k8s-io-k8s-1-8" {
-  bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_privatecilium.example.com-addons-rbac.addons.k8s.io-k8s-1.8_content")
-  key                    = "clusters.example.com/privatecilium.example.com/addons/rbac.addons.k8s.io/k8s-1.8.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }

@@ -34,10 +34,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/klog/v2"
+	"k8s.io/kubectl/pkg/drain"
+
 	api "k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/cloudinstances"
 	"k8s.io/kops/pkg/validation"
-	"k8s.io/kubectl/pkg/drain"
 )
 
 const rollingUpdateTaintKey = "kops.k8s.io/scheduled-for-update"
@@ -151,13 +152,16 @@ func (c *RollingUpdateCluster) rollingUpdateInstanceGroup(group *cloudinstances.
 	if maxSurge > 0 && !c.CloudOnly {
 		skippedNodes := 0
 		for numSurge := 1; numSurge <= maxSurge; numSurge++ {
-			u := update[len(update)-numSurge+skippedNodes]
+			u := update[len(update)-numSurge-skippedNodes]
 			if u.Status != cloudinstances.CloudInstanceStatusDetached {
 				if err := c.detachInstance(u); err != nil {
 					// If detaching a node fails, we simply proceed to the next one instead of
 					// bubbling up the error.
 					skippedNodes++
 					numSurge--
+					if maxSurge > len(update)-skippedNodes {
+						maxSurge = len(update) - skippedNodes
+					}
 				}
 
 				// If noneReady, wait until after one node is detached and its replacement validates
@@ -389,11 +393,8 @@ func (c *RollingUpdateCluster) drainTerminateAndWait(u *cloudinstances.CloudInst
 	if isBastion {
 		// We don't want to validate for bastions - they aren't part of the cluster
 	} else if c.CloudOnly {
-
 		klog.Warning("Not draining cluster nodes as 'cloudonly' flag is set.")
-
 	} else {
-
 		if u.Node != nil {
 			klog.Infof("Draining the node: %q.", nodeName)
 
@@ -459,13 +460,11 @@ func (c *RollingUpdateCluster) reconcileInstanceGroup() error {
 	}
 
 	return applyCmd.Run(c.Ctx)
-
 }
 
 func (c *RollingUpdateCluster) maybeValidate(operation string, validateCount int, group *cloudinstances.CloudInstanceGroup) error {
 	if c.CloudOnly {
 		klog.Warningf("Not validating cluster as cloudonly flag is set.")
-
 	} else {
 		klog.Info("Validating the cluster.")
 
@@ -682,8 +681,7 @@ func (c *RollingUpdateCluster) UpdateSingleInstance(cloudMember *cloudinstances.
 	if detach {
 		if cloudMember.CloudInstanceGroup.InstanceGroup.IsMaster() {
 			klog.Warning("cannot detach master instances. Assuming --surge=false")
-
-		} else {
+		} else if cloudMember.CloudInstanceGroup.InstanceGroup.Spec.Manager != api.InstanceManagerKarpenter {
 			err := c.detachInstance(cloudMember)
 			if err != nil {
 				return fmt.Errorf("failed to detach instance: %v", err)

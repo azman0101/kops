@@ -76,10 +76,6 @@ func ValidateCluster(c *kops.Cluster, strict bool) field.ErrorList {
 		if c.Spec.NetworkCIDR != "" {
 			allErrs = append(allErrs, field.Forbidden(fieldSpec.Child("networkCIDR"), "networkCIDR should not be set on DigitalOcean"))
 		}
-	case kops.CloudProviderALI:
-		requiresSubnets = false
-		requiresSubnetCIDR = false
-		requiresNetworkCIDR = false
 	case kops.CloudProviderAWS:
 	case kops.CloudProviderAzure:
 	case kops.CloudProviderOpenstack:
@@ -90,7 +86,6 @@ func ValidateCluster(c *kops.Cluster, strict bool) field.ErrorList {
 		allErrs = append(allErrs, field.NotSupported(fieldSpec.Child("cloudProvider"), c.Spec.CloudProvider, []string{
 			string(kops.CloudProviderGCE),
 			string(kops.CloudProviderDO),
-			string(kops.CloudProviderALI),
 			string(kops.CloudProviderAzure),
 			string(kops.CloudProviderAWS),
 			string(kops.CloudProviderOpenstack),
@@ -182,20 +177,20 @@ func ValidateCluster(c *kops.Cluster, strict bool) field.ErrorList {
 					allErrs = append(allErrs, field.Forbidden(fieldSpec.Child("nonMasqueradeCIDR"), "IPv6 clusters must have a nonMasqueradeCIDR of \"::/0\""))
 				}
 
-				if networkCIDR != nil && subnet.Overlap(nonMasqueradeCIDR, networkCIDR) && c.Spec.Networking != nil && c.Spec.Networking.AmazonVPC == nil && (c.Spec.Networking.Cilium == nil || c.Spec.Networking.Cilium.Ipam != kops.CiliumIpamEni) {
+				if networkCIDR != nil && subnet.Overlap(nonMasqueradeCIDR, networkCIDR) && c.Spec.Networking != nil && c.Spec.Networking.AmazonVPC == nil && (c.Spec.Networking.Cilium == nil || c.Spec.Networking.Cilium.IPAM != kops.CiliumIpamEni) {
 					allErrs = append(allErrs, field.Forbidden(fieldSpec.Child("nonMasqueradeCIDR"), fmt.Sprintf("nonMasqueradeCIDR %q cannot overlap with networkCIDR %q", nonMasqueradeCIDRString, c.Spec.NetworkCIDR)))
 				}
 
-				if c.Spec.Kubelet != nil && c.Spec.Kubelet.NonMasqueradeCIDR != nonMasqueradeCIDRString {
-					// TODO Remove the Spec.Kubelet.NonMasqueradeCIDR field?
-					if strict || c.Spec.Kubelet.NonMasqueradeCIDR != "" {
-						allErrs = append(allErrs, field.Forbidden(fieldSpec.Child("kubelet", "nonMasqueradeCIDR"), "kubelet nonMasqueradeCIDR did not match cluster nonMasqueradeCIDR"))
+				if c.Spec.ContainerRuntime == "docker" && c.Spec.Kubelet != nil && c.Spec.Kubelet.NetworkPluginName == "kubenet" {
+					if c.Spec.Kubelet.NonMasqueradeCIDR != nonMasqueradeCIDRString {
+						if strict || c.Spec.Kubelet.NonMasqueradeCIDR != "" {
+							allErrs = append(allErrs, field.Forbidden(fieldSpec.Child("kubelet", "nonMasqueradeCIDR"), "kubelet nonMasqueradeCIDR did not match cluster nonMasqueradeCIDR"))
+						}
 					}
-				}
-				if c.Spec.MasterKubelet != nil && c.Spec.MasterKubelet.NonMasqueradeCIDR != nonMasqueradeCIDRString {
-					// TODO remove the Spec.MasterKubelet.NonMasqueradeCIDR field?
-					if strict || c.Spec.MasterKubelet.NonMasqueradeCIDR != "" {
-						allErrs = append(allErrs, field.Forbidden(fieldSpec.Child("masterKubelet", "nonMasqueradeCIDR"), "masterKubelet nonMasqueradeCIDR did not match cluster nonMasqueradeCIDR"))
+					if c.Spec.MasterKubelet.NonMasqueradeCIDR != nonMasqueradeCIDRString {
+						if strict || c.Spec.MasterKubelet.NonMasqueradeCIDR != "" {
+							allErrs = append(allErrs, field.Forbidden(fieldSpec.Child("masterKubelet", "nonMasqueradeCIDR"), "masterKubelet nonMasqueradeCIDR did not match cluster nonMasqueradeCIDR"))
+						}
 					}
 				}
 			}
@@ -265,7 +260,7 @@ func ValidateCluster(c *kops.Cluster, strict bool) field.ErrorList {
 
 			// @ check that NodeLocalDNS addon is configured correctly
 			if c.Spec.KubeDNS.NodeLocalDNS != nil && fi.BoolValue(c.Spec.KubeDNS.NodeLocalDNS.Enabled) {
-				if c.Spec.KubeDNS.Provider != "CoreDNS" {
+				if c.Spec.KubeDNS.Provider != "CoreDNS" && (c.Spec.KubeDNS.Provider != "" || c.IsKubernetesLT("1.20")) {
 					allErrs = append(allErrs, field.Forbidden(fieldSpec.Child("kubeDNS", "provider"), "KubeDNS provider must be set to CoreDNS if NodeLocalDNS addon is enabled"))
 				}
 
@@ -306,8 +301,6 @@ func ValidateCluster(c *kops.Cluster, strict bool) field.ErrorList {
 			k8sCloudProvider = "external"
 		case kops.CloudProviderOpenstack:
 			k8sCloudProvider = "openstack"
-		case kops.CloudProviderALI:
-			k8sCloudProvider = "alicloud"
 		case kops.CloudProviderAzure:
 			k8sCloudProvider = "azure"
 		default:
@@ -447,7 +440,7 @@ func DeepValidate(c *kops.Cluster, groups []*kops.InstanceGroup, strict bool, cl
 	}
 
 	for _, g := range groups {
-		errs := CrossValidateInstanceGroup(g, c, cloud)
+		errs := CrossValidateInstanceGroup(g, c, cloud, strict)
 
 		// Additional cloud-specific validation rules
 		if kops.CloudProviderID(c.Spec.CloudProvider) != kops.CloudProviderAWS && len(g.Spec.Volumes) > 0 {
@@ -463,7 +456,5 @@ func DeepValidate(c *kops.Cluster, groups []*kops.InstanceGroup, strict bool, cl
 }
 
 func isExperimentalClusterDNS(k *kops.KubeletConfigSpec, dns *kops.KubeDNSConfig) bool {
-
 	return k != nil && k.ClusterDNS != dns.ServerIP && dns.NodeLocalDNS != nil && k.ClusterDNS != dns.NodeLocalDNS.LocalIP
-
 }

@@ -87,6 +87,12 @@ func TestPopulateCluster_Subnets(t *testing.T) {
 			c.Spec.NonMasqueradeCIDR = tc.NonMasqueradeCIDR
 			c.Spec.Networking.Kubenet = nil
 			c.Spec.Networking.CNI = &kopsapi.CNINetworkingSpec{}
+			c.Spec.ExternalCloudControllerManager = &kopsapi.CloudControllerManagerConfig{}
+			c.Spec.CloudConfig = &kopsapi.CloudConfiguration{
+				AWSEBSCSIDriver: &kopsapi.AWSEBSCSIDriver{
+					Enabled: fi.Bool(true),
+				},
+			}
 
 			err := PerformAssignments(c, cloud)
 			require.NoError(t, err, "PerformAssignments")
@@ -467,5 +473,4 @@ func TestPopulateCluster_KubeController_High_Enough_Version(t *testing.T) {
 	if full.Spec.KubeControllerManager.AttachDetachReconcileSyncPeriod == nil {
 		t.Fatalf("AttachDetachReconcileSyncPeriod not set correctly")
 	}
-
 }

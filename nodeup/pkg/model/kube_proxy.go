@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/dns"
@@ -44,7 +43,6 @@ var _ fi.ModelBuilder = &KubeProxyBuilder{}
 // Build is responsible for building the kube-proxy manifest
 // @TODO we should probably change this to a daemonset in the future and follow the kubeadm path
 func (b *KubeProxyBuilder) Build(c *fi.ModelBuilderContext) error {
-
 	if b.Cluster.Spec.KubeProxy.Enabled != nil && !*b.Cluster.Spec.KubeProxy.Enabled {
 		klog.V(2).Infof("Kube-proxy is disabled, will not create configuration for it.")
 		return nil
@@ -133,35 +131,18 @@ func (b *KubeProxyBuilder) buildPod() (*v1.Pod, error) {
 	resourceRequests := v1.ResourceList{}
 	resourceLimits := v1.ResourceList{}
 
-	cpuRequest, err := resource.ParseQuantity(c.CPURequest)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing CPURequest=%q", c.CPURequest)
+	resourceRequests["cpu"] = *c.CPURequest
+
+	if c.CPULimit != nil {
+		resourceLimits["cpu"] = *c.CPULimit
 	}
 
-	resourceRequests["cpu"] = cpuRequest
-
-	if c.CPULimit != "" {
-		cpuLimit, err := resource.ParseQuantity(c.CPULimit)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing CPULimit=%q", c.CPULimit)
-		}
-		resourceLimits["cpu"] = cpuLimit
+	if c.MemoryRequest != nil {
+		resourceRequests["memory"] = *c.MemoryRequest
 	}
 
-	if c.MemoryRequest != "" {
-		memoryRequest, err := resource.ParseQuantity(c.MemoryRequest)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing MemoryRequest=%q", c.MemoryRequest)
-		}
-		resourceRequests["memory"] = memoryRequest
-	}
-
-	if c.MemoryLimit != "" {
-		memoryLimit, err := resource.ParseQuantity(c.MemoryLimit)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing MemoryLimit=%q", c.MemoryLimit)
-		}
-		resourceLimits["memory"] = memoryLimit
+	if c.MemoryLimit != nil {
+		resourceLimits["memory"] = *c.MemoryLimit
 	}
 
 	if c.ConntrackMaxPerCore == nil {
@@ -176,7 +157,8 @@ func (b *KubeProxyBuilder) buildPod() (*v1.Pod, error) {
 
 	flags = append(flags, []string{
 		"--kubeconfig=/var/lib/kube-proxy/kubeconfig",
-		"--oom-score-adj=-998"}...)
+		"--oom-score-adj=-998",
+	}...)
 
 	image := kubeProxyImage(b.NodeupModelContext)
 	container := &v1.Container{
@@ -210,13 +192,21 @@ func (b *KubeProxyBuilder) buildPod() (*v1.Pod, error) {
 	addHostPathMapping(pod, container, "logfile", "/var/log/kube-proxy.log").ReadOnly = false
 	// We use lighter containers that don't include shells
 	// But they have richer logging support via klog
-	container.Command = []string{"/usr/local/bin/kube-proxy"}
-	container.Args = append(
-		sortedStrings(flags),
-		"--logtostderr=false", //https://github.com/kubernetes/klog/issues/60
-		"--alsologtostderr",
-		"--log-file=/var/log/kube-proxy.log")
-
+	if b.IsKubernetesGTE("1.23") {
+		container.Command = []string{"/go-runner"}
+		container.Args = []string{
+			"--log-file=/var/log/kube-proxy.log",
+			"/usr/local/bin/kube-proxy",
+		}
+		container.Args = append(container.Args, sortedStrings(flags)...)
+	} else {
+		container.Command = []string{"/usr/local/bin/kube-proxy"}
+		container.Args = append(
+			sortedStrings(flags),
+			"--logtostderr=false", // https://github.com/kubernetes/klog/issues/60
+			"--alsologtostderr",
+			"--log-file=/var/log/kube-proxy.log")
+	}
 	{
 		addHostPathMapping(pod, container, "kubeconfig", "/var/lib/kube-proxy/kubeconfig")
 		// @note: mapping the host modules directory to fix the missing ipvs kernel module
@@ -248,7 +238,7 @@ func (b *KubeProxyBuilder) buildPod() (*v1.Pod, error) {
 	pod.Spec.Containers = append(pod.Spec.Containers, *container)
 
 	// Note that e.g. kubeadm has this as a daemonset, but this doesn't have a lot of test coverage AFAICT
-	//ServiceAccountName: "kube-proxy",
+	// ServiceAccountName: "kube-proxy",
 
 	//d := &v1beta1.DaemonSet{
 	//	ObjectMeta: metav1.ObjectMeta{

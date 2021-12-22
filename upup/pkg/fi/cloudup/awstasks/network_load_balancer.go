@@ -138,7 +138,7 @@ func (a OrderListenersByPort) Less(i, j int) bool {
 	return a[i].Port < a[j].Port
 }
 
-//The load balancer name 'api.renamenlbcluster.k8s.local' can only contain characters that are alphanumeric characters and hyphens(-)\n\tstatus code: 400,
+// The load balancer name 'api.renamenlbcluster.k8s.local' can only contain characters that are alphanumeric characters and hyphens(-)\n\tstatus code: 400,
 func findNetworkLoadBalancerByLoadBalancerName(cloud awsup.AWSCloud, loadBalancerName string) (*elbv2.LoadBalancer, error) {
 	request := &elbv2.DescribeLoadBalancersInput{
 		Names: []*string{&loadBalancerName},
@@ -153,7 +153,6 @@ func findNetworkLoadBalancerByLoadBalancerName(cloud awsup.AWSCloud, loadBalance
 		klog.Warningf("Got NLB with unexpected name: %q", aws.StringValue(lb.LoadBalancerName))
 		return false
 	})
-
 	if err != nil {
 		if awsError, ok := err.(awserr.Error); ok {
 			if awsError.Code() == "LoadBalancerNotFound" {
@@ -198,7 +197,6 @@ func findNetworkLoadBalancerByAlias(cloud awsup.AWSCloud, alias *route53.AliasTa
 		lbDnsName = strings.TrimSuffix(lbDnsName, ".")
 		return lbDnsName == matchDnsName || "dualstack."+lbDnsName == matchDnsName
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("error listing NLBs: %v", err)
 	}
@@ -225,7 +223,6 @@ func describeNetworkLoadBalancers(cloud awsup.AWSCloud, request *elbv2.DescribeL
 
 		return true
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("error listing NLBs: %v", err)
 	}
@@ -258,7 +255,7 @@ func (e *NetworkLoadBalancer) Find(c *fi.Context) (*NetworkLoadBalancer, error) 
 	actual.Name = e.Name
 	actual.LoadBalancerName = lb.LoadBalancerName
 	actual.DNSName = lb.DNSName
-	actual.HostedZoneId = lb.CanonicalHostedZoneId //CanonicalHostedZoneNameID
+	actual.HostedZoneId = lb.CanonicalHostedZoneId // CanonicalHostedZoneNameID
 	actual.Scheme = lb.Scheme
 	actual.VPC = &VPC{ID: lb.VpcId}
 	actual.Type = lb.Type
@@ -405,6 +402,11 @@ func (e *NetworkLoadBalancer) Find(c *fi.Context) (*NetworkLoadBalancer, error) 
 		e.LoadBalancerName = actual.LoadBalancerName
 	}
 
+	// An existing internal NLB can't be updated to dualstack.
+	if fi.StringValue(actual.Scheme) == elbv2.LoadBalancerSchemeEnumInternal && fi.StringValue(actual.IpAddressType) == elbv2.IpAddressTypeIpv4 {
+		e.IpAddressType = actual.IpAddressType
+	}
+
 	// We allow for the LoadBalancerName to be wrong:
 	// 1. We don't want to force a rename of the NLB, because that is a destructive operation
 	if fi.StringValue(e.LoadBalancerName) != fi.StringValue(actual.LoadBalancerName) {
@@ -455,7 +457,7 @@ func (e *NetworkLoadBalancer) Run(c *fi.Context) error {
 
 func (e *NetworkLoadBalancer) Normalize() {
 	// We need to sort our arrays consistently, so we don't get spurious changes
-	sort.Stable(OrderSubnetMappingsByID(e.SubnetMappings))
+	sort.Stable(OrderSubnetMappingsByName(e.SubnetMappings))
 	sort.Stable(OrderListenersByPort(e.Listeners))
 	sort.Stable(OrderTargetGroupsByName(e.TargetGroups))
 }
@@ -603,7 +605,7 @@ func (_ *NetworkLoadBalancer) RenderAWS(t *awsup.AWSAPITarget, a, e, changes *Ne
 		if changes.SubnetMappings != nil {
 			actualSubnets := make(map[string]*string)
 			for _, s := range a.SubnetMappings {
-				//actualSubnets[*s.Subnet.ID] = s
+				// actualSubnets[*s.Subnet.ID] = s
 				if s.AllocationID != nil {
 					actualSubnets[*s.Subnet.ID] = s.AllocationID
 				}

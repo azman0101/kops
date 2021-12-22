@@ -330,7 +330,6 @@ func TestMixedInstancePolicies(t *testing.T) {
 
 		testErrors(t, g.Input, errs, g.ExpectedErrors)
 	}
-
 }
 
 func TestInstanceMetadataOptions(t *testing.T) {
@@ -387,7 +386,7 @@ func TestInstanceMetadataOptions(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		errs := ValidateInstanceGroup(test.ig, cloud)
+		errs := ValidateInstanceGroup(test.ig, cloud, true)
 		testErrors(t, test.ig.ObjectMeta.Name, errs, test.expected)
 	}
 }
@@ -579,12 +578,12 @@ func TestLoadBalancerSubnets(t *testing.T) {
 func TestAWSAuthentication(t *testing.T) {
 	tests := []struct {
 		backendMode      string
-		identityMappings []kops.AwsAuthenticationIdentityMappingSpec
+		identityMappings []kops.AWSAuthenticationIdentityMappingSpec
 		expected         []string
 	}{
 		{ // valid
 			backendMode: "CRD",
-			identityMappings: []kops.AwsAuthenticationIdentityMappingSpec{
+			identityMappings: []kops.AWSAuthenticationIdentityMappingSpec{
 				{
 					ARN:      "arn:aws:iam::123456789012:role/KopsExampleRole",
 					Username: "foo",
@@ -597,7 +596,7 @@ func TestAWSAuthentication(t *testing.T) {
 		},
 		{ // valid, multiple backendModes
 			backendMode: "CRD,MountedFile",
-			identityMappings: []kops.AwsAuthenticationIdentityMappingSpec{
+			identityMappings: []kops.AWSAuthenticationIdentityMappingSpec{
 				{
 					ARN:      "arn:aws:iam::123456789012:role/KopsExampleRole",
 					Username: "foo",
@@ -610,7 +609,7 @@ func TestAWSAuthentication(t *testing.T) {
 		},
 		{ // forbidden backendMode
 			backendMode: "MountedFile",
-			identityMappings: []kops.AwsAuthenticationIdentityMappingSpec{
+			identityMappings: []kops.AWSAuthenticationIdentityMappingSpec{
 				{
 					ARN:      "arn:aws:iam::123456789012:role/KopsExampleRole",
 					Username: "foo",
@@ -620,7 +619,7 @@ func TestAWSAuthentication(t *testing.T) {
 		},
 		{ // invalid identity ARN
 			backendMode: "CRD",
-			identityMappings: []kops.AwsAuthenticationIdentityMappingSpec{
+			identityMappings: []kops.AWSAuthenticationIdentityMappingSpec{
 				{
 					ARN:      "arn:aws:iam::123456789012:policy/KopsExampleRole",
 					Username: "foo",
@@ -634,7 +633,7 @@ func TestAWSAuthentication(t *testing.T) {
 		cluster := kops.Cluster{
 			Spec: kops.ClusterSpec{
 				Authentication: &kops.AuthenticationSpec{
-					Aws: &kops.AwsAuthenticationSpec{
+					AWS: &kops.AWSAuthenticationSpec{
 						BackendMode:      test.backendMode,
 						IdentityMappings: test.identityMappings,
 					},

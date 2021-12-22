@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -33,6 +32,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/kms"
+
 	"k8s.io/kops/nodeup/pkg/model"
 	"k8s.io/kops/nodeup/pkg/model/dns"
 	"k8s.io/kops/nodeup/pkg/model/networking"
@@ -43,8 +43,11 @@ import (
 	"k8s.io/kops/pkg/bootstrap"
 	"k8s.io/kops/pkg/configserver"
 	"k8s.io/kops/pkg/kopscodecs"
+	"k8s.io/kops/pkg/resolver"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
+	"k8s.io/kops/upup/pkg/fi/cloudup/gce/gcediscovery"
+	"k8s.io/kops/upup/pkg/fi/cloudup/gce/tpm/gcetpmsigner"
 	"k8s.io/kops/upup/pkg/fi/nodeup/cloudinit"
 	"k8s.io/kops/upup/pkg/fi/nodeup/local"
 	"k8s.io/kops/upup/pkg/fi/nodeup/nodetasks"
@@ -58,7 +61,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"k8s.io/klog/v2"
 )
 
@@ -112,7 +114,7 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 	if bootConfig.ConfigServer != nil {
 		response, err := getNodeConfigFromServer(ctx, &bootConfig, region)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get node config from server: %w", err)
 		}
 		nodeConfig = response.NodeConfig
 	} else if fi.StringValue(bootConfig.ConfigBase) != "" {
@@ -176,11 +178,16 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 		return fmt.Errorf("no instance group defined in nodeup config")
 	}
 
-	if bootConfig.NodeupConfigHash != base64.StdEncoding.EncodeToString(nodeupConfigHash[:]) {
-		return fmt.Errorf("nodeup config hash mismatch")
+	if want, got := bootConfig.NodeupConfigHash, base64.StdEncoding.EncodeToString(nodeupConfigHash[:]); got != want {
+		return fmt.Errorf("nodeup config hash mismatch (was %q, expected %q)", got, want)
 	}
 
-	err = evaluateSpec(c, &nodeupConfig)
+	cloudProvider := api.CloudProviderID(bootConfig.CloudProvider)
+	if cloudProvider == "" {
+		cloudProvider = api.CloudProviderID(c.cluster.Spec.CloudProvider)
+	}
+
+	err = evaluateSpec(c, &nodeupConfig, cloudProvider)
 	if err != nil {
 		return err
 	}
@@ -206,7 +213,7 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 
 	var cloud fi.Cloud
 
-	if api.CloudProviderID(c.cluster.Spec.CloudProvider) == api.CloudProviderAWS {
+	if cloudProvider == api.CloudProviderAWS {
 		awsCloud, err := awsup.NewAWSCloud(region, nil)
 		if err != nil {
 			return err
@@ -215,14 +222,15 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 	}
 
 	modelContext := &model.NodeupModelContext{
-		Cloud:        cloud,
-		Architecture: architecture,
-		Assets:       assetStore,
-		Cluster:      c.cluster,
-		ConfigBase:   configBase,
-		Distribution: distribution,
-		BootConfig:   &bootConfig,
-		NodeupConfig: &nodeupConfig,
+		Cloud:         cloud,
+		CloudProvider: cloudProvider,
+		Architecture:  architecture,
+		Assets:        assetStore,
+		Cluster:       c.cluster,
+		ConfigBase:    configBase,
+		Distribution:  distribution,
+		BootConfig:    &bootConfig,
+		NodeupConfig:  &nodeupConfig,
 	}
 
 	var secretStore fi.SecretStore
@@ -261,7 +269,7 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 		return err
 	}
 
-	if api.CloudProviderID(c.cluster.Spec.CloudProvider) == api.CloudProviderAWS {
+	if cloudProvider == api.CloudProviderAWS {
 		instanceIDBytes, err := vfs.Context.ReadFile("metadata://aws/meta-data/instance-id")
 		if err != nil {
 			return fmt.Errorf("error reading instance-id from AWS metadata: %v", err)
@@ -392,7 +400,7 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 	}
 
 	if nodeupConfig.EnableLifecycleHook {
-		if api.CloudProviderID(c.cluster.Spec.CloudProvider) == api.CloudProviderAWS {
+		if cloudProvider == api.CloudProviderAWS {
 			err := completeWarmingLifecycleAction(cloud.(awsup.AWSCloud), modelContext)
 			if err != nil {
 				return fmt.Errorf("failed to complete lifecylce action: %w", err)
@@ -403,7 +411,6 @@ func (c *NodeUpCommand) Run(out io.Writer) error {
 }
 
 func getMachineType() (string, error) {
-
 	config := aws.NewConfig()
 	config = config.WithCredentialsChainVerboseErrors(true)
 
@@ -448,36 +455,28 @@ func completeWarmingLifecycleAction(cloud awsup.AWSCloud, modelContext *model.No
 	return nil
 }
 
-func evaluateSpec(c *NodeUpCommand, nodeupConfig *nodeup.Config) error {
-	var err error
-
-	c.cluster.Spec.Kubelet.HostnameOverride, err = evaluateHostnameOverride(c.cluster.Spec.Kubelet.HostnameOverride)
+func evaluateSpec(c *NodeUpCommand, nodeupConfig *nodeup.Config, cloudProvider api.CloudProviderID) error {
+	hostnameOverride, err := evaluateHostnameOverride(cloudProvider, nodeupConfig.UseInstanceIDForNodeName)
 	if err != nil {
 		return err
 	}
 
-	c.cluster.Spec.MasterKubelet.HostnameOverride, err = evaluateHostnameOverride(c.cluster.Spec.MasterKubelet.HostnameOverride)
+	c.cluster.Spec.Kubelet.HostnameOverride = hostnameOverride
+	c.cluster.Spec.MasterKubelet.HostnameOverride = hostnameOverride
+
+	nodeupConfig.KubeletConfig.HostnameOverride = hostnameOverride
+
+	if c.cluster.Spec.KubeProxy == nil {
+		c.cluster.Spec.KubeProxy = &api.KubeProxyConfig{}
+	}
+
+	c.cluster.Spec.KubeProxy.HostnameOverride = hostnameOverride
+	c.cluster.Spec.KubeProxy.BindAddress, err = evaluateBindAddress(c.cluster.Spec.KubeProxy.BindAddress)
 	if err != nil {
 		return err
 	}
 
-	nodeupConfig.KubeletConfig.HostnameOverride, err = evaluateHostnameOverride(nodeupConfig.KubeletConfig.HostnameOverride)
-	if err != nil {
-		return err
-	}
-
-	if c.cluster.Spec.KubeProxy != nil {
-		c.cluster.Spec.KubeProxy.HostnameOverride, err = evaluateHostnameOverride(c.cluster.Spec.KubeProxy.HostnameOverride)
-		if err != nil {
-			return err
-		}
-		c.cluster.Spec.KubeProxy.BindAddress, err = evaluateBindAddress(c.cluster.Spec.KubeProxy.BindAddress)
-		if err != nil {
-			return err
-		}
-	}
-
-	if c.cluster.Spec.Docker != nil {
+	if c.cluster.Spec.ContainerRuntime == "docker" {
 		err = evaluateDockerSpecStorage(c.cluster.Spec.Docker)
 		if err != nil {
 			return err
@@ -487,55 +486,20 @@ func evaluateSpec(c *NodeUpCommand, nodeupConfig *nodeup.Config) error {
 	return nil
 }
 
-func evaluateHostnameOverride(hostnameOverride string) (string, error) {
-	if hostnameOverride == "" || hostnameOverride == "@hostname" {
-		return "", nil
-	}
-	k := strings.TrimSpace(hostnameOverride)
-	k = strings.ToLower(k)
-
-	if k == "@aws" {
-		// We recognize @aws as meaning "the private DNS name from AWS", to generate this we need to get a few pieces of information
-		azBytes, err := vfs.Context.ReadFile("metadata://aws/meta-data/placement/availability-zone")
+func evaluateHostnameOverride(cloudProvider api.CloudProviderID, useInstanceIDForNodeName bool) (string, error) {
+	switch cloudProvider {
+	case api.CloudProviderAWS:
+		source := "local-hostname"
+		if useInstanceIDForNodeName {
+			source = "instance-id"
+		}
+		nodeNameBytes, err := vfs.Context.ReadFile("metadata://aws/meta-data/" + source)
 		if err != nil {
-			return "", fmt.Errorf("error reading availability zone from AWS metadata: %v", err)
+			return "", fmt.Errorf("error reading %s from AWS metadata: %v", source, err)
 		}
+		return string(nodeNameBytes), nil
 
-		instanceIDBytes, err := vfs.Context.ReadFile("metadata://aws/meta-data/instance-id")
-		if err != nil {
-			return "", fmt.Errorf("error reading instance-id from AWS metadata: %v", err)
-		}
-		instanceID := string(instanceIDBytes)
-
-		config := aws.NewConfig()
-		config = config.WithCredentialsChainVerboseErrors(true)
-
-		s, err := session.NewSession(config)
-		if err != nil {
-			return "", fmt.Errorf("error starting new AWS session: %v", err)
-		}
-
-		svc := ec2.New(s, config.WithRegion(string(azBytes[:len(azBytes)-1])))
-
-		result, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
-			InstanceIds: []*string{&instanceID},
-		})
-		if err != nil {
-			return "", fmt.Errorf("error describing instances: %v", err)
-		}
-
-		if len(result.Reservations) != 1 {
-			return "", fmt.Errorf("Too many reservations returned for the single instance-id")
-		}
-
-		if len(result.Reservations[0].Instances) != 1 {
-			return "", fmt.Errorf("Too many instances returned for the single instance-id")
-		}
-		return *(result.Reservations[0].Instances[0].PrivateDnsName), nil
-	}
-
-	if k == "@gce" {
-		// We recognize @gce as meaning the hostname from the GCE metadata service
+	case api.CloudProviderGCE:
 		// This lets us tolerate broken hostnames (i.e. systemd)
 		b, err := vfs.Context.ReadFile("metadata://gce/instance/hostname")
 		if err != nil {
@@ -547,10 +511,7 @@ func evaluateHostnameOverride(hostnameOverride string) (string, error) {
 		fullyQualified := string(b)
 		bareHostname := strings.Split(fullyQualified, ".")[0]
 		return bareHostname, nil
-	}
-
-	if k == "@digitalocean" {
-		// @digitalocean means to use the private ipv4 address of a droplet as the hostname override
+	case api.CloudProviderDO:
 		vBytes, err := vfs.Context.ReadFile("metadata://digitalocean/interfaces/private/0/ipv4/address")
 		if err != nil {
 			return "", fmt.Errorf("error reading droplet private IP from DigitalOcean metadata: %v", err)
@@ -564,24 +525,7 @@ func evaluateHostnameOverride(hostnameOverride string) (string, error) {
 		return hostname, nil
 	}
 
-	if k == "@alicloud" {
-		// @alicloud means to use the "{az}.{instance-id}" of a instance as the hostname override
-		azBytes, err := vfs.Context.ReadFile("metadata://alicloud/zone-id")
-		if err != nil {
-			return "", fmt.Errorf("error reading zone-id from Alicloud metadata: %v", err)
-		}
-		az := string(azBytes)
-
-		instanceIDBytes, err := vfs.Context.ReadFile("metadata://alicloud/instance-id")
-		if err != nil {
-			return "", fmt.Errorf("error reading instance-id from Alicloud metadata: %v", err)
-		}
-		instanceID := string(instanceIDBytes)
-
-		return fmt.Sprintf("%s.%s", az, instanceID), nil
-	}
-
-	return hostnameOverride, nil
+	return "", nil
 }
 
 func evaluateBindAddress(bindAddress string) (string, error) {
@@ -666,7 +610,7 @@ func evaluateDockerSpecStorage(spec *api.DockerConfig) error {
 
 // kernelHasFilesystem checks if /proc/filesystems contains the specified filesystem
 func kernelHasFilesystem(fs string) (bool, error) {
-	contents, err := ioutil.ReadFile("/proc/filesystems")
+	contents, err := os.ReadFile("/proc/filesystems")
 	if err != nil {
 		return false, fmt.Errorf("error reading /proc/filesystems: %v", err)
 	}
@@ -761,6 +705,7 @@ func seedRNG(ctx context.Context, bootConfig *nodeup.BootConfig, region string) 
 // getNodeConfigFromServer queries kops-controller for our node's configuration.
 func getNodeConfigFromServer(ctx context.Context, bootConfig *nodeup.BootConfig, region string) (*nodeup.BootstrapResponse, error) {
 	var authenticator bootstrap.Authenticator
+	var resolver resolver.Resolver
 
 	switch api.CloudProviderID(bootConfig.CloudProvider) {
 	case api.CloudProviderAWS:
@@ -769,12 +714,25 @@ func getNodeConfigFromServer(ctx context.Context, bootConfig *nodeup.BootConfig,
 			return nil, err
 		}
 		authenticator = a
+	case api.CloudProviderGCE:
+		a, err := gcetpmsigner.NewTPMAuthenticator()
+		if err != nil {
+			return nil, err
+		}
+		authenticator = a
+
+		discovery, err := gcediscovery.New()
+		if err != nil {
+			return nil, err
+		}
+		resolver = discovery
 	default:
-		return nil, fmt.Errorf("unsupported cloud provider %s", bootConfig.CloudProvider)
+		return nil, fmt.Errorf("unsupported cloud provider for node configuration %s", bootConfig.CloudProvider)
 	}
 
 	client := &nodetasks.KopsBootstrapClient{
 		Authenticator: authenticator,
+		Resolver:      resolver,
 	}
 
 	u, err := url.Parse(bootConfig.ConfigServer.Server)

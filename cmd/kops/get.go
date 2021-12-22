@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-
 	"os"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kops/cmd/kops/util"
 	api "k8s.io/kops/pkg/apis/kops"
@@ -99,7 +99,6 @@ func NewCmdGet(f *util.Factory, out io.Writer) *cobra.Command {
 }
 
 func RunGet(ctx context.Context, f commandutils.Factory, out io.Writer, options *GetOptions) error {
-
 	client, err := f.Clientset()
 	if err != nil {
 		return err
@@ -128,25 +127,39 @@ func RunGet(ctx context.Context, f commandutils.Factory, out io.Writer, options 
 		instancegroups = append(instancegroups, &igList.Items[i])
 	}
 
-	var obj []runtime.Object
+	var addonObjects []*unstructured.Unstructured
+	{
+		addons, err := client.AddonsFor(cluster).List()
+		if err != nil {
+			return err
+		}
+		for _, addon := range addons {
+			addonObjects = append(addonObjects, addon.ToUnstructured())
+		}
+	}
+
+	var allObjects []runtime.Object
 	if options.Output != OutputTable {
-		obj = append(obj, cluster)
+		allObjects = append(allObjects, cluster)
 		for _, group := range instancegroups {
-			obj = append(obj, group)
+			allObjects = append(allObjects, group)
+		}
+		for _, additionalObject := range addonObjects {
+			allObjects = append(allObjects, additionalObject)
 		}
 	}
 
 	switch options.Output {
 	case OutputYaml:
-		if err := fullOutputYAML(out, obj...); err != nil {
-			return fmt.Errorf("error writing cluster yaml to stdout: %v", err)
+		if err := fullOutputYAML(out, allObjects...); err != nil {
+			return fmt.Errorf("error writing yaml to stdout: %v", err)
 		}
 
 		return nil
 
 	case OutputJSON:
-		if err := fullOutputJSON(out, obj...); err != nil {
-			return fmt.Errorf("error writing cluster json to stdout: %v", err)
+		if err := fullOutputJSON(out, allObjects...); err != nil {
+			return fmt.Errorf("error writing json to stdout: %v", err)
 		}
 		return nil
 
@@ -160,6 +173,13 @@ func RunGet(ctx context.Context, f commandutils.Factory, out io.Writer, options 
 		err = igOutputTable(cluster, instancegroups, out)
 		if err != nil {
 			return err
+		}
+		if len(addonObjects) != 0 {
+			fmt.Fprintf(out, "\nAddon Objects\n")
+			err = addonsOutputTable(cluster, addonObjects, out)
+			if err != nil {
+				return err
+			}
 		}
 
 	default:

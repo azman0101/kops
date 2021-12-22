@@ -19,6 +19,7 @@ package instancegroups
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -206,7 +207,6 @@ func getGroupsAllNeedUpdate(k8sClient kubernetes.Interface, cloud awsup.AWSCloud
 }
 
 func TestRollingUpdateAllNeedUpdate(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	groups := getGroupsAllNeedUpdate(c.K8sClient, cloud)
@@ -262,7 +262,6 @@ func TestRollingUpdateAllNeedUpdate(t *testing.T) {
 }
 
 func TestRollingUpdateAllNeedUpdateCloudonly(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	c.CloudOnly = true
@@ -281,7 +280,6 @@ func TestRollingUpdateAllNeedUpdateCloudonly(t *testing.T) {
 }
 
 func TestRollingUpdateAllNeedUpdateNoFailOnValidate(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	c.FailOnValidate = false
@@ -298,7 +296,6 @@ func TestRollingUpdateAllNeedUpdateNoFailOnValidate(t *testing.T) {
 }
 
 func TestRollingUpdateNoneNeedUpdate(t *testing.T) {
-
 	c, cloud := getTestSetup()
 	groups := getGroups(c.K8sClient, cloud)
 
@@ -314,7 +311,6 @@ func TestRollingUpdateNoneNeedUpdate(t *testing.T) {
 }
 
 func TestRollingUpdateNoneNeedUpdateWithForce(t *testing.T) {
-
 	c, cloud := getTestSetup()
 	groups := getGroups(c.K8sClient, cloud)
 
@@ -330,7 +326,6 @@ func TestRollingUpdateNoneNeedUpdateWithForce(t *testing.T) {
 }
 
 func TestRollingUpdateEmptyGroup(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	groups := make(map[string]*cloudinstances.CloudInstanceGroup)
@@ -345,7 +340,6 @@ func TestRollingUpdateEmptyGroup(t *testing.T) {
 }
 
 func TestRollingUpdateUnknownRole(t *testing.T) {
-
 	c, cloud := getTestSetup()
 	groups := getGroups(c.K8sClient, cloud)
 
@@ -361,7 +355,6 @@ func TestRollingUpdateUnknownRole(t *testing.T) {
 }
 
 func TestRollingUpdateAllNeedUpdateFailsValidation(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	c.ClusterValidator = &failingClusterValidator{}
@@ -377,7 +370,6 @@ func TestRollingUpdateAllNeedUpdateFailsValidation(t *testing.T) {
 }
 
 func TestRollingUpdateAllNeedUpdateErrorsValidation(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	c.ClusterValidator = &erroringClusterValidator{}
@@ -393,7 +385,6 @@ func TestRollingUpdateAllNeedUpdateErrorsValidation(t *testing.T) {
 }
 
 func TestRollingUpdateNodes1NeedsUpdateFailsValidation(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	c.ClusterValidator = &failingClusterValidator{}
@@ -407,7 +398,6 @@ func TestRollingUpdateNodes1NeedsUpdateFailsValidation(t *testing.T) {
 }
 
 func TestRollingUpdateNodes1NeedsUpdateErrorsValidation(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	c.ClusterValidator = &erroringClusterValidator{}
@@ -450,7 +440,6 @@ func (v *failAfterOneNodeClusterValidator) Validate() (*validation.ValidationClu
 }
 
 func TestRollingUpdateClusterFailsValidationAfterOneMaster(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	c.ClusterValidator = &failAfterOneNodeClusterValidator{
@@ -470,7 +459,6 @@ func TestRollingUpdateClusterFailsValidationAfterOneMaster(t *testing.T) {
 }
 
 func TestRollingUpdateClusterErrorsValidationAfterOneMaster(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	c.ClusterValidator = &failAfterOneNodeClusterValidator{
@@ -490,7 +478,6 @@ func TestRollingUpdateClusterErrorsValidationAfterOneMaster(t *testing.T) {
 }
 
 func TestRollingUpdateNonRelatedInstanceGroupFailure(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	groups := make(map[string]*cloudinstances.CloudInstanceGroup)
@@ -513,7 +500,6 @@ func TestRollingUpdateNonRelatedInstanceGroupFailure(t *testing.T) {
 }
 
 func TestRollingUpdateRelatedInstanceGroupFailure(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	groups := make(map[string]*cloudinstances.CloudInstanceGroup)
@@ -580,7 +566,6 @@ func TestRollingUpdateValidationErrorInstanceGroupNil(t *testing.T) {
 }
 
 func TestRollingUpdateClusterFailsValidationAfterOneNode(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	c.ClusterValidator = &failAfterOneNodeClusterValidator{
@@ -598,7 +583,6 @@ func TestRollingUpdateClusterFailsValidationAfterOneNode(t *testing.T) {
 }
 
 func TestRollingUpdateClusterErrorsValidationAfterOneNode(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	c.ClusterValidator = &failAfterOneNodeClusterValidator{
@@ -651,7 +635,6 @@ func (v *flappingClusterValidator) Validate() (*validation.ValidationCluster, er
 }
 
 func TestRollingUpdateFlappingValidation(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	// This should only take a few milliseconds,
@@ -695,7 +678,6 @@ func (v *failThreeTimesClusterValidator) Validate() (*validation.ValidationClust
 }
 
 func TestRollingUpdateValidatesAfterBastion(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	// This should only take a few milliseconds,
@@ -813,7 +795,6 @@ func assertGroupNeedUpdate(t *testing.T, groups map[string]*cloudinstances.Cloud
 }
 
 func TestRollingUpdateTaintAllButOneNeedUpdate(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	groups := make(map[string]*cloudinstances.CloudInstanceGroup)
@@ -861,7 +842,6 @@ func TestRollingUpdateTaintAllButOneNeedUpdate(t *testing.T) {
 }
 
 func TestRollingUpdateMaxSurgeIgnoredForMaster(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	two := intstr.FromInt(2)
@@ -916,7 +896,6 @@ func TestRollingUpdateMaxSurgeIgnoredForMaster(t *testing.T) {
 }
 
 func TestRollingUpdateDisabled(t *testing.T) {
-
 	c, cloud := getTestSetup()
 	c.CloudOnly = true
 
@@ -953,7 +932,6 @@ func (m *disabledSurgeTest) DetachInstances(input *autoscaling.DetachInstancesIn
 }
 
 func TestRollingUpdateDisabledSurge(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	disabledSurgeTest := &disabledSurgeTest{
@@ -1165,7 +1143,6 @@ func newConcurrentTest(t *testing.T, cloud *awsup.MockAWSCloud, numSurge int, al
 }
 
 func TestRollingUpdateMaxUnavailableAllNeedUpdate(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	concurrentTest := newConcurrentTest(t, cloud, 0, true)
@@ -1189,7 +1166,6 @@ func TestRollingUpdateMaxUnavailableAllNeedUpdate(t *testing.T) {
 }
 
 func TestRollingUpdateMaxUnavailableAllButOneNeedUpdate(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	concurrentTest := newConcurrentTest(t, cloud, 0, false)
@@ -1212,7 +1188,6 @@ func TestRollingUpdateMaxUnavailableAllButOneNeedUpdate(t *testing.T) {
 }
 
 func TestRollingUpdateMaxUnavailableAllNeedUpdateMaster(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	concurrentTest := newConcurrentTest(t, cloud, 0, true)
@@ -1265,7 +1240,6 @@ func (e *ec2IgnoreTags) CreateTags(*ec2.CreateTagsInput) (*ec2.CreateTagsOutput,
 }
 
 func TestRollingUpdateMaxSurgeAllNeedUpdate(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	concurrentTest := newConcurrentTest(t, cloud, 2, true)
@@ -1293,7 +1267,6 @@ func TestRollingUpdateMaxSurgeAllNeedUpdate(t *testing.T) {
 }
 
 func TestRollingUpdateMaxSurgeAllButOneNeedUpdate(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	concurrentTest := newConcurrentTest(t, cloud, 2, false)
@@ -1330,7 +1303,6 @@ func (c *countDetach) DetachInstances(input *autoscaling.DetachInstancesInput) (
 }
 
 func TestRollingUpdateMaxSurgeGreaterThanNeedUpdate(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	countDetach := &countDetach{AutoScalingAPI: cloud.MockAutoscaling}
@@ -1349,6 +1321,33 @@ func TestRollingUpdateMaxSurgeGreaterThanNeedUpdate(t *testing.T) {
 
 	assertGroupInstanceCount(t, cloud, "node-1", 1)
 	assert.Equal(t, 2, countDetach.Count)
+}
+
+type failDetachAutoscaling struct {
+	autoscalingiface.AutoScalingAPI
+}
+
+func (m *failDetachAutoscaling) DetachInstances(input *autoscaling.DetachInstancesInput) (*autoscaling.DetachInstancesOutput, error) {
+	return nil, fmt.Errorf("testing error")
+}
+
+func TestRollingUpdateDetachFails(t *testing.T) {
+	c, cloud := getTestSetup()
+
+	cloud.MockAutoscaling = &failDetachAutoscaling{AutoScalingAPI: cloud.MockAutoscaling}
+	cloud.MockEC2 = &ec2IgnoreTags{EC2API: cloud.MockEC2}
+
+	ten := intstr.FromInt(10)
+	c.Cluster.Spec.RollingUpdate = &kopsapi.RollingUpdate{
+		MaxSurge: &ten,
+	}
+
+	groups := make(map[string]*cloudinstances.CloudInstanceGroup)
+	makeGroup(groups, c.K8sClient, cloud, "node-1", kopsapi.InstanceGroupRoleNode, 3, 2)
+	err := c.RollingUpdate(groups, &kopsapi.InstanceGroupList{})
+	assert.NoError(t, err, "rolling update")
+
+	assertGroupInstanceCount(t, cloud, "node-1", 1)
 }
 
 // Request validate (1)            -->
@@ -1436,7 +1435,6 @@ func (m *alreadyDetachedTestAutoscaling) DetachInstances(input *autoscaling.Deta
 }
 
 func TestRollingUpdateMaxSurgeAllNeedUpdateOneAlreadyDetached(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	alreadyDetachedTest := &alreadyDetachedTest{
@@ -1471,7 +1469,6 @@ func TestRollingUpdateMaxSurgeAllNeedUpdateOneAlreadyDetached(t *testing.T) {
 }
 
 func TestRollingUpdateMaxSurgeAllNeedUpdateMaxAlreadyDetached(t *testing.T) {
-
 	c, cloud := getTestSetup()
 
 	// Should behave the same as TestRollingUpdateMaxUnavailableAllNeedUpdate

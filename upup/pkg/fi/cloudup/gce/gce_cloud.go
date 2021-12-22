@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/cloudresourcemanager/v1"
 	compute "google.golang.org/api/compute/v1"
 	"google.golang.org/api/iam/v1"
 	oauth2 "google.golang.org/api/oauth2/v2"
@@ -34,6 +35,7 @@ import (
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider/providers/google/clouddns"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi"
+	"k8s.io/kops/upup/pkg/fi/cloudup/gce/gcemetadata"
 )
 
 type GCECloud interface {
@@ -42,15 +44,16 @@ type GCECloud interface {
 	Storage() *storage.Service
 	IAM() *iam.Service
 	CloudDNS() DNSClient
-
 	Project() string
 	WaitForOp(op *compute.Operation) error
 	Labels() map[string]string
-
 	Zones() ([]string, error)
 
 	// ServiceAccount returns the email for the service account that the instances will run under
 	ServiceAccount() (string, error)
+
+	// CloudResourceManager returns the client for the cloudresourcemanager API
+	CloudResourceManager() *cloudresourcemanager.Service
 }
 
 type gceCloudImplementation struct {
@@ -58,6 +61,9 @@ type gceCloudImplementation struct {
 	storage *storage.Service
 	iam     *iam.Service
 	dns     *dnsClientImpl
+
+	// cloudResourceManager is the client for the cloudresourcemanager API
+	cloudResourceManager *cloudresourcemanager.Service
 
 	region  string
 	project string
@@ -145,6 +151,12 @@ func NewGCECloud(region string, project string, labels map[string]string) (GCECl
 	}
 	c.dns = dnsClient
 
+	cloudResourceManager, err := cloudresourcemanager.NewService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error building cloudresourcemanager API client: %w", err)
+	}
+	c.cloudResourceManager = cloudResourceManager
+
 	CacheGCECloudInstance(region, project, c)
 
 	{
@@ -194,9 +206,14 @@ func (c *gceCloudImplementation) IAM() *iam.Service {
 	return c.iam
 }
 
-// NameService returns the DNS client
+// CloudDNS returns the DNS client
 func (c *gceCloudImplementation) CloudDNS() DNSClient {
 	return c.dns
+}
+
+// CloudResourceManager returns the client for the cloudresourcemanager API
+func (c *gceCloudImplementation) CloudResourceManager() *cloudresourcemanager.Service {
+	return c.cloudResourceManager
 }
 
 // Region returns private struct element region.
@@ -325,20 +342,7 @@ func FindInstanceTemplates(c GCECloud, clusterName string) ([]*compute.InstanceT
 
 	var matches []*compute.InstanceTemplate
 	for _, t := range ts {
-		match := false
-		for _, item := range t.Properties.Metadata.Items {
-			if item.Key == "cluster-name" {
-				value := fi.StringValue(item.Value)
-				if strings.TrimSpace(value) == findClusterName {
-					match = true
-				} else {
-					match = false
-					break
-				}
-			}
-		}
-
-		if !match {
+		if !gcemetadata.MetadataMatchesClusterName(findClusterName, t.Properties.Metadata) {
 			continue
 		}
 

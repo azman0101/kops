@@ -22,7 +22,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -220,6 +219,11 @@ func NewCmdCreateCluster(f *util.Factory, out io.Writer) *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		})
 	}
+	cmd.Flags().StringVar(&options.DiscoveryStore, "discovery-store", options.DiscoveryStore, "A public location where we publish OIDC-compatible discovery information under a cluster-specific directory. Enables IRSA in AWS.")
+	cmd.RegisterFlagCompletionFunc("discovery-store", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		// TODO complete vfs paths
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	})
 
 	var validClouds []string
 	{
@@ -616,7 +620,9 @@ func RunCreateCluster(ctx context.Context, f *util.Factory, out io.Writer, c *Cr
 		cluster.Spec.NetworkCIDR = c.NetworkCIDR
 	}
 
-	cluster.Spec.DisableSubnetTags = c.DisableSubnetTags
+	if c.DisableSubnetTags {
+		cluster.Spec.TagSubnets = fi.Bool(false)
+	}
 
 	if c.MasterPublicName != "" {
 		cluster.Spec.MasterPublicName = c.MasterPublicName
@@ -802,7 +808,6 @@ func RunCreateCluster(ctx context.Context, f *util.Factory, out io.Writer, c *Cr
 // parseCloudLabels takes a CSV list of key=value records and parses them into a map. Nested '='s are supported via
 // quoted strings (eg `foo="bar=baz"` parses to map[string]string{"foo":"bar=baz"}. Nested commas are not supported.
 func parseCloudLabels(s string) (map[string]string, error) {
-
 	// Replace commas with newlines to allow a single pass with csv.Reader.
 	// We can't use csv.Reader for the initial split because it would see each key=value record as a single field
 	// and significantly complicates using quoted fields as keys or values.
@@ -830,7 +835,7 @@ func loadSSHPublicKeys(sshPublicKey string) (map[string][]byte, error) {
 	sshPublicKeys := make(map[string][]byte)
 	if sshPublicKey != "" {
 		sshPublicKey = utils.ExpandPath(sshPublicKey)
-		authorized, err := ioutil.ReadFile(sshPublicKey)
+		authorized, err := os.ReadFile(sshPublicKey)
 		if err != nil {
 			return nil, err
 		}

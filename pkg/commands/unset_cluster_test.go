@@ -63,6 +63,23 @@ func TestUnsetClusterFields(t *testing.T) {
 			},
 		},
 		{
+			Fields: []string{
+				"spec.api.dns",
+			},
+			Input: kops.Cluster{
+				Spec: kops.ClusterSpec{
+					API: &kops.AccessSpec{
+						DNS: &kops.DNSAccessSpec{},
+					},
+				},
+			},
+			Output: kops.Cluster{
+				Spec: kops.ClusterSpec{
+					API: &kops.AccessSpec{},
+				},
+			},
+		},
+		{
 			Fields: []string{"spec.kubelet.authorizationMode"},
 			Input: kops.Cluster{
 				Spec: kops.ClusterSpec{
@@ -228,7 +245,7 @@ func TestUnsetClusterFields(t *testing.T) {
 				Spec: kops.ClusterSpec{
 					Networking: &kops.NetworkingSpec{
 						Cilium: &kops.CiliumNetworkingSpec{
-							Ipam: "on",
+							IPAM: "on",
 						},
 					},
 				},
@@ -285,13 +302,13 @@ func TestUnsetClusterFields(t *testing.T) {
 		},
 		{
 			Fields: []string{
-				"cluster.spec.networking.cilium.disableMasquerade",
+				"cluster.spec.networking.cilium.masquerade",
 			},
 			Input: kops.Cluster{
 				Spec: kops.ClusterSpec{
 					Networking: &kops.NetworkingSpec{
 						Cilium: &kops.CiliumNetworkingSpec{
-							DisableMasquerade: fi.Bool(true),
+							Masquerade: fi.Bool(false),
 						},
 					},
 				},
@@ -362,7 +379,6 @@ func TestUnsetClusterFields(t *testing.T) {
 }
 
 func TestUnsetCiliumFields(t *testing.T) {
-
 	grid := []struct {
 		Fields []string
 		Input  kops.Cluster
@@ -372,7 +388,7 @@ func TestUnsetCiliumFields(t *testing.T) {
 			Fields: []string{
 				"cluster.spec.networking.cilium.ipam",
 				"cluster.spec.networking.cilium.enableNodePort",
-				"cluster.spec.networking.cilium.disableMasquerade",
+				"cluster.spec.networking.cilium.masquerade",
 				"cluster.spec.kubeProxy.enabled",
 			},
 			Input: kops.Cluster{
@@ -382,9 +398,9 @@ func TestUnsetCiliumFields(t *testing.T) {
 					},
 					Networking: &kops.NetworkingSpec{
 						Cilium: &kops.CiliumNetworkingSpec{
-							Ipam:              "eni",
-							EnableNodePort:    true,
-							DisableMasquerade: fi.Bool(true),
+							IPAM:           "eni",
+							EnableNodePort: true,
+							Masquerade:     fi.Bool(false),
 						},
 					},
 				},

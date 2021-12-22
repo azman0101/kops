@@ -220,7 +220,6 @@ func (b *KopsModelContext) CloudTags(name string, shared bool) map[string]string
 				tags[k] = v
 			}
 		}
-
 	}
 	return tags
 }
@@ -241,7 +240,7 @@ func (b *KopsModelContext) UseBootstrapTokens() bool {
 
 // UsesBastionDns checks if we should use a specific name for the bastion dns
 func (b *KopsModelContext) UsesBastionDns() bool {
-	if b.Cluster.Spec.Topology.Bastion != nil && b.Cluster.Spec.Topology.Bastion.BastionPublicName != "" {
+	if b.Cluster.Spec.Topology.Bastion != nil && b.Cluster.Spec.Topology.Bastion.PublicName != "" {
 		return true
 	}
 	return false
@@ -271,7 +270,7 @@ func (b *KopsModelContext) UseLoadBalancerForAPI() bool {
 // HA - see https://github.com/kubernetes/kops/issues/4252
 func (b *KopsModelContext) UseLoadBalancerForInternalAPI() bool {
 	return b.UseLoadBalancerForAPI() &&
-		b.Cluster.Spec.API.LoadBalancer.UseForInternalApi
+		b.Cluster.Spec.API.LoadBalancer.UseForInternalAPI
 }
 
 // APILoadBalancerClass returns which type of load balancer to use for the api
@@ -394,7 +393,6 @@ func (b *KopsModelContext) NodePortRange() (utilnet.PortRange, error) {
 
 // UseServiceAccountExternalPermissions returns true if we are using service-account bound IAM roles.
 func (b *KopsModelContext) UseServiceAccountExternalPermissions() bool {
-
 	return b.Cluster.Spec.IAM != nil &&
 		fi.BoolValue(b.Cluster.Spec.IAM.UseServiceAccountExternalPermissions)
 }

@@ -185,7 +185,7 @@ data:
 
   # DNS response code for rejecting DNS requests,
   # available options are "nameError" and "refused"
-  tofqdns-dns-reject-response-code: "{{ .ToFqdnsDNSRejectResponseCode }}"
+  tofqdns-dns-reject-response-code: "{{ .ToFQDNsDNSRejectResponseCode }}"
   # This option is disabled by default starting from version 1.4.x in favor
   # of a more powerful DNS proxy-based implementation, see [0] for details.
   # Enable this option if you want to use FQDN policies but do not want to use
@@ -197,7 +197,7 @@ data:
   #
   # [0] http://docs.cilium.io/en/stable/policy/language/#dns-based
   # [1] http://docs.cilium.io/en/stable/install/upgrade/#changes-that-may-require-action
-  tofqdns-enable-poller: "{{- if .ToFqdnsEnablePoller -}}true{{- else -}}false{{- end -}}"
+  tofqdns-enable-poller: "{{- if .ToFQDNsEnablePoller -}}true{{- else -}}false{{- end -}}"
   {{- if not (semverCompare ">=1.10.4 || ~1.9.10" $semver) }}
   # wait-bpf-mount makes init container wait until bpf filesystem is mounted
   wait-bpf-mount: "false"
@@ -221,9 +221,9 @@ data:
   # - none
   # - auto (automatically detect the container runtime)
   #
-  masquerade: "{{- not (or IsIPv6Only (WithDefaultBool .DisableMasquerade false) ) -}}"
+  masquerade: "{{ .Masquerade }}"
   enable-ipv6-masquerade: "false"
-  install-iptables-rules: "{{- if .IPTablesRulesNoinstall -}}false{{- else -}}true{{- end -}}"
+  install-iptables-rules: "{{ WithDefaultBool .InstallIptablesRules true }}"
   auto-direct-node-routes: "{{ .AutoDirectNodeRoutes }}"
   {{ if .EnableHostReachableServices }}
   enable-host-reachable-services: "{{ .EnableHostReachableServices }}"
@@ -231,7 +231,7 @@ data:
   enable-node-port: "{{ .EnableNodePort }}"
   kube-proxy-replacement: "{{- if .EnableNodePort -}}strict{{- else -}}partial{{- end -}}"
 
-  {{ with .Ipam }}
+  {{ with .IPAM }}
   ipam: {{ . }}
   {{ if eq . "eni" }}
   enable-endpoint-routes: "true"
@@ -255,6 +255,8 @@ data:
   cgroup-root: /run/cilium/cgroupv2
 
   disable-cnp-status-updates: "{{ .DisableCNPStatusUpdates }}"
+
+  enable-service-topology: "{{ .EnableServiceTopology }}"
 
   {{ if WithDefaultBool .Hubble.Enabled false }}
   # Enable Hubble gRPC service.
@@ -591,7 +593,7 @@ spec:
         # Annotation required for prometheus auto-discovery scraping
         # https://docs.cilium.io/en/v1.9/operations/metrics/#installation
         prometheus.io/scrape: "true"
-        prometheus.io/port: {{ printf "%q" .AgentPrometheusPort }}
+        prometheus.io/port: "{{ .AgentPrometheusPort }}"
         {{ end }}
 {{- with .AgentPodAnnotations }}
         {{- . | nindent 8 }}
@@ -609,15 +611,6 @@ spec:
                 operator: In
                 values:
                 - linux
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: k8s-app
-                operator: In
-                values:
-                - cilium
-            topologyKey: kubernetes.io/hostname
       containers:
       - args:
         - --config-dir=/tmp/cilium/config-map
@@ -906,7 +899,7 @@ metadata:
   name: cilium-operator
   namespace: kube-system
 spec:
-  replicas: 1
+  replicas: {{ ControlPlaneControllerReplicas }}
   selector:
     matchLabels:
       io.cilium/app: operator
@@ -992,6 +985,21 @@ spec:
       serviceAccountName: cilium-operator
       tolerations:
       - operator: Exists
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: "topology.kubernetes.io/zone"
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            io.cilium/app: operator
+            name: cilium-operator
+      - maxSkew: 1
+        topologyKey: "kubernetes.io/hostname"
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            io.cilium/app: operator
+            name: cilium-operator
       volumes:
         # To read the configuration from the config map
       - configMap:
@@ -1038,16 +1046,6 @@ spec:
       labels:
         k8s-app: hubble-relay
     spec:
-      affinity:
-        podAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-                - key: "k8s-app"
-                  operator: In
-                  values:
-                    - cilium
-            topologyKey: "kubernetes.io/hostname"
       containers:
         - name: hubble-relay
           image: "quay.io/cilium/hubble-relay:{{ .Version }}"
@@ -1085,8 +1083,6 @@ spec:
       serviceAccount: hubble-relay
       serviceAccountName: hubble-relay
       terminationGracePeriodSeconds: 0
-      tolerations:
-      - operator: Exists
       volumes:
       - hostPath:
           path: /var/run/cilium

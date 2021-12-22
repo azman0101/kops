@@ -80,6 +80,10 @@ data:
           fallthrough in-addr.arpa ip6.arpa
           ttl 30
         }
+        hosts /etc/coredns/hosts k8s.local {
+          ttl 30
+          fallthrough
+        }
         prometheus :9153
         forward . /etc/resolv.conf {
           max_concurrent 1000
@@ -129,18 +133,6 @@ spec:
       labels:
         k8s-app: kube-dns
     spec:
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: k8s-app
-                  operator: In
-                  values:
-                  - kube-dns
-              topologyKey: kubernetes.io/hostname
-            weight: 100
       containers:
       - args:
         - -conf
@@ -198,11 +190,21 @@ spec:
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            k8s-app: kube-dns
+        maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+      - labelSelector:
+          matchLabels:
+            k8s-app: kube-dns
+        maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
       volumes:
       - configMap:
-          items:
-          - key: Corefile
-            path: Corefile
           name: coredns
         name: config-volume
 
@@ -253,7 +255,7 @@ metadata:
   name: kube-dns
   namespace: kube-system
 spec:
-  minAvailable: 1
+  maxUnavailable: 50%
   selector:
     matchLabels:
       k8s-app: kube-dns

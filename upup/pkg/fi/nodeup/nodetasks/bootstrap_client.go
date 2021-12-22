@@ -25,16 +25,18 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"path"
 	"time"
 
+	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/nodeup"
 	"k8s.io/kops/pkg/bootstrap"
 	"k8s.io/kops/pkg/pki"
+	"k8s.io/kops/pkg/resolver"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/cloudup"
 )
@@ -56,9 +58,11 @@ type BootstrapCert struct {
 	Key  *fi.TaskDependentResource
 }
 
-var _ fi.Task = &BootstrapClientTask{}
-var _ fi.HasName = &BootstrapClientTask{}
-var _ fi.HasDependencies = &BootstrapClientTask{}
+var (
+	_ fi.Task            = &BootstrapClientTask{}
+	_ fi.HasName         = &BootstrapClientTask{}
+	_ fi.HasDependencies = &BootstrapClientTask{}
+)
 
 func (b *BootstrapClientTask) GetDependencies(tasks map[string]fi.Task) []fi.Task {
 	// BootstrapClient depends on the protokube service to ensure gossip DNS
@@ -143,7 +147,45 @@ type KopsBootstrapClient struct {
 	// BaseURL is the base URL for the server
 	BaseURL url.URL
 
+	// Resolver is a custom resolver that supports resolution of hostnames without requiring DNS.
+	// In particular, this supports gossip mode.
+	Resolver resolver.Resolver
+
 	httpClient *http.Client
+}
+
+// dial implements a DialContext resolver function, for when a custom resolver is in use
+func (b *KopsBootstrapClient) dial(ctx context.Context, network, addr string) (net.Conn, error) {
+	var errors []error
+
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, fmt.Errorf("cannot split host and port from %q: %w", addr, err)
+	}
+
+	// TODO: cache?
+	addresses, err := b.Resolver.Resolve(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+
+	klog.Infof("resolved %q to %v", host, addresses)
+
+	for _, addr := range addresses {
+		timeout := 5 * time.Second
+		conn, err := net.DialTimeout(network, addr+":"+port, timeout)
+		if err == nil {
+			return conn, nil
+		}
+		if err != nil {
+			klog.Warningf("failed to dial %q: %v", addr, err)
+			errors = append(errors, err)
+		}
+	}
+	if len(errors) == 0 {
+		return nil, fmt.Errorf("no addresses for %q", addr)
+	}
+	return nil, errors[0]
 }
 
 func (b *KopsBootstrapClient) QueryBootstrap(ctx context.Context, req *nodeup.BootstrapRequest) (*nodeup.BootstrapResponse, error) {
@@ -151,18 +193,29 @@ func (b *KopsBootstrapClient) QueryBootstrap(ctx context.Context, req *nodeup.Bo
 		certPool := x509.NewCertPool()
 		certPool.AppendCertsFromPEM(b.CAs)
 
-		b.httpClient = &http.Client{
-			Timeout: time.Duration(15) * time.Second,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					RootCAs:    certPool,
-					MinVersion: tls.VersionTLS12,
-				},
+		transport := &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:    certPool,
+				MinVersion: tls.VersionTLS12,
 			},
 		}
+
+		if b.Resolver != nil {
+			transport.DialContext = b.dial
+		}
+
+		httpClient := &http.Client{
+			Timeout:   time.Duration(15) * time.Second,
+			Transport: transport,
+		}
+
+		b.httpClient = httpClient
 	}
 
-	if ips, err := net.LookupIP(b.BaseURL.Hostname()); err != nil {
+	// Sanity-check DNS to provide clearer diagnostic messages.
+	if b.Resolver != nil {
+		// Don't check DNS when there's a custom resolver.
+	} else if ips, err := net.LookupIP(b.BaseURL.Hostname()); err != nil {
 		if dnsErr, ok := err.(*net.DNSError); ok && dnsErr.IsNotFound {
 			return nil, fi.NewTryAgainLaterError(fmt.Sprintf("kops-controller DNS not setup yet (not found: %v)", dnsErr))
 		}
@@ -210,7 +263,7 @@ func (b *KopsBootstrapClient) QueryBootstrap(ctx context.Context, req *nodeup.Bo
 	}
 
 	var bootstrapResp nodeup.BootstrapResponse
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

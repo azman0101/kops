@@ -35,11 +35,11 @@ import (
 	"k8s.io/kops/pkg/featureflag"
 	"k8s.io/kops/pkg/zones"
 	"k8s.io/kops/upup/pkg/fi"
-	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/azure"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
 	"k8s.io/kops/upup/pkg/fi/cloudup/openstack"
+	"k8s.io/kops/util/pkg/vfs"
 )
 
 const (
@@ -57,6 +57,8 @@ type NewClusterOptions struct {
 	Channel string
 	// ConfigBase is the location where we will store the configuration. It defaults to the state store.
 	ConfigBase string
+	// DiscoveryStore is the location where we will store public OIDC-compatible discovery documents, under a cluster-specific directory. It defaults to not publishing discovery documents.
+	DiscoveryStore string
 	// KubernetesVersion is the version of Kubernetes to deploy. It defaults to the version recommended by the channel.
 	KubernetesVersion string
 	// AdminAccess is the set of CIDR blocks permitted to connect to the Kubernetes API. It defaults to "0.0.0.0/0" and "::/0".
@@ -255,6 +257,20 @@ func NewCluster(opt *NewClusterOptions, clientset simple.Clientset) (*NewCluster
 		}
 	}
 
+	if opt.DiscoveryStore != "" {
+		discoveryPath, err := vfs.Context.BuildVfsPath(opt.DiscoveryStore)
+		if err != nil {
+			return nil, fmt.Errorf("error building DiscoveryStore for cluster: %v", err)
+		}
+		cluster.Spec.ServiceAccountIssuerDiscovery = &api.ServiceAccountIssuerDiscoveryConfig{
+			DiscoveryStore: discoveryPath.Join(cluster.Name).Path(),
+		}
+		if cluster.Spec.CloudProvider == string(api.CloudProviderAWS) {
+			cluster.Spec.ServiceAccountIssuerDiscovery.EnableAWSOIDCProvider = true
+			cluster.Spec.IAM.UseServiceAccountExternalPermissions = fi.Bool(true)
+		}
+	}
+
 	err = setupVPC(opt, &cluster)
 	if err != nil {
 		return nil, err
@@ -351,10 +367,6 @@ func setupVPC(opt *NewClusterOptions, cluster *api.Cluster) error {
 			// TODO remove this logging?
 			klog.Infof("VMs will be configured to use specified Service Account: %v", opt.GCEServiceAccount)
 			cluster.Spec.CloudConfig.GCEServiceAccount = opt.GCEServiceAccount
-		} else {
-			klog.Warning("VMs will be configured to use the GCE default compute Service Account! This is an anti-pattern")
-			klog.Warning("Use a pre-created Service Account with the flag: --gce-service-account=account@projectname.iam.gserviceaccount.com")
-			cluster.Spec.CloudConfig.GCEServiceAccount = "default"
 		}
 
 	case api.CloudProviderOpenstack:
@@ -495,14 +507,6 @@ func setupZones(opt *NewClusterOptions, cluster *api.Cluster, allZones sets.Stri
 		}
 		zoneToSubnetMap[region] = subnet
 		return zoneToSubnetMap, nil
-
-	case api.CloudProviderALI:
-		if len(opt.Zones) > 0 && len(opt.SubnetIDs) > 0 {
-			zoneToSubnetProviderID, err = aliup.ZoneToVSwitchID(cluster.Spec.NetworkID, opt.Zones, opt.SubnetIDs)
-			if err != nil {
-				return nil, err
-			}
-		}
 
 	case api.CloudProviderAzure:
 		// On Azure, subnets are regional - we create one per region, not per zone
@@ -956,7 +960,7 @@ func setupTopology(opt *NewClusterOptions, cluster *api.Cluster, allZones sets.S
 		cluster.Spec.Topology = &api.TopologySpec{
 			Masters: api.TopologyPublic,
 			Nodes:   api.TopologyPublic,
-			//Bastion: &api.BastionSpec{Enable: c.Bastion},
+			// Bastion: &api.BastionSpec{Enable: c.Bastion},
 		}
 
 		if opt.Bastion {
@@ -965,20 +969,6 @@ func setupTopology(opt *NewClusterOptions, cluster *api.Cluster, allZones sets.S
 
 		for i := range cluster.Spec.Subnets {
 			cluster.Spec.Subnets[i].Type = api.SubnetTypePublic
-		}
-
-		if opt.IPv6 {
-			cluster.Spec.NonMasqueradeCIDR = "::/0"
-			if api.CloudProviderID(cluster.Spec.CloudProvider) == api.CloudProviderAWS {
-				klog.Warningf("IPv6 support is EXPERIMENTAL and can be changed or removed at any time in the future!!!")
-				for i := range cluster.Spec.Subnets {
-					// Start IPv6 CIDR numbering from "1" to reserve /64#0 for later use
-					// with NonMasqueradeCIDR, ClusterCIDR and ServiceClusterIPRange
-					cluster.Spec.Subnets[i].IPv6CIDR = fmt.Sprintf("/64#%x", i+1)
-				}
-			} else {
-				klog.Errorf("IPv6 support is available only on AWS")
-			}
 		}
 
 	case api.TopologyPrivate:
@@ -1049,7 +1039,7 @@ func setupTopology(opt *NewClusterOptions, cluster *api.Cluster, allZones sets.S
 
 			if !dns.IsGossipHostname(cluster.Name) {
 				cluster.Spec.Topology.Bastion = &api.BastionSpec{
-					BastionPublicName: "bastion." + cluster.Name,
+					PublicName: "bastion." + cluster.Name,
 				}
 			}
 			if api.CloudProviderID(cluster.Spec.CloudProvider) == api.CloudProviderGCE {
@@ -1067,6 +1057,18 @@ func setupTopology(opt *NewClusterOptions, cluster *api.Cluster, allZones sets.S
 
 	default:
 		return nil, fmt.Errorf("invalid topology %s", opt.Topology)
+	}
+
+	if opt.IPv6 {
+		cluster.Spec.NonMasqueradeCIDR = "::/0"
+		cluster.Spec.ExternalCloudControllerManager = &api.CloudControllerManagerConfig{}
+		if api.CloudProviderID(cluster.Spec.CloudProvider) == api.CloudProviderAWS {
+			for i := range cluster.Spec.Subnets {
+				cluster.Spec.Subnets[i].IPv6CIDR = fmt.Sprintf("/64#%x", i)
+			}
+		} else {
+			klog.Errorf("IPv6 support is available only on AWS")
+		}
 	}
 
 	cluster.Spec.Topology.DNS = &api.DNSSpec{}
@@ -1224,7 +1226,6 @@ func createEtcdCluster(etcdCluster string, masters []*api.InstanceGroup, encrypt
 	}
 
 	return etcd
-
 }
 
 func addCiliumNetwork(cluster *api.Cluster) {

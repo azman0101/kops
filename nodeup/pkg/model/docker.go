@@ -19,7 +19,6 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -57,6 +56,9 @@ func (b *DockerBuilder) dockerVersion() (string, error) {
 
 // Build is responsible for configuring the docker daemon
 func (b *DockerBuilder) Build(c *fi.ModelBuilderContext) error {
+	if b.Cluster.Spec.ContainerRuntime != "docker" {
+		return nil
+	}
 	if b.skipInstall() {
 		klog.Infof("SkipInstall is set to true; won't install Docker")
 		return nil
@@ -352,7 +354,7 @@ func (b *DockerBuilder) buildSysconfig(c *fi.ModelBuilderContext) error {
 	// ContainerOS now sets the storage flag in /etc/docker/daemon.json, and it is an error to set it twice
 	if b.Distribution == distributions.DistributionContainerOS {
 		// So that we can support older COS images though, we do check for /etc/docker/daemon.json
-		if b, err := ioutil.ReadFile("/etc/docker/daemon.json"); err != nil {
+		if b, err := os.ReadFile("/etc/docker/daemon.json"); err != nil {
 			if os.IsNotExist(err) {
 				klog.V(2).Infof("/etc/docker/daemon.json not found")
 			} else {

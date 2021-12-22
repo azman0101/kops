@@ -154,7 +154,7 @@ spec:
                           Internal.
                         type: string
                       useForInternalApi:
-                        description: UseForInternalApi indicates whether the LB should
+                        description: UseForInternalAPI indicates whether the LB should
                           be used by the kubelet
                         type: boolean
                     type: object
@@ -355,6 +355,13 @@ spec:
                     description: GCEServiceAccount specifies the service account with
                       which the GCE VM runs
                     type: string
+                  gcpPDCSIDriver:
+                    description: GCPPDCSIDriver is the config for the GCP PD CSI driver
+                    properties:
+                      enabled:
+                        description: Enabled enables the GCP PD CSI driver
+                        type: boolean
+                    type: object
                   manageStorageClasses:
                     description: ManageStorageClasses specifies whether kOps should
                       create and maintain a set of StorageClasses, one of which it
@@ -406,6 +413,8 @@ spec:
                           floatingNetworkID:
                             type: string
                           floatingSubnet:
+                            type: string
+                          ingressHostnameSuffix:
                             type: string
                           manageSecurityGroups:
                             type: boolean
@@ -468,32 +477,25 @@ spec:
                     description: Spotinst cloud-config specs
                     type: string
                   vSphereCoreDNSServer:
-                    description: VSphereCoreDNSServer is deprecated and will be removed
-                      in a later version
+                    description: VSphereCoreDNSServer is unused.
                     type: string
                   vSphereDatacenter:
-                    description: VShpereDatacenter is deprecated and will be removed
-                      in a later version
+                    description: VShpereDatacenter is unused.
                     type: string
                   vSphereDatastore:
-                    description: VSphereDatastore is deprecated and will be removed
-                      in a later version
+                    description: VSphereDatastore is unused.
                     type: string
                   vSpherePassword:
-                    description: VSpherePassword is deprecated and will be removed
-                      in a later version
+                    description: VSpherePassword is unused.
                     type: string
                   vSphereResourcePool:
-                    description: VSphereResourcePool is deprecated and will be removed
-                      in a later version
+                    description: VSphereResourcePool is unused.
                     type: string
                   vSphereServer:
-                    description: VSphereServer is deprecated and will be removed in
-                      a later version
+                    description: VSphereServer is unused.
                     type: string
                   vSphereUsername:
-                    description: VSphereUsername is deprecated and will be removed
-                      in a later version
+                    description: VSphereUsername is unused.
                     type: string
                 type: object
               cloudControllerManager:
@@ -521,6 +523,9 @@ spec:
                   configureCloudRoutes:
                     description: ConfigureCloudRoutes enables CIDRs allocated with
                       to be configured on the cloud provider.
+                    type: boolean
+                  enableLeaderMigration:
+                    description: EnableLeaderMigration enables controller leader migration.
                     type: boolean
                   image:
                     description: Image is the OCI image of the cloud controller manager.
@@ -803,6 +808,11 @@ spec:
                     items:
                       type: string
                     type: array
+                  dns:
+                    description: DNS is the IP address of the DNS server
+                    items:
+                      type: string
+                    type: array
                   execOpt:
                     description: ExecOpt is a series of options passed to the runtime
                     items:
@@ -860,6 +870,21 @@ spec:
                     items:
                       type: string
                     type: array
+                  maxConcurrentDownloads:
+                    description: MaxConcurrentDownloads sets the max concurrent downloads
+                      for each pull
+                    format: int32
+                    type: integer
+                  maxConcurrentUploads:
+                    description: MaxConcurrentUploads sets the max concurrent uploads
+                      for each push
+                    format: int32
+                    type: integer
+                  maxDownloadAttempts:
+                    description: MaxDownloadAttempts sets the max download attempts
+                      for each pull
+                    format: int32
+                    type: integer
                   metricsAddress:
                     description: Metrics address is the endpoint to serve with Prometheus
                       format metrics
@@ -986,7 +1011,7 @@ spec:
                               is associated
                             type: string
                           kmsKeyId:
-                            description: KmsKeyId is a AWS KMS ID used to encrypt
+                            description: KmsKeyID is a AWS KMS ID used to encrypt
                               the volume
                             type: string
                           name:
@@ -995,7 +1020,7 @@ spec:
                             type: string
                           volumeIops:
                             description: If volume type is io1, then we need to specify
-                              the number of Iops.
+                              the number of IOPS.
                             format: int32
                             type: integer
                           volumeSize:
@@ -1106,8 +1131,9 @@ spec:
                       will use kubernetes-sigs/external-dns.
                     type: string
                   watchIngress:
-                    description: WatchIngress indicates you want the dns-controller
-                      to watch and create dns entries for ingress resources
+                    description: 'WatchIngress indicates you want the dns-controller
+                      to watch and create dns entries for ingress resources. Default:
+                      true if provider is ''external-dns'', false otherwise.'
                     type: boolean
                   watchNamespace:
                     description: WatchNamespace is namespace to watch, defaults to
@@ -1293,6 +1319,12 @@ spec:
                   kube-proxy on the master  * enable debugging handlers on the master,
                   so kubectl logs works'
                 type: boolean
+              karpenter:
+                description: Karpenter defines the Karpenter configuration.
+                properties:
+                  enabled:
+                    type: boolean
+                type: object
               keyStore:
                 description: KeyStore is the VFS path to where SSL keys and certificates
                   are stored
@@ -1314,6 +1346,10 @@ spec:
                   admissionControlConfigFile:
                     description: AdmissionControlConfigFile is the location of the
                       admission-control-config-file
+                    type: string
+                  advertiseAddress:
+                    description: AdvertiseAddress is the IP address on which to advertise
+                      the apiserver to members of the cluster.
                     type: string
                   allowPrivileged:
                     description: AllowPrivileged indicates if we can run privileged
@@ -1474,13 +1510,21 @@ spec:
                       type: string
                     type: array
                   cpuLimit:
+                    anyOf:
+                    - type: integer
+                    - type: string
                     description: CPULimit, cpu limit compute resource for api server
                       e.g. "500m"
-                    type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
                   cpuRequest:
+                    anyOf:
+                    - type: integer
+                    - type: string
                     description: CPURequest, cpu request compute resource for api
                       server. Defaults to "150m"
-                    type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
                   defaultNotReadyTolerationSeconds:
                     description: DefaultNotReadyTolerationSeconds
                     format: int64
@@ -1614,13 +1658,21 @@ spec:
                     format: int32
                     type: integer
                   memoryLimit:
+                    anyOf:
+                    - type: integer
+                    - type: string
                     description: MemoryLimit, memory limit compute resource for api
                       server e.g. "30Mi"
-                    type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
                   memoryRequest:
+                    anyOf:
+                    - type: integer
+                    - type: string
                     description: MemoryRequest, memory request compute resource for
                       api server e.g. "30Mi"
-                    type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
                   minRequestTimeout:
                     description: MinRequestTimeout configures the minimum number of
                       seconds a handler must keep a request open before timing it
@@ -1875,6 +1927,9 @@ spec:
                     description: DisableAttachDetachReconcileSync disables the reconcile
                       sync loop in the attach-detach controller. This can cause volumes
                       to become mismatched with pods
+                    type: boolean
+                  enableLeaderMigration:
+                    description: EnableLeaderMigration enables controller leader migration.
                     type: boolean
                   enableProfiling:
                     description: EnableProfiling enables profiling via web interface
@@ -2981,8 +3036,7 @@ spec:
                       the CoreFile.
                     type: string
                   image:
-                    description: Image is the name of the docker image to run - @deprecated
-                      as this is now in the addon
+                    description: Image is unused.
                     type: string
                   memoryLimit:
                     anyOf:
@@ -3043,8 +3097,7 @@ spec:
                       be the default service discovery.
                     type: string
                   replicas:
-                    description: Replicas is the number of pod replicas - @deprecated
-                      as this is now in the addon, and controlled by autoscaler
+                    description: Replicas is unused.
                     type: integer
                   serverIP:
                     description: ServerIP is the server ip
@@ -3127,13 +3180,21 @@ spec:
                     format: int32
                     type: integer
                   cpuLimit:
+                    anyOf:
+                    - type: integer
+                    - type: string
                     description: CPULimit, cpu limit compute resource for kube proxy
                       e.g. "30m"
-                    type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
                   cpuRequest:
-                    description: 'TODO: Better type ? CPURequest, cpu request compute
-                      resource for kube proxy e.g. "20m"'
-                    type: string
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: CPURequest, cpu request compute resource for kube
+                      proxy e.g. "20m"
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
                   enabled:
                     description: Enabled allows enabling or disabling kube-proxy
                     type: boolean
@@ -3150,7 +3211,7 @@ spec:
                   image:
                     type: string
                   ipvsExcludeCidrs:
-                    description: IPVSExcludeCIDRS is comma-separated list of CIDR's
+                    description: IPVSExcludeCIDRs is comma-separated list of CIDR's
                       which the ipvs proxier should not touch when cleaning up IPVS
                       rules
                     items:
@@ -3178,13 +3239,21 @@ spec:
                       (overrides any value in kubeconfig)
                     type: string
                   memoryLimit:
+                    anyOf:
+                    - type: integer
+                    - type: string
                     description: MemoryLimit, memory limit compute resource for kube
                       proxy e.g. "30Mi"
-                    type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
                   memoryRequest:
+                    anyOf:
+                    - type: integer
+                    - type: string
                     description: MemoryRequest, memory request compute resource for
                       kube proxy e.g. "30Mi"
-                    type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
                   metricsBindAddress:
                     description: MetricsBindAddress is the IP address for the metrics
                       server to serve on
@@ -4209,6 +4278,10 @@ spec:
                     description: CalicoNetworkingSpec declares that we want Calico
                       networking
                     properties:
+                      allowIPForwarding:
+                        description: 'AllowIPForwarding enable ip_forwarding setting
+                          within the container namespace. (default: false)'
+                        type: boolean
                       awsSrcDstCheck:
                         description: 'AWSSrcDstCheck enables/disables ENI source/destination
                           checks (AWS only) Options: Disable (default), Enable, or
@@ -4635,6 +4708,10 @@ spec:
                         description: 'EnableRemoteNodeIdentity enables the remote-node-identity.
                           Default: true'
                         type: boolean
+                      enableServiceTopology:
+                        description: EnableServiceTopology determine if cilium should
+                          use topology aware hints.
+                        type: boolean
                       enableTracing:
                         description: EnableTracing is unused.
                         type: boolean
@@ -4680,7 +4757,7 @@ spec:
                           to wait before using a changed identity. Default: 5s'
                         type: string
                       ipam:
-                        description: 'Ipam specifies the IP address allocation mode
+                        description: 'IPAM specifies the IP address allocation mode
                           to use. Possible values are "crd" and "eni". "eni" will
                           use AWS native networking for pods. Eni requires masquerade
                           to be set to false. "crd" will use CRDs for controlling
@@ -4817,12 +4894,12 @@ spec:
                         description: StateDir is unused.
                         type: string
                       toFqdnsDnsRejectResponseCode:
-                        description: 'ToFqdnsDNSRejectResponseCode sets the DNS response
+                        description: 'ToFQDNsDNSRejectResponseCode sets the DNS response
                           code for rejecting DNS requests. Possible values are "nameError"
                           or "refused". Default: refused'
                         type: string
                       toFqdnsEnablePoller:
-                        description: 'ToFqdnsEnablePoller replaces the DNS proxy-based
+                        description: 'ToFQDNsEnablePoller replaces the DNS proxy-based
                           implementation of FQDN policies with the less powerful legacy
                           implementation. Default: false'
                         type: boolean

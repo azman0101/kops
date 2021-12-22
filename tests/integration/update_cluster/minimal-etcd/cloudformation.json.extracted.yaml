@@ -41,7 +41,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimaletcdexamplecom.Propert
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -64,7 +64,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimaletcdexamplecom.Propert
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -131,7 +131,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimaletcdexamplecom.Propert
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   encryptionConfig: null
@@ -213,7 +213,6 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimaletcdexamplecom.Propert
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
-    hostnameOverride: '@aws'
     image: k8s.gcr.io/kube-proxy:v1.21.0
     logLevel: 2
   kubeScheduler:
@@ -230,11 +229,9 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimaletcdexamplecom.Propert
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
   masterKubelet:
     anonymousAuth: false
@@ -245,11 +242,9 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimaletcdexamplecom.Propert
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
     registerSchedulable: false
 
@@ -260,7 +255,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersminimaletcdexamplecom.Propert
   ConfigBase: memfs://clusters.example.com/minimal-etcd.example.com
   InstanceGroupName: master-us-test-1a
   InstanceGroupRole: Master
-  NodeupConfigHash: xKkLXsWCD3SeqGL9zGIJEF9ZAhCt7JLTKCiYsaZaxTA=
+  NodeupConfigHash: oLZaUCqS4aj2M+KFvzt5dLrmox9C7j8P1JPGkOmLuik=
 
   __EOF_KUBE_ENV
 
@@ -309,7 +304,7 @@ Resources.AWSEC2LaunchTemplatenodesminimaletcdexamplecom.Properties.LaunchTempla
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -332,7 +327,7 @@ Resources.AWSEC2LaunchTemplatenodesminimaletcdexamplecom.Properties.LaunchTempla
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -399,13 +394,12 @@ Resources.AWSEC2LaunchTemplatenodesminimaletcdexamplecom.Properties.LaunchTempla
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
-    hostnameOverride: '@aws'
     image: k8s.gcr.io/kube-proxy:v1.21.0
     logLevel: 2
   kubelet:
@@ -417,11 +411,9 @@ Resources.AWSEC2LaunchTemplatenodesminimaletcdexamplecom.Properties.LaunchTempla
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
 
   __EOF_CLUSTER_SPEC
@@ -431,7 +423,7 @@ Resources.AWSEC2LaunchTemplatenodesminimaletcdexamplecom.Properties.LaunchTempla
   ConfigBase: memfs://clusters.example.com/minimal-etcd.example.com
   InstanceGroupName: nodes
   InstanceGroupRole: Node
-  NodeupConfigHash: A43AUETmMAZe+WHfsKAqap7yVbmQdBSFmGBSSpV7VFM=
+  NodeupConfigHash: zWWYOxsX3CVcRNYIwwm7Tow5KPtjUkzt9ZZ0a1wOwUE=
 
   __EOF_KUBE_ENV
 

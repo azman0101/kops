@@ -63,6 +63,21 @@ func TestSetClusterFields(t *testing.T) {
 			},
 		},
 		{
+			Fields: []string{
+				"spec.api.dns=",
+			},
+			Input: kops.Cluster{
+				Spec: kops.ClusterSpec{},
+			},
+			Output: kops.Cluster{
+				Spec: kops.ClusterSpec{
+					API: &kops.AccessSpec{
+						DNS: &kops.DNSAccessSpec{},
+					},
+				},
+			},
+		},
+		{
 			Fields: []string{"spec.kubelet.authorizationMode=Webhook"},
 			Output: kops.Cluster{
 				Spec: kops.ClusterSpec{
@@ -180,7 +195,7 @@ func TestSetClusterFields(t *testing.T) {
 				Spec: kops.ClusterSpec{
 					Networking: &kops.NetworkingSpec{
 						Cilium: &kops.CiliumNetworkingSpec{
-							Ipam: "on",
+							IPAM: "on",
 						},
 					},
 				},
@@ -218,14 +233,14 @@ func TestSetClusterFields(t *testing.T) {
 		},
 		{
 			Fields: []string{
-				"cluster.spec.networking.cilium.disableMasquerade=true",
+				"cluster.spec.networking.cilium.masquerade=false",
 			},
 			Input: kops.Cluster{},
 			Output: kops.Cluster{
 				Spec: kops.ClusterSpec{
 					Networking: &kops.NetworkingSpec{
 						Cilium: &kops.CiliumNetworkingSpec{
-							DisableMasquerade: fi.Bool(true),
+							Masquerade: fi.Bool(false),
 						},
 					},
 				},
@@ -279,7 +294,6 @@ func TestSetClusterFields(t *testing.T) {
 }
 
 func TestSetCiliumFields(t *testing.T) {
-
 	grid := []struct {
 		Fields []string
 		Input  kops.Cluster
@@ -289,7 +303,7 @@ func TestSetCiliumFields(t *testing.T) {
 			Fields: []string{
 				"cluster.spec.networking.cilium.ipam=eni",
 				"cluster.spec.networking.cilium.enableNodePort=true",
-				"cluster.spec.networking.cilium.disableMasquerade=true",
+				"cluster.spec.networking.cilium.masquerade=false",
 				"cluster.spec.kubeProxy.enabled=false",
 			},
 			Input: kops.Cluster{
@@ -302,9 +316,9 @@ func TestSetCiliumFields(t *testing.T) {
 					},
 					Networking: &kops.NetworkingSpec{
 						Cilium: &kops.CiliumNetworkingSpec{
-							Ipam:              "eni",
-							EnableNodePort:    true,
-							DisableMasquerade: fi.Bool(true),
+							IPAM:           "eni",
+							EnableNodePort: true,
+							Masquerade:     fi.Bool(false),
 						},
 					},
 				},

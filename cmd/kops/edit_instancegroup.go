@@ -167,9 +167,7 @@ func RunEditInstanceGroup(ctx context.Context, f *util.Factory, out io.Writer, o
 		return nil
 	}
 
-	var (
-		editor = editor.NewDefaultEditor(commandutils.EditorEnvs)
-	)
+	editor := editor.NewDefaultEditor(commandutils.EditorEnvs)
 
 	ext := "yaml"
 	raw, err := kopscodecs.ToVersionedYaml(oldGroup)
@@ -306,7 +304,7 @@ func updateInstanceGroup(ctx context.Context, clientset simple.Clientset, channe
 		return fmt.Sprintf("error populating cluster spec: %s", err), nil
 	}
 
-	err = validation.CrossValidateInstanceGroup(fullGroup, fullCluster, cloud).ToAggregate()
+	err = validation.CrossValidateInstanceGroup(fullGroup, fullCluster, cloud, true).ToAggregate()
 	if err != nil {
 		return fmt.Sprintf("validation failed: %s", err), nil
 	}

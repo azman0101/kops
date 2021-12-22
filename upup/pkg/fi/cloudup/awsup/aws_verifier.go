@@ -25,7 +25,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
@@ -121,7 +120,7 @@ type ResponseMetadata struct {
 	RequestId string `xml:"RequestId"`
 }
 
-func (a awsVerifier) VerifyToken(ctx context.Context, token string, body []byte) (*bootstrap.VerifyResult, error) {
+func (a awsVerifier) VerifyToken(ctx context.Context, token string, body []byte, useInstanceIDForNodeName bool) (*bootstrap.VerifyResult, error) {
 	if !strings.HasPrefix(token, AWSAuthenticationTokenPrefix) {
 		return nil, fmt.Errorf("incorrect authorization type")
 	}
@@ -150,7 +149,7 @@ func (a awsVerifier) VerifyToken(ctx context.Context, token string, body []byte)
 		return nil, fmt.Errorf("incorrect SHA")
 	}
 
-	requestBytes, _ := ioutil.ReadAll(stsRequest.Body)
+	requestBytes, _ := io.ReadAll(stsRequest.Body)
 	_, _ = stsRequest.Body.Seek(0, io.SeekStart)
 	if stsRequest.HTTPRequest.Header.Get("Content-Length") != strconv.Itoa(len(requestBytes)) {
 		return nil, fmt.Errorf("incorrect content-length")
@@ -164,7 +163,7 @@ func (a awsVerifier) VerifyToken(ctx context.Context, token string, body []byte)
 		defer response.Body.Close()
 	}
 
-	responseBody, err := ioutil.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, fmt.Errorf("reading STS response: %v", err)
 	}
@@ -233,7 +232,7 @@ func (a awsVerifier) VerifyToken(ctx context.Context, token string, body []byte)
 
 	instance := instances.Reservations[0].Instances[0]
 
-	addrs, err := GetInstanceCertificateNames(instances)
+	addrs, err := GetInstanceCertificateNames(instances, useInstanceIDForNodeName)
 	if err != nil {
 		return nil, err
 	}

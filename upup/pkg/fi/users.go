@@ -18,7 +18,7 @@ package fi
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 
@@ -42,7 +42,7 @@ func parseUsers() (map[string]*User, error) {
 	users := make(map[string]*User)
 
 	path := "/etc/passwd"
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading user file %q", path)
 	}
@@ -107,14 +107,14 @@ func LookupUserByID(uid int) (*User, error) {
 type Group struct {
 	Name string
 	Gid  int
-	//Members []string
+	// Members []string
 }
 
 func parseGroups() (map[string]*Group, error) {
 	groups := make(map[string]*Group)
 
 	path := "/etc/group"
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading group file %q", path)
 	}

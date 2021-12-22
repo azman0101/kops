@@ -25,7 +25,6 @@ import (
 	"k8s.io/kops/dnsprovider/pkg/dnsprovider/providers/aws/route53"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi"
-	"k8s.io/kops/upup/pkg/fi/cloudup/aliup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 	"k8s.io/kops/upup/pkg/fi/cloudup/azure"
 	"k8s.io/kops/upup/pkg/fi/cloudup/do"
@@ -126,22 +125,6 @@ func BuildCloud(cluster *kops.Cluster) (fi.Cloud, error) {
 			cloud = osc
 		}
 
-	case kops.CloudProviderALI:
-		{
-			region, err := aliup.FindRegion(cluster)
-			if err != nil {
-				return nil, err
-			}
-
-			cloudTags := map[string]string{aliup.TagClusterName: cluster.ObjectMeta.Name}
-			aliCloud, err := aliup.NewALICloud(region, cloudTags)
-			if err != nil {
-				return nil, err
-			}
-
-			cloud = aliCloud
-		}
-
 	case kops.CloudProviderAzure:
 		{
 			for _, subnet := range cluster.Spec.Subnets {
@@ -233,8 +216,8 @@ func FindDNSHostedZone(dns dnsprovider.Interface, clusterDNSName string, dnsType
 		// We make this an error because you have to set up DNS delegation anyway
 		tokens := strings.Split(clusterDNSName, ".")
 		suffix := strings.Join(tokens[len(tokens)-2:], ".")
-		//klog.Warningf("No matching hosted zones found; will created %q", suffix)
-		//return suffix, nil
+		// klog.Warningf("No matching hosted zones found; will created %q", suffix)
+		// return suffix, nil
 		return "", fmt.Errorf("No matching hosted zones found for %q; please create one (e.g. %q) first", clusterDNSName, suffix)
 	}
 

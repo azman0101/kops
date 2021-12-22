@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
+
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/upup/pkg/fi"
 	"k8s.io/kops/upup/pkg/fi/loader"
@@ -83,16 +84,7 @@ func (b *KubeAPIServerOptionsBuilder) BuildOptions(o interface{}) error {
 	} else if clusterSpec.Authorization.AlwaysAllow != nil {
 		clusterSpec.KubeAPIServer.AuthorizationMode = fi.String("AlwaysAllow")
 	} else if clusterSpec.Authorization.RBAC != nil {
-		var modes []string
-
-		if b.IsKubernetesGTE("1.19") || fi.BoolValue(clusterSpec.KubeAPIServer.EnableBootstrapAuthToken) {
-			// Enable the Node authorizer, used for special per-node RBAC policies
-			// Enable by default from 1.19 - it's an important part of limiting blast radius
-			modes = append(modes, "Node")
-		}
-		modes = append(modes, "RBAC")
-
-		clusterSpec.KubeAPIServer.AuthorizationMode = fi.String(strings.Join(modes, ","))
+		clusterSpec.KubeAPIServer.AuthorizationMode = fi.String("Node,RBAC")
 	}
 
 	if err := b.configureAggregation(clusterSpec); err != nil {
@@ -114,8 +106,6 @@ func (b *KubeAPIServerOptionsBuilder) BuildOptions(o interface{}) error {
 		c.CloudProvider = "external"
 	case kops.CloudProviderOpenstack:
 		c.CloudProvider = "openstack"
-	case kops.CloudProviderALI:
-		c.CloudProvider = "alicloud"
 	case kops.CloudProviderAzure:
 		c.CloudProvider = "azure"
 	default:
@@ -173,7 +163,11 @@ func (b *KubeAPIServerOptionsBuilder) BuildOptions(o interface{}) error {
 
 	// We query via the kube-apiserver-healthcheck proxy, which listens on port 3990
 	c.InsecureBindAddress = ""
-	c.InsecurePort = 0
+	if b.IsKubernetesGTE("1.20") {
+		c.InsecurePort = nil
+	} else {
+		c.InsecurePort = fi.Int32(0)
+	}
 
 	return nil
 }

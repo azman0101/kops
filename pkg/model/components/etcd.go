@@ -29,9 +29,8 @@ type EtcdOptionsBuilder struct {
 var _ loader.OptionsBuilder = &EtcdOptionsBuilder{}
 
 const (
-	DefaultEtcd3Version_1_17 = "3.4.3"
 	DefaultEtcd3Version_1_19 = "3.4.13"
-	DefaultEtcd3Version_1_22 = "3.5.0"
+	DefaultEtcd3Version_1_22 = "3.5.1"
 )
 
 // BuildOptions is responsible for filling in the defaults for the etcd cluster model
@@ -45,10 +44,8 @@ func (b *EtcdOptionsBuilder) BuildOptions(o interface{}) error {
 			// We run the k8s-recommended versions of etcd
 			if b.IsKubernetesGTE("1.22") {
 				c.Version = DefaultEtcd3Version_1_22
-			} else if b.IsKubernetesGTE("1.19") {
-				c.Version = DefaultEtcd3Version_1_19
 			} else {
-				c.Version = DefaultEtcd3Version_1_17
+				c.Version = DefaultEtcd3Version_1_19
 			}
 		}
 	}

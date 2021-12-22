@@ -21,7 +21,6 @@ import (
 	"crypto/x509/pkix"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -64,7 +63,7 @@ var (
 
 	createKeypairExample = templates.Examples(i18n.T(`
 	# Add a CA certificate and private key to a keyset.
-	kops create keypair ca \
+	kops create keypair kubernetes-ca \
 		--cert ~/ca.pem --key ~/ca-key.pem \
 		--name k8s-cluster.example.com --state s3://my-state-store
 
@@ -189,7 +188,7 @@ func createKeypair(out io.Writer, options *CreateKeypairOptions, name string, ke
 	var privateKey *pki.PrivateKey
 	if options.PrivateKeyPath != "" {
 		options.PrivateKeyPath = utils.ExpandPath(options.PrivateKeyPath)
-		privateKeyBytes, err := ioutil.ReadFile(options.PrivateKeyPath)
+		privateKeyBytes, err := os.ReadFile(options.PrivateKeyPath)
 		if err != nil {
 			return fmt.Errorf("error reading user provided private key %q: %v", options.PrivateKeyPath, err)
 		}
@@ -222,7 +221,7 @@ func createKeypair(out io.Writer, options *CreateKeypairOptions, name string, ke
 		}
 	} else {
 		options.CertPath = utils.ExpandPath(options.CertPath)
-		certBytes, err := ioutil.ReadFile(options.CertPath)
+		certBytes, err := os.ReadFile(options.CertPath)
 		if err != nil {
 			return fmt.Errorf("error reading user provided cert %q: %v", options.CertPath, err)
 		}

@@ -19,7 +19,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -167,7 +166,7 @@ func RunToolBoxTemplate(f *util.Factory, out io.Writer, options *ToolboxTemplate
 		}
 
 		for _, j := range list {
-			content, err := ioutil.ReadFile(j)
+			content, err := os.ReadFile(j)
 			if err != nil {
 				return fmt.Errorf("unable to read snippet: %s, error: %s", j, err)
 			}
@@ -184,7 +183,7 @@ func RunToolBoxTemplate(f *util.Factory, out io.Writer, options *ToolboxTemplate
 	r := templater.NewTemplater(channel)
 	var documents []string
 	for _, x := range templates {
-		content, err := ioutil.ReadFile(x)
+		content, err := os.ReadFile(x)
 		if err != nil {
 			return fmt.Errorf("unable to read template: %s, error: %s", x, err)
 		}
@@ -224,7 +223,7 @@ func RunToolBoxTemplate(f *util.Factory, out io.Writer, options *ToolboxTemplate
 	iowriter := out
 	// @check if we are writing to a file rather than stdout
 	if options.outputPath != "" {
-		w, err := os.OpenFile(utils.ExpandPath(options.outputPath), os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0660)
+		w, err := os.OpenFile(utils.ExpandPath(options.outputPath), os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0o660)
 		if err != nil {
 			return fmt.Errorf("unable to open file: %s, error: %v", options.outputPath, err)
 		}
@@ -249,7 +248,7 @@ func newTemplateContext(files []string, values []string, stringValues []string) 
 			return nil, err
 		}
 		for _, j := range list {
-			content, err := ioutil.ReadFile(j)
+			content, err := os.ReadFile(j)
 			if err != nil {
 				return nil, fmt.Errorf("unable to configuration file: %s, error: %s", j, err)
 			}

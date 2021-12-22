@@ -81,6 +81,8 @@ func NewLogDumper(sshConfig *ssh.ClientConfig, artifactsDir string) *logDumper {
 		"startupscript",
 		"kern",
 		"docker",
+		"aws-routed-eni/ipamd",
+		"aws-routed-eni/plugin",
 	}
 	d.podSelectors = []string{
 		"k8s-app=external-dns",
@@ -271,7 +273,7 @@ func (n *logDumperNode) dump(ctx context.Context) []error {
 			if !strings.HasPrefix(f, prefix) {
 				continue
 			}
-			if err := n.shellToFile(ctx, "sudo cat '"+strings.ReplaceAll(f, "'", "'\\''")+"'", filepath.Join(n.dir, filepath.Base(f))); err != nil {
+			if err := n.shellToFile(ctx, "sudo cat '"+strings.ReplaceAll(f, "'", "'\\''")+"'", filepath.Join(n.dir, strings.ReplaceAll(strings.TrimPrefix(f, "/var/log/"), "/", "_"))); err != nil {
 				errors = append(errors, err)
 			}
 		}
@@ -336,7 +338,7 @@ func (n *logDumperNode) listSystemdUnits(ctx context.Context) ([]string, error) 
 
 // shellToFile executes a command and copies the output to a file
 func (n *logDumperNode) shellToFile(ctx context.Context, command string, destPath string) error {
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 		log.Printf("unable to mkdir on %q: %v", filepath.Dir(destPath), err)
 	}
 

@@ -37,20 +37,21 @@ func TestKubeProxyBuilder_buildPod(t *testing.T) {
 	// https://pkg.go.dev/k8s.io/kops/pkg/apis/kops#ClusterSpec
 	// https://pkg.go.dev/k8s.io/kops/pkg/apis/kops#KubeProxyConfig
 
-	var cluster = &kops.Cluster{}
+	cluster := &kops.Cluster{}
 	cluster.Spec.MasterInternalName = "dev-cluster"
 
 	cluster.Spec.KubeProxy = &kops.KubeProxyConfig{}
 	cluster.Spec.KubeProxy.Image = "kube-proxy:1.2"
-	cluster.Spec.KubeProxy.CPURequest = "20m"
-	cluster.Spec.KubeProxy.CPULimit = "30m"
+	cluster.Spec.KubeProxy.CPURequest = resource.NewScaledQuantity(20, resource.Milli)
+	cluster.Spec.KubeProxy.CPULimit = resource.NewScaledQuantity(30, resource.Milli)
 
 	flags, _ := flagbuilder.BuildFlagsList(cluster.Spec.KubeProxy)
 
 	flags = append(flags, []string{
 		"--kubeconfig=/var/lib/kube-proxy/kubeconfig",
 		"--oom-score-adj=-998",
-		`--resource-container=""`}...)
+		`--resource-container=""`,
+	}...)
 
 	type fields struct {
 		NodeupModelContext *NodeupModelContext
@@ -86,10 +87,10 @@ func TestKubeProxyBuilder_buildPod(t *testing.T) {
 							Image: "kube-proxy:1.2",
 							Resources: v1.ResourceRequirements{
 								Requests: v1.ResourceList{
-									v1.ResourceCPU: resource.MustParse("20m"),
+									v1.ResourceCPU: *resource.NewScaledQuantity(20, resource.Milli),
 								},
 								Limits: v1.ResourceList{
-									v1.ResourceCPU: resource.MustParse("30m"),
+									v1.ResourceCPU: *resource.NewScaledQuantity(30, resource.Milli),
 								},
 							},
 							Command: exec.WithTee("/usr/local/bin/kube-proxy", sortedStrings(flags), "/var/log/kube-proxy.log"),
@@ -133,7 +134,6 @@ func TestKubeProxyBuilder_buildPod(t *testing.T) {
 			// compare pod spec container name
 			if !reflect.DeepEqual(got.Spec.Containers[0].Name, tt.want.Spec.Containers[0].Name) {
 				t.Errorf("KubeProxyBuilder.buildPod() Container Name = %v, want %v", got.Spec.Containers[0].Name, tt.want.Spec.Containers[0].Name)
-
 			}
 			// compare pod spec container Image
 			if !reflect.DeepEqual(got.Spec.Containers[0].Image, tt.want.Spec.Containers[0].Image) {
@@ -144,7 +144,6 @@ func TestKubeProxyBuilder_buildPod(t *testing.T) {
 			if !reflect.DeepEqual(got.Spec.Containers[0].Resources, tt.want.Spec.Containers[0].Resources) {
 				t.Errorf("KubeProxyBuilder.buildPod() Resources = %v, want %v", got.Spec.Containers[0].Resources, tt.want.Spec.Containers[0].Resources)
 			}
-
 		})
 	}
 }

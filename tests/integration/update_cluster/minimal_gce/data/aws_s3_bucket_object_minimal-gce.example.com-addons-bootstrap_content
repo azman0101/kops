@@ -6,7 +6,7 @@ spec:
   addons:
   - id: k8s-1.16
     manifest: kops-controller.addons.k8s.io/k8s-1.16.yaml
-    manifestHash: 93bfba49343e4ed4e1d9bf603cb0df7033a1e6cc9e1b794994d98fbc5312b85c
+    manifestHash: cf36b038a6f310bf9bfff46872bc6173a59ecd99d5fd9216663159823d0d81fb
     name: kops-controller.addons.k8s.io
     needsRollingUpdate: control-plane
     selector:
@@ -20,17 +20,10 @@ spec:
     version: 9.99.0
   - id: k8s-1.12
     manifest: coredns.addons.k8s.io/k8s-1.12.yaml
-    manifestHash: 88ffe1a3752cf290450cc94bd53aea49a665e411dbf4cfe9c1a2cc5b027f12ef
+    manifestHash: 35f80340361377395a2c65b3b268048038cdce0adc90a3ce3afdbf63e72cffe0
     name: coredns.addons.k8s.io
     selector:
       k8s-addon: coredns.addons.k8s.io
-    version: 9.99.0
-  - id: k8s-1.8
-    manifest: rbac.addons.k8s.io/k8s-1.8.yaml
-    manifestHash: f81bd7c57bc1902ca342635d7ad7d01b82dfeaff01a1192b076e66907d87871e
-    name: rbac.addons.k8s.io
-    selector:
-      k8s-addon: rbac.addons.k8s.io
     version: 9.99.0
   - id: k8s-1.9
     manifest: kubelet-api.rbac.addons.k8s.io/k8s-1.9.yaml
@@ -47,21 +40,28 @@ spec:
     version: 9.99.0
   - id: k8s-1.12
     manifest: dns-controller.addons.k8s.io/k8s-1.12.yaml
-    manifestHash: 17661bd671e3cfb0e303a829e3a226fabc8c2bf0980880a994a5352c7cbafaa5
+    manifestHash: 0eb80b93de3c34dcac920b6e5423509d2cbdefda2f106cacfe6ce065304ac822
     name: dns-controller.addons.k8s.io
     selector:
       k8s-addon: dns-controller.addons.k8s.io
     version: 9.99.0
   - id: v1.7.0
     manifest: storage-gce.addons.k8s.io/v1.7.0.yaml
-    manifestHash: 101aceff3d82b4d7066f75fdf537f272eccec6da767d508e2a72bff5e11b0b6d
+    manifestHash: 6c6d100b10243fc62e0195706aa862b42632faeac05a117d07a263a2c5a8e87c
     name: storage-gce.addons.k8s.io
     selector:
       k8s-addon: storage-gce.addons.k8s.io
     version: 9.99.0
+  - id: k8s-1.23
+    manifest: gcp-pd-csi-driver.addons.k8s.io/k8s-1.23.yaml
+    manifestHash: 23507903fdec1642e8ac81d19e5120e4ac31d93c33f2810f0e1a56fef5f38984
+    name: gcp-pd-csi-driver.addons.k8s.io
+    selector:
+      k8s-addon: gcp-pd-csi-driver.addons.k8s.io
+    version: 9.99.0
   - id: v0.1.12
     manifest: metadata-proxy.addons.k8s.io/v0.1.12.yaml
-    manifestHash: 29c78a908980393b0707da7501f2b00025cd24cc62d2605083f9d77e8f3eb40f
+    manifestHash: 836437191be1c5ee97beef4a52eeb0aaad953f217d4c727c26dc92ff5e6c28cd
     name: metadata-proxy.addons.k8s.io
     selector:
       k8s-addon: metadata-proxy.addons.k8s.io

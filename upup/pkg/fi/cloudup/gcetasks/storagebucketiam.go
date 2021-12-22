@@ -17,6 +17,7 @@ limitations under the License.
 package gcetasks
 
 import (
+	"context"
 	"fmt"
 
 	"google.golang.org/api/storage/v1"
@@ -26,142 +27,147 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 )
 
-// StorageBucketIam represents an IAM policy on a google cloud storage bucket
+// StorageBucketIAM represents an IAM rule on a google cloud storage bucket
 // +kops:fitask
-type StorageBucketIam struct {
+type StorageBucketIAM struct {
 	Name      *string
 	Lifecycle fi.Lifecycle
 
 	Bucket *string
-	Entity *string
-
-	Role *string
+	Member *string
+	Role   *string
 }
 
-var _ fi.CompareWithID = &StorageBucketIam{}
+var _ fi.CompareWithID = &StorageBucketIAM{}
 
-func (e *StorageBucketIam) CompareWithID() *string {
+func (e *StorageBucketIAM) CompareWithID() *string {
 	return e.Name
 }
 
-func (e *StorageBucketIam) Find(c *fi.Context) (*StorageBucketIam, error) {
+func (e *StorageBucketIAM) Find(c *fi.Context) (*StorageBucketIAM, error) {
+	ctx := context.TODO()
+
 	cloud := c.Cloud.(gce.GCECloud)
 
 	bucket := fi.StringValue(e.Bucket)
-	entity := fi.StringValue(e.Entity)
+	member := fi.StringValue(e.Member)
 	role := fi.StringValue(e.Role)
 
-	klog.V(2).Infof("Checking GCS IAM policy for gs://%s for %s", bucket, entity)
-	policy, err := cloud.Storage().Buckets.GetIamPolicy(bucket).Do()
+	klog.V(2).Infof("Checking GCS bucket IAM for gs://%s for %s", bucket, member)
+	policy, err := cloud.Storage().Buckets.GetIamPolicy(bucket).Context(ctx).Do()
 	if err != nil {
 		if gce.IsNotFound(err) {
-			policy = &storage.Policy{}
-		} else {
-			return nil, fmt.Errorf("error querying GCS IAM policy for gs://%s for %s: %v", bucket, entity, err)
+			return nil, nil
 		}
+		return nil, fmt.Errorf("error checking GCS bucket IAM for gs://%s: %w", bucket, err)
 	}
 
-	for _, binding := range policy.Bindings {
-		if binding.Role != role {
-			continue
-		}
-
-		for _, member := range binding.Members {
-			if member == entity {
-				return &StorageBucketIam{
-					Name:      e.Name,
-					Bucket:    e.Bucket,
-					Entity:    e.Entity,
-					Role:      e.Role,
-					Lifecycle: e.Lifecycle,
-				}, nil
-			}
-		}
+	changed := patchPolicy(policy, member, role)
+	if changed {
+		return nil, nil
 	}
 
-	return nil, nil
+	actual := &StorageBucketIAM{}
+	actual.Bucket = e.Bucket
+	actual.Member = e.Member
+	actual.Role = e.Role
+
+	// Ignore "system" fields
+	actual.Name = e.Name
+	actual.Lifecycle = e.Lifecycle
+
+	return actual, nil
 }
 
-func (e *StorageBucketIam) Run(c *fi.Context) error {
+func (e *StorageBucketIAM) Run(c *fi.Context) error {
 	return fi.DefaultDeltaRunMethod(e, c)
 }
 
-func (_ *StorageBucketIam) CheckChanges(a, e, changes *StorageBucketIam) error {
+func (_ *StorageBucketIAM) CheckChanges(a, e, changes *StorageBucketIAM) error {
 	if fi.StringValue(e.Bucket) == "" {
 		return fi.RequiredField("Bucket")
 	}
-	if fi.StringValue(e.Entity) == "" {
-		return fi.RequiredField("Entity")
+	if fi.StringValue(e.Member) == "" {
+		return fi.RequiredField("Member")
+	}
+	if fi.StringValue(e.Role) == "" {
+		return fi.RequiredField("Role")
 	}
 	return nil
 }
 
-func (_ *StorageBucketIam) RenderGCE(t *gce.GCEAPITarget, a, e, changes *StorageBucketIam) error {
+func (_ *StorageBucketIAM) RenderGCE(t *gce.GCEAPITarget, a, e, changes *StorageBucketIAM) error {
+	ctx := context.TODO()
+
 	bucket := fi.StringValue(e.Bucket)
-	entity := fi.StringValue(e.Entity)
+	member := fi.StringValue(e.Member)
 	role := fi.StringValue(e.Role)
 
-	policy, err := t.Cloud.Storage().Buckets.GetIamPolicy(bucket).Do()
+	klog.V(2).Infof("Creating GCS bucket IAM for gs://%s for %s as %s", bucket, member, role)
+
+	policy, err := t.Cloud.Storage().Buckets.GetIamPolicy(bucket).Context(ctx).Do()
 	if err != nil {
-		if gce.IsNotFound(err) {
-			policy = &storage.Policy{}
-		} else {
-			return fmt.Errorf("error querying GCS IAM policy for gs://%s: %v", bucket, err)
-		}
+		return fmt.Errorf("error creating IAM policy for bucket gs://%s: %w", bucket, err)
 	}
 
-	foundRole := false
-	for _, binding := range policy.Bindings {
-		if binding.Role != role {
-			continue
-		}
+	changed := patchPolicy(policy, member, role)
 
-		foundRole = true
-
-		foundMember := false
-		for _, member := range binding.Members {
-			if member == entity {
-				foundMember = true
-			}
-		}
-		if foundMember {
-			return nil
-		}
-		binding.Members = append(binding.Members, entity)
+	if !changed {
+		klog.Warningf("did not need to change policy (concurrent change?)")
+		return nil
 	}
 
-	if !foundRole {
-		binding := &storage.PolicyBindings{
-			Role:    role,
-			Members: []string{entity},
-		}
-		policy.Bindings = append(policy.Bindings, binding)
-	}
-
-	klog.V(2).Infof("Setting GCS IAM policy for gs://%s for %s: %s", bucket, entity, role)
-
-	if _, err := t.Cloud.Storage().Buckets.SetIamPolicy(bucket, policy).Do(); err != nil {
-		return fmt.Errorf("error setting GCS IAM policy for gs://%s for %s: %v", bucket, entity, err)
+	if _, err := t.Cloud.Storage().Buckets.SetIamPolicy(bucket, policy).Context(ctx).Do(); err != nil {
+		return fmt.Errorf("error updating GCS bucket IAM for gs://%s: %v", bucket, err)
 	}
 
 	return nil
 }
 
-// type terraformStorageBucketIam struct {
-// 	Bucket     string   `json:"bucket,omitempty" cty:"bucket"`
-// 	RoleEntity []string `json:"role_entity,omitempty" cty:"role_entity"`
-// }
+// terraformStorageBucketIAM is the model for a terraform google_storage_bucket_iam_member rule
+type terraformStorageBucketIAM struct {
+	Bucket string `json:"bucket,omitempty" cty:"bucket"`
+	Role   string `json:"role,omitempty" cty:"role"`
+	Member string `json:"member,omitempty" cty:"member"`
+}
 
-func (_ *StorageBucketIam) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *StorageBucketIam) error {
-	//var roleEntities []string
-	//roleEntities = append(roleEntities, fi.StringValue(e.Role)+":"+fi.StringValue(e.Name))
-	//tf := &terraformStorageBucketIam{
-	//	Bucket:     fi.StringValue(e.Bucket),
-	//	RoleEntity: roleEntities,
-	//}
-	//
-	//return t.RenderResource("google_storage_bucket_IAM policy", *e.Name, tf)
+func (_ *StorageBucketIAM) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *StorageBucketIAM) error {
+	tf := &terraformStorageBucketIAM{
+		Bucket: fi.StringValue(e.Bucket),
+		Role:   fi.StringValue(e.Role),
+		Member: fi.StringValue(e.Member),
+	}
 
-	klog.Warningf("terraform does not support GCE IAM policies on GCS buckets; please ensure your service account has access")
-	return nil
+	return t.RenderResource("google_storage_bucket_iam_member", *e.Name, tf)
+}
+
+func patchPolicy(policy *storage.Policy, wantMember string, wantRole string) bool {
+	for _, binding := range policy.Bindings {
+		if binding.Condition != nil {
+			continue
+		}
+		if binding.Role != wantRole {
+			continue
+		}
+		exists := false
+		for _, member := range binding.Members {
+			if member == wantMember {
+				exists = true
+			}
+		}
+		if exists {
+			return false
+		}
+
+		if !exists {
+			binding.Members = append(binding.Members, wantMember)
+			return true
+		}
+	}
+
+	policy.Bindings = append(policy.Bindings, &storage.PolicyBindings{
+		Members: []string{wantMember},
+		Role:    wantRole,
+	})
+	return true
 }

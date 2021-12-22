@@ -86,7 +86,7 @@ func (b *CloudConfigBuilder) build(c *fi.ModelBuilderContext, inTree bool) error
 	// Add cloud config file if needed
 	var lines []string
 
-	cloudProvider := b.Cluster.Spec.CloudProvider
+	cloudProvider := b.CloudProvider
 	cloudConfig := b.Cluster.Spec.CloudConfig
 
 	if cloudConfig == nil {
@@ -123,7 +123,7 @@ func (b *CloudConfigBuilder) build(c *fi.ModelBuilderContext, inTree bool) error
 		if osc == nil {
 			break
 		}
-		//Support mapping of older keystone API
+		// Support mapping of older keystone API
 		tenantName := os.Getenv("OS_TENANT_NAME")
 		if tenantName == "" {
 			tenantName = os.Getenv("OS_PROJECT_NAME")
@@ -147,7 +147,6 @@ func (b *CloudConfigBuilder) build(c *fi.ModelBuilderContext, inTree bool) error
 				fmt.Sprintf("application-credential-id=\"%s\"", os.Getenv("OS_APPLICATION_CREDENTIAL_ID")),
 				fmt.Sprintf("application-credential-secret=\"%s\"", os.Getenv("OS_APPLICATION_CREDENTIAL_SECRET")),
 			)
-
 		}
 
 		lines = append(lines,
@@ -155,6 +154,11 @@ func (b *CloudConfigBuilder) build(c *fi.ModelBuilderContext, inTree bool) error
 		)
 
 		if lb := osc.Loadbalancer; lb != nil {
+			ingressHostnameSuffix := "nip.io"
+			if fi.StringValue(lb.IngressHostnameSuffix) != "" {
+				ingressHostnameSuffix = fi.StringValue(lb.IngressHostnameSuffix)
+			}
+
 			lines = append(lines,
 				"[LoadBalancer]",
 				fmt.Sprintf("floating-network-id=%s", fi.StringValue(lb.FloatingNetworkID)),
@@ -163,6 +167,7 @@ func (b *CloudConfigBuilder) build(c *fi.ModelBuilderContext, inTree bool) error
 				fmt.Sprintf("use-octavia=%t", fi.BoolValue(lb.UseOctavia)),
 				fmt.Sprintf("manage-security-groups=%t", fi.BoolValue(lb.ManageSecGroups)),
 				fmt.Sprintf("enable-ingress-hostname=%t", fi.BoolValue(lb.EnableIngressHostname)),
+				fmt.Sprintf("ingress-hostname-suffix=%s", ingressHostnameSuffix),
 				"",
 			)
 
@@ -178,7 +183,7 @@ func (b *CloudConfigBuilder) build(c *fi.ModelBuilderContext, inTree bool) error
 		}
 
 		if bs := osc.BlockStorage; bs != nil {
-			//Block Storage Config
+			// Block Storage Config
 			lines = append(lines,
 				"[BlockStorage]",
 				fmt.Sprintf("bs-version=%s", fi.StringValue(bs.Version)),

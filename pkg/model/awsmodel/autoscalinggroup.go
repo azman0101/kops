@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"k8s.io/klog/v2"
+
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/featureflag"
 	"k8s.io/kops/pkg/model"
@@ -79,12 +80,14 @@ func (b *AutoscalingGroupModelBuilder) Build(c *fi.ModelBuilderContext) error {
 		c.AddTask(task)
 
 		// @step: now lets build the autoscaling group task
-		tsk, err := b.buildAutoScalingGroupTask(c, name, ig)
-		if err != nil {
-			return err
+		if ig.Spec.Manager != "Karpenter" {
+			tsk, err := b.buildAutoScalingGroupTask(c, name, ig)
+			if err != nil {
+				return err
+			}
+			tsk.LaunchTemplate = task
+			c.AddTask(tsk)
 		}
-		tsk.LaunchTemplate = task
-		c.AddTask(tsk)
 
 		warmPool := b.Cluster.Spec.WarmPool.ResolveDefaults(ig)
 		{
@@ -186,7 +189,7 @@ func (b *AutoscalingGroupModelBuilder) buildLaunchTemplateTask(c *fi.ModelBuilde
 		InstanceMonitoring:           fi.Bool(false),
 		InstanceType:                 fi.String(strings.Split(ig.Spec.MachineType, ",")[0]),
 		IPv6AddressCount:             fi.Int64(0),
-		RootVolumeIops:               fi.Int64(int64(fi.Int32Value(ig.Spec.RootVolumeIops))),
+		RootVolumeIops:               fi.Int64(int64(fi.Int32Value(ig.Spec.RootVolumeIOPS))),
 		RootVolumeOptimization:       ig.Spec.RootVolumeOptimization,
 		RootVolumeSize:               fi.Int64(int64(rootVolumeSize)),
 		RootVolumeType:               fi.String(rootVolumeType),
@@ -236,18 +239,18 @@ func (b *AutoscalingGroupModelBuilder) buildLaunchTemplateTask(c *fi.ModelBuilde
 			x.Type = DefaultVolumeType
 		}
 		if x.Type == ec2.VolumeTypeIo1 || x.Type == ec2.VolumeTypeIo2 {
-			if x.Iops == nil {
-				x.Iops = fi.Int64(DefaultVolumeIonIops)
+			if x.IOPS == nil {
+				x.IOPS = fi.Int64(DefaultVolumeIonIops)
 			}
 		} else if x.Type == ec2.VolumeTypeGp3 {
-			if x.Iops == nil {
-				x.Iops = fi.Int64(DefaultVolumeGp3Iops)
+			if x.IOPS == nil {
+				x.IOPS = fi.Int64(DefaultVolumeGp3Iops)
 			}
 			if x.Throughput == nil {
 				x.Throughput = fi.Int64(DefaultVolumeGp3Throughput)
 			}
 		} else {
-			x.Iops = nil
+			x.IOPS = nil
 		}
 		deleteOnTermination := DefaultVolumeDeleteOnTermination
 		if x.DeleteOnTermination != nil {
@@ -262,7 +265,7 @@ func (b *AutoscalingGroupModelBuilder) buildLaunchTemplateTask(c *fi.ModelBuilde
 			EbsDeleteOnTermination: fi.Bool(deleteOnTermination),
 			EbsEncrypted:           fi.Bool(encryption),
 			EbsKmsKey:              x.Key,
-			EbsVolumeIops:          x.Iops,
+			EbsVolumeIops:          x.IOPS,
 			EbsVolumeSize:          fi.Int64(x.Size),
 			EbsVolumeThroughput:    x.Throughput,
 			EbsVolumeType:          fi.String(x.Type),
@@ -282,11 +285,11 @@ func (b *AutoscalingGroupModelBuilder) buildLaunchTemplateTask(c *fi.ModelBuilde
 	}
 
 	if rootVolumeType == ec2.VolumeTypeIo1 || rootVolumeType == ec2.VolumeTypeIo2 {
-		if fi.Int32Value(ig.Spec.RootVolumeIops) < 100 {
+		if fi.Int32Value(ig.Spec.RootVolumeIOPS) < 100 {
 			lt.RootVolumeIops = fi.Int64(int64(DefaultVolumeIonIops))
 		}
 	} else if rootVolumeType == ec2.VolumeTypeGp3 {
-		if fi.Int32Value(ig.Spec.RootVolumeIops) < 3000 {
+		if fi.Int32Value(ig.Spec.RootVolumeIOPS) < 3000 {
 			lt.RootVolumeIops = fi.Int64(int64(DefaultVolumeGp3Iops))
 		}
 		if fi.Int32Value(ig.Spec.RootVolumeThroughput) < 125 {
@@ -374,7 +377,6 @@ func (b *AutoscalingGroupModelBuilder) buildSecurityGroups(c *fi.ModelBuilderCon
 
 // buildAutoscalingGroupTask is responsible for building the autoscaling task into the model
 func (b *AutoscalingGroupModelBuilder) buildAutoScalingGroupTask(c *fi.ModelBuilderContext, name string, ig *kops.InstanceGroup) (*awstasks.AutoscalingGroup, error) {
-
 	t := &awstasks.AutoscalingGroup{
 		Name:      fi.String(name),
 		Lifecycle: b.Lifecycle,

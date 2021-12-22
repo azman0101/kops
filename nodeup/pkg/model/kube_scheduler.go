@@ -106,10 +106,8 @@ func (b *KubeSchedulerBuilder) Build(c *fi.ModelBuilderContext) error {
 		var config *SchedulerConfig
 		if b.IsKubernetesGTE("1.22") {
 			config = NewSchedulerConfig("kubescheduler.config.k8s.io/v1beta2")
-		} else if b.IsKubernetesGTE("1.19") {
-			config = NewSchedulerConfig("kubescheduler.config.k8s.io/v1beta1")
 		} else {
-			config = NewSchedulerConfig("kubescheduler.config.k8s.io/v1alpha2")
+			config = NewSchedulerConfig("kubescheduler.config.k8s.io/v1beta1")
 		}
 
 		manifest, err := configbuilder.BuildConfigYaml(&kubeScheduler, config)
@@ -235,7 +233,7 @@ func (b *KubeSchedulerBuilder) buildPod(kubeScheduler *kops.KubeSchedulerConfig)
 		Image: image,
 		Env:   proxy.GetProxyEnvVars(b.Cluster.Spec.EgressProxy),
 		LivenessProbe: &v1.Probe{
-			Handler:             v1.Handler{HTTPGet: healthAction},
+			ProbeHandler:        v1.ProbeHandler{HTTPGet: healthAction},
 			InitialDelaySeconds: 15,
 			TimeoutSeconds:      15,
 		},
@@ -263,7 +261,7 @@ func (b *KubeSchedulerBuilder) buildPod(kubeScheduler *kops.KubeSchedulerConfig)
 		container.Command = []string{"/usr/local/bin/kube-scheduler"}
 		container.Args = append(
 			sortedStrings(flags),
-			"--logtostderr=false", //https://github.com/kubernetes/klog/issues/60
+			"--logtostderr=false", // https://github.com/kubernetes/klog/issues/60
 			"--alsologtostderr",
 			"--log-file=/var/log/kube-scheduler.log")
 	}

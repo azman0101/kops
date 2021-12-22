@@ -38,8 +38,10 @@ type ClientsetCAStore struct {
 	clientset kopsinternalversion.KopsInterface
 }
 
-var _ CAStore = &ClientsetCAStore{}
-var _ SSHCredentialStore = &ClientsetCAStore{}
+var (
+	_ CAStore            = &ClientsetCAStore{}
+	_ SSHCredentialStore = &ClientsetCAStore{}
+)
 
 // NewClientsetCAStore is the constructor for ClientsetCAStore
 func NewClientsetCAStore(cluster *kops.Cluster, clientset kopsinternalversion.KopsInterface, namespace string) CAStore {
@@ -126,7 +128,7 @@ func FindPrimary(keyset *kops.Keyset) *kops.KeysetItem {
 	var primary *kops.KeysetItem
 	var primaryVersion *big.Int
 
-	primaryId := keyset.Spec.PrimaryId
+	primaryId := keyset.Spec.PrimaryID
 
 	for i := range keyset.Spec.Keys {
 		item := &keyset.Spec.Keys[i]

@@ -1510,6 +1510,10 @@
           "Interval": "10",
           "Timeout": "5"
         },
+        "ConnectionDrainingPolicy": {
+          "Enabled": true,
+          "Timeout": 300
+        },
         "ConnectionSettings": {
           "IdleTimeout": 300
         },
@@ -1856,6 +1860,8 @@
                 "elasticloadbalancing:ApplySecurityGroupsToLoadBalancer",
                 "elasticloadbalancing:AttachLoadBalancerToSubnets",
                 "elasticloadbalancing:ConfigureHealthCheck",
+                "elasticloadbalancing:CreateLoadBalancerListeners",
+                "elasticloadbalancing:CreateLoadBalancerPolicy",
                 "elasticloadbalancing:DeleteListener",
                 "elasticloadbalancing:DeleteLoadBalancer",
                 "elasticloadbalancing:DeleteLoadBalancerListeners",
@@ -1885,8 +1891,6 @@
                 "ec2:CreateVolume",
                 "elasticloadbalancing:CreateListener",
                 "elasticloadbalancing:CreateLoadBalancer",
-                "elasticloadbalancing:CreateLoadBalancerListeners",
-                "elasticloadbalancing:CreateLoadBalancerPolicy",
                 "elasticloadbalancing:CreateTargetGroup"
               ],
               "Condition": {

@@ -17,7 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 	"testing"
 
@@ -116,7 +116,7 @@ func TestKopsUpgrades(t *testing.T) {
 func TestKubernetesUpgrades(t *testing.T) {
 	srcDir := "simple"
 	sourcePath := path.Join(srcDir, "channel.yaml")
-	sourceBytes, err := ioutil.ReadFile(sourcePath)
+	sourceBytes, err := os.ReadFile(sourcePath)
 	if err != nil {
 		t.Fatalf("unexpected error reading sourcePath %q: %v", sourcePath, err)
 	}
@@ -210,7 +210,7 @@ func TestKubernetesUpgrades(t *testing.T) {
 func TestFindImage(t *testing.T) {
 	srcDir := "simple"
 	sourcePath := path.Join(srcDir, "channel.yaml")
-	sourceBytes, err := ioutil.ReadFile(sourcePath)
+	sourceBytes, err := os.ReadFile(sourcePath)
 	if err != nil {
 		t.Fatalf("unexpected error reading sourcePath %q: %v", sourcePath, err)
 	}
@@ -265,7 +265,7 @@ func TestFindImage(t *testing.T) {
 func TestRecommendedKubernetesVersion(t *testing.T) {
 	srcDir := "simple"
 	sourcePath := path.Join(srcDir, "channel.yaml")
-	sourceBytes, err := ioutil.ReadFile(sourcePath)
+	sourceBytes, err := os.ReadFile(sourcePath)
 	if err != nil {
 		t.Fatalf("unexpected error reading sourcePath %q: %v", sourcePath, err)
 	}
@@ -318,7 +318,6 @@ func TestOrdering(t *testing.T) {
 // TestChannelsSelfConsistent tests the channels have version recommendations that are consistent
 // i.e. we don't recommend 1.5.2 and then recommend upgrading it to 1.5.4
 func TestChannelsSelfConsistent(t *testing.T) {
-
 	grid := []struct {
 		KopsVersion               string
 		Channel                   string
@@ -360,7 +359,7 @@ func TestChannelsSelfConsistent(t *testing.T) {
 	for _, g := range grid {
 		srcDir := "../../../channels/"
 		sourcePath := path.Join(srcDir, g.Channel)
-		sourceBytes, err := ioutil.ReadFile(sourcePath)
+		sourceBytes, err := os.ReadFile(sourcePath)
 		if err != nil {
 			t.Fatalf("unexpected error reading sourcePath %q: %v", sourcePath, err)
 		}
@@ -408,7 +407,7 @@ func TestChannelImages(t *testing.T) {
 	for _, channel := range []string{"stable", "alpha"} {
 		t.Run(channel+"-channel", func(t *testing.T) {
 			sourcePath := "../../../channels/" + channel
-			sourceBytes, err := ioutil.ReadFile(sourcePath)
+			sourceBytes, err := os.ReadFile(sourcePath)
 			if err != nil {
 				t.Fatalf("unexpected error reading sourcePath %q: %v", sourcePath, err)
 			}

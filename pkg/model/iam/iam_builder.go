@@ -35,6 +35,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
+
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/apis/kops/model"
 	"k8s.io/kops/pkg/util/stringorslice"
@@ -54,6 +55,10 @@ type Policy struct {
 	clusterTaggedCreateAction sets.String
 	Statement                 []*Statement
 	Version                   string
+}
+
+func (p *Policy) AddUnconditionalActions(actions ...string) {
+	p.unconditionalAction.Insert(actions...)
 }
 
 // AsJSON converts the policy document to JSON format (parsable by AWS)
@@ -258,8 +263,8 @@ func (b *PolicyBuilder) BuildAWSPolicy() (*Policy, error) {
 	// Retrieve all the KMS Keys in use
 	for _, e := range b.Cluster.Spec.EtcdClusters {
 		for _, m := range e.Members {
-			if m.KmsKeyId != nil {
-				b.KMSKeys = append(b.KMSKeys, *m.KmsKeyId)
+			if m.KmsKeyID != nil {
+				b.KMSKeys = append(b.KMSKeys, *m.KmsKeyID)
 			}
 		}
 	}
@@ -285,7 +290,7 @@ func NewPolicy(clusterName string) *Policy {
 
 // BuildAWSPolicy generates a custom policy for a Kubernetes master.
 func (r *NodeRoleAPIServer) BuildAWSPolicy(b *PolicyBuilder) (*Policy, error) {
-	p := NewPolicy(b.Cluster.GetClusterName())
+	p := NewPolicy(b.Cluster.GetName())
 
 	b.addNodeupPermissions(p, r.warmPool)
 
@@ -306,7 +311,7 @@ func (r *NodeRoleAPIServer) BuildAWSPolicy(b *PolicyBuilder) (*Policy, error) {
 		addAmazonVPCCNIPermissions(p, b.Partition)
 	}
 
-	if b.Cluster.Spec.Networking != nil && b.Cluster.Spec.Networking.Cilium != nil && b.Cluster.Spec.Networking.Cilium.Ipam == kops.CiliumIpamEni {
+	if b.Cluster.Spec.Networking != nil && b.Cluster.Spec.Networking.Cilium != nil && b.Cluster.Spec.Networking.Cilium.IPAM == kops.CiliumIpamEni {
 		addCiliumEniPermissions(p)
 	}
 
@@ -377,7 +382,7 @@ func (r *NodeRoleMaster) BuildAWSPolicy(b *PolicyBuilder) (*Policy, error) {
 		addAmazonVPCCNIPermissions(p, b.Partition)
 	}
 
-	if b.Cluster.Spec.Networking != nil && b.Cluster.Spec.Networking.Cilium != nil && b.Cluster.Spec.Networking.Cilium.Ipam == kops.CiliumIpamEni {
+	if b.Cluster.Spec.Networking != nil && b.Cluster.Spec.Networking.Cilium != nil && b.Cluster.Spec.Networking.Cilium.IPAM == kops.CiliumIpamEni {
 		addCiliumEniPermissions(p)
 	}
 
@@ -390,7 +395,7 @@ func (r *NodeRoleMaster) BuildAWSPolicy(b *PolicyBuilder) (*Policy, error) {
 
 // BuildAWSPolicy generates a custom policy for a Kubernetes node.
 func (r *NodeRoleNode) BuildAWSPolicy(b *PolicyBuilder) (*Policy, error) {
-	p := NewPolicy(b.Cluster.GetClusterName())
+	p := NewPolicy(b.Cluster.GetName())
 
 	b.addNodeupPermissions(p, r.enableLifecycleHookPermissions)
 
@@ -416,7 +421,7 @@ func (r *NodeRoleNode) BuildAWSPolicy(b *PolicyBuilder) (*Policy, error) {
 
 // BuildAWSPolicy generates a custom policy for a bastion host.
 func (r *NodeRoleBastion) BuildAWSPolicy(b *PolicyBuilder) (*Policy, error) {
-	p := NewPolicy(b.Cluster.GetClusterName())
+	p := NewPolicy(b.Cluster.GetName())
 
 	// Bastion hosts currently don't require any specific permissions.
 	// A trivial permission is granted, because empty policies are not allowed.
@@ -568,11 +573,9 @@ func (b *PolicyBuilder) buildS3WriteStatements(p *Policy, iamS3Path string) {
 			fmt.Sprintf("arn:%v:s3:::%v/*", b.Partition, iamS3Path),
 		),
 	})
-
 }
 
 func (b *PolicyBuilder) buildS3GetStatements(p *Policy, iamS3Path string) error {
-
 	resources, err := ReadableStatePaths(b.Cluster, b.Role)
 	if err != nil {
 		return err
@@ -674,8 +677,10 @@ type PolicyResource struct {
 	DNSZone *awstasks.DNSZone
 }
 
-var _ fi.Resource = &PolicyResource{}
-var _ fi.HasDependencies = &PolicyResource{}
+var (
+	_ fi.Resource        = &PolicyResource{}
+	_ fi.HasDependencies = &PolicyResource{}
+)
 
 // GetDependencies adds the DNSZone task to the list of dependencies if set
 func (b *PolicyResource) GetDependencies(tasks map[string]fi.Task) []fi.Task {
@@ -792,7 +797,6 @@ func addEtcdManagerPermissions(p *Policy) {
 			},
 		},
 	)
-
 }
 
 func AddLegacyCCMPermissions(p *Policy) {
@@ -839,6 +843,8 @@ func AddCCMPermissions(p *Policy, partition string, cloudRoutes bool) {
 		"elasticloadbalancing:AddTags",
 		"elasticloadbalancing:AttachLoadBalancerToSubnets",
 		"elasticloadbalancing:ApplySecurityGroupsToLoadBalancer",
+		"elasticloadbalancing:CreateLoadBalancerListeners",
+		"elasticloadbalancing:CreateLoadBalancerPolicy",
 		"elasticloadbalancing:ConfigureHealthCheck",
 		"elasticloadbalancing:DeleteLoadBalancer",
 		"elasticloadbalancing:DeleteLoadBalancerListeners",
@@ -859,8 +865,6 @@ func AddCCMPermissions(p *Policy, partition string, cloudRoutes bool) {
 
 	p.clusterTaggedCreateAction.Insert(
 		"elasticloadbalancing:CreateLoadBalancer",
-		"elasticloadbalancing:CreateLoadBalancerPolicy",
-		"elasticloadbalancing:CreateLoadBalancerListeners",
 		"ec2:CreateSecurityGroup",
 		"ec2:CreateVolume",
 		"elasticloadbalancing:CreateListener",
@@ -923,7 +927,6 @@ func AddAWSLoadbalancerControllerPermissions(p *Policy) {
 		"elasticloadbalancing:AddTags",
 		"elasticloadbalancing:RemoveTags",
 	)
-
 }
 
 func AddClusterAutoscalerPermissions(p *Policy) {
@@ -941,7 +944,6 @@ func AddClusterAutoscalerPermissions(p *Policy) {
 
 // AddAWSEBSCSIDriverPermissions appens policy statements that the AWS EBS CSI Driver needs to operate.
 func AddAWSEBSCSIDriverPermissions(p *Policy, partition string, appendSnapshotPermissions bool) {
-
 	if appendSnapshotPermissions {
 		addSnapshotPersmissions(p)
 	}
@@ -1132,7 +1134,8 @@ func addAmazonVPCCNIPermissions(p *Policy, partition string) {
 			}),
 			Resource: stringorslice.Slice([]string{
 				strings.Join([]string{"arn:", partition, ":ec2:*:*:network-interface/*"}, ""),
-			})},
+			}),
+		},
 	)
 }
 
@@ -1148,5 +1151,4 @@ func AddNodeTerminationHandlerSQSPermissions(p *Policy) {
 	p.clusterTaggedAction.Insert(
 		"autoscaling:CompleteLifecycleAction",
 	)
-
 }

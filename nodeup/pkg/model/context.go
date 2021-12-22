@@ -24,6 +24,8 @@ import (
 	"strings"
 
 	"k8s.io/klog/v2"
+	"k8s.io/mount-utils"
+
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/apis/kops/model"
 	"k8s.io/kops/pkg/apis/kops/util"
@@ -34,11 +36,7 @@ import (
 	"k8s.io/kops/util/pkg/architectures"
 	"k8s.io/kops/util/pkg/distributions"
 	"k8s.io/kops/util/pkg/vfs"
-	"k8s.io/mount-utils"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/blang/semver/v4"
 )
 
@@ -74,6 +72,8 @@ type NodeupModelContext struct {
 	ConfigurationMode string
 	InstanceID        string
 	MachineType       string
+
+	CloudProvider kops.CloudProviderID
 }
 
 // Init completes initialization of the object, for example pre-parsing the kubernetes version
@@ -136,7 +136,7 @@ func (c *NodeupModelContext) EnsureDirectory(path string) error {
 	st, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return os.MkdirAll(path, 0755)
+			return os.MkdirAll(path, 0o755)
 		}
 
 		return err
@@ -373,7 +373,7 @@ func (c *NodeupModelContext) UseKopsControllerForNodeBootstrap() bool {
 // UsesSecondaryIP checks if the CNI in use attaches secondary interfaces to the host.
 func (c *NodeupModelContext) UsesSecondaryIP() bool {
 	return (c.Cluster.Spec.Networking.CNI != nil && c.Cluster.Spec.Networking.CNI.UsesSecondaryIP) || c.Cluster.Spec.Networking.AmazonVPC != nil ||
-		(c.Cluster.Spec.Networking.Cilium != nil && c.Cluster.Spec.Networking.Cilium.Ipam == kops.CiliumIpamEni)
+		(c.Cluster.Spec.Networking.Cilium != nil && c.Cluster.Spec.Networking.Cilium.IPAM == kops.CiliumIpamEni)
 }
 
 // UseBootstrapTokens checks if we are using bootstrap tokens
@@ -540,15 +540,10 @@ func (c *NodeupModelContext) BuildLegacyPrivateKeyTask(ctx *fi.ModelBuilderConte
 // NodeName returns the name of the local Node, as it will be created in k8s
 func (c *NodeupModelContext) NodeName() (string, error) {
 	// This mirrors nodeutil.GetHostName
-	hostnameOverride := c.Cluster.Spec.Kubelet.HostnameOverride
+	nodeName := c.Cluster.Spec.Kubelet.HostnameOverride
 
 	if c.IsMaster && c.Cluster.Spec.MasterKubelet.HostnameOverride != "" {
-		hostnameOverride = c.Cluster.Spec.MasterKubelet.HostnameOverride
-	}
-
-	nodeName, err := EvaluateHostnameOverride(hostnameOverride)
-	if err != nil {
-		return "", fmt.Errorf("error evaluating hostname: %v", err)
+		nodeName = c.Cluster.Spec.MasterKubelet.HostnameOverride
 	}
 
 	if nodeName == "" {
@@ -560,57 +555,6 @@ func (c *NodeupModelContext) NodeName() (string, error) {
 	}
 
 	return strings.ToLower(strings.TrimSpace(nodeName)), nil
-}
-
-// EvaluateHostnameOverride returns the hostname after replacing some well-known placeholders
-func EvaluateHostnameOverride(hostnameOverride string) (string, error) {
-	if hostnameOverride == "" || hostnameOverride == "@hostname" {
-		return "", nil
-	}
-	k := strings.TrimSpace(hostnameOverride)
-	k = strings.ToLower(k)
-
-	if k != "@aws" {
-		return hostnameOverride, nil
-	}
-
-	// We recognize @aws as meaning "the private DNS name from AWS", to generate this we need to get a few pieces of information
-	azBytes, err := vfs.Context.ReadFile("metadata://aws/meta-data/placement/availability-zone")
-	if err != nil {
-		return "", fmt.Errorf("error reading availability zone from AWS metadata: %v", err)
-	}
-
-	instanceIDBytes, err := vfs.Context.ReadFile("metadata://aws/meta-data/instance-id")
-	if err != nil {
-		return "", fmt.Errorf("error reading instance-id from AWS metadata: %v", err)
-	}
-	instanceID := string(instanceIDBytes)
-
-	config := aws.NewConfig()
-	config = config.WithCredentialsChainVerboseErrors(true)
-
-	s, err := session.NewSession(config)
-	if err != nil {
-		return "", fmt.Errorf("error starting new AWS session: %v", err)
-	}
-
-	svc := ec2.New(s, config.WithRegion(string(azBytes[:len(azBytes)-1])))
-
-	result, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
-		InstanceIds: []*string{&instanceID},
-	})
-	if err != nil {
-		return "", fmt.Errorf("error describing instances: %v", err)
-	}
-
-	if len(result.Reservations) != 1 {
-		return "", fmt.Errorf("too many reservations returned for the single instance-id")
-	}
-
-	if len(result.Reservations[0].Instances) != 1 {
-		return "", fmt.Errorf("too many instances returned for the single instance-id")
-	}
-	return *(result.Reservations[0].Instances[0].PrivateDnsName), nil
 }
 
 func (b *NodeupModelContext) AddCNIBinAssets(c *fi.ModelBuilderContext, assetNames []string) error {
@@ -671,5 +615,5 @@ func (c *NodeupModelContext) InstallNvidiaRuntime() bool {
 
 // RunningOnGCE returns true if we are running on GCE
 func (c *NodeupModelContext) RunningOnGCE() bool {
-	return kops.CloudProviderID(c.Cluster.Spec.CloudProvider) == kops.CloudProviderGCE
+	return c.CloudProvider == kops.CloudProviderGCE
 }

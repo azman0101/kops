@@ -231,9 +231,7 @@ func RunCreateInstanceGroup(ctx context.Context, f *util.Factory, out io.Writer,
 	}
 
 	if options.Edit {
-		var (
-			edit = editor.NewDefaultEditor(commandutils.EditorEnvs)
-		)
+		edit := editor.NewDefaultEditor(commandutils.EditorEnvs)
 
 		raw, err := kopscodecs.ToVersionedYaml(ig)
 		if err != nil {
@@ -261,7 +259,7 @@ func RunCreateInstanceGroup(ctx context.Context, f *util.Factory, out io.Writer,
 			return fmt.Errorf("unexpected object type: %T", obj)
 		}
 
-		err = validation.CrossValidateInstanceGroup(group, cluster, cloud).ToAggregate()
+		err = validation.CrossValidateInstanceGroup(group, cluster, cloud, true).ToAggregate()
 		if err != nil {
 			return err
 		}

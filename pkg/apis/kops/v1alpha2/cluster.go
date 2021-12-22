@@ -107,7 +107,7 @@ type ClusterSpec struct {
 	ServiceClusterIPRange string `json:"serviceClusterIPRange,omitempty"`
 	// PodCIDR is the CIDR from which we allocate IPs for pods
 	PodCIDR string `json:"podCIDR,omitempty"`
-	//MasterIPRange                 string `json:",omitempty"`
+	// MasterIPRange                 string `json:",omitempty"`
 	// NonMasqueradeCIDR is the CIDR for the internal k8s network (on which pods & services live)
 	// It cannot overlap ServiceClusterIPRange
 	NonMasqueradeCIDR string `json:"nonMasqueradeCIDR,omitempty"`
@@ -191,7 +191,7 @@ type ClusterSpec struct {
 	// EncryptionConfig holds the encryption config
 	EncryptionConfig *bool `json:"encryptionConfig,omitempty"`
 	// DisableSubnetTags controls if subnets are tagged in AWS
-	DisableSubnetTags bool `json:"DisableSubnetTags,omitempty"`
+	TagSubnets *bool `json:"DisableSubnetTags,omitempty"`
 	// Target allows for us to nest extra config for targets such as terraform
 	Target *TargetSpec `json:"target,omitempty"`
 	// UseHostCertificates will mount /etc/ssl/certs to inside needed containers.
@@ -211,6 +211,12 @@ type ClusterSpec struct {
 	ServiceAccountIssuerDiscovery *ServiceAccountIssuerDiscoveryConfig `json:"serviceAccountIssuerDiscovery,omitempty"`
 	// SnapshotController defines the CSI Snapshot Controller configuration.
 	SnapshotController *SnapshotControllerConfig `json:"snapshotController,omitempty"`
+	// Karpenter defines the Karpenter configuration.
+	Karpenter *KarpenterConfig `json:"karpenter,omitempty"`
+}
+
+type KarpenterConfig struct {
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 // ServiceAccountIssuerDiscoveryConfig configures an OIDC Issuer.
@@ -314,7 +320,7 @@ type HookSpec struct {
 	// Name is an optional name for the hook, otherwise the name is kops-hook-<index>
 	Name string `json:"name,omitempty"`
 	// Disabled indicates if you want the unit switched off
-	Disabled bool `json:"disabled,omitempty"`
+	Enabled *bool `json:"disabled,omitempty"`
 	// Roles is an optional list of roles the hook should be rolled out to, defaults to all
 	Roles []InstanceGroupRole `json:"roles,omitempty"`
 	// Requires is a series of systemd units the action requires
@@ -343,17 +349,16 @@ type ExecContainerAction struct {
 
 type AuthenticationSpec struct {
 	Kopeio *KopeioAuthenticationSpec `json:"kopeio,omitempty"`
-	Aws    *AwsAuthenticationSpec    `json:"aws,omitempty"`
+	AWS    *AWSAuthenticationSpec    `json:"aws,omitempty"`
 }
 
 func (s *AuthenticationSpec) IsEmpty() bool {
-	return s.Kopeio == nil && s.Aws == nil
+	return s.Kopeio == nil && s.AWS == nil
 }
 
-type KopeioAuthenticationSpec struct {
-}
+type KopeioAuthenticationSpec struct{}
 
-type AwsAuthenticationSpec struct {
+type AWSAuthenticationSpec struct {
 	// Image is the AWS IAM Authenticator docker image to uses
 	Image string `json:"image,omitempty"`
 	// BackendMode is the AWS IAM Authenticator backend to use. Default MountedFile
@@ -369,10 +374,10 @@ type AwsAuthenticationSpec struct {
 	// CPULimit CPU limit of AWS IAM Authenticator container. Default 10m
 	CPULimit *resource.Quantity `json:"cpuLimit,omitempty"`
 	// IdentityMappings maps IAM Identities to Kubernetes users/groups
-	IdentityMappings []AwsAuthenticationIdentityMappingSpec `json:"identityMappings,omitempty"`
+	IdentityMappings []AWSAuthenticationIdentityMappingSpec `json:"identityMappings,omitempty"`
 }
 
-type AwsAuthenticationIdentityMappingSpec struct {
+type AWSAuthenticationIdentityMappingSpec struct {
 	// Arn of the IAM User or IAM Role to be allowed to authenticate
 	ARN string `json:"arn,omitempty"`
 	// Username that Kubernetes will see the user as
@@ -390,11 +395,9 @@ func (s *AuthorizationSpec) IsEmpty() bool {
 	return s.RBAC == nil && s.AlwaysAllow == nil
 }
 
-type RBACAuthorizationSpec struct {
-}
+type RBACAuthorizationSpec struct{}
 
-type AlwaysAllowAuthorizationSpec struct {
-}
+type AlwaysAllowAuthorizationSpec struct{}
 
 // AccessSpec provides configuration details related to kubeapi dns and ELB access
 type AccessSpec struct {
@@ -408,8 +411,7 @@ func (s *AccessSpec) IsEmpty() bool {
 	return s.DNS == nil && s.LoadBalancer == nil
 }
 
-type DNSAccessSpec struct {
-}
+type DNSAccessSpec struct{}
 
 // LoadBalancerType string describes LoadBalancer types (public, internal)
 type LoadBalancerType string
@@ -463,8 +465,8 @@ type LoadBalancerAccessSpec struct {
 	SecurityGroupOverride *string `json:"securityGroupOverride,omitempty"`
 	// AdditionalSecurityGroups attaches additional security groups (e.g. sg-123456).
 	AdditionalSecurityGroups []string `json:"additionalSecurityGroups,omitempty"`
-	// UseForInternalApi indicates whether the LB should be used by the kubelet
-	UseForInternalApi bool `json:"useForInternalApi,omitempty"`
+	// UseForInternalAPI indicates whether the LB should be used by the kubelet
+	UseForInternalAPI bool `json:"useForInternalApi,omitempty"`
 	// SSLCertificate allows you to specify the ACM cert to be used the LB
 	SSLCertificate string `json:"sslCertificate,omitempty"`
 	// SSLPolicy allows you to overwrite the LB listener's Security Policy
@@ -495,9 +497,11 @@ type KubeDNSConfig struct {
 	Domain string `json:"domain,omitempty"`
 	// ExternalCoreFile is used to provide a complete CoreDNS CoreFile by the user - ignores other provided flags which modify the CoreFile.
 	ExternalCoreFile string `json:"externalCoreFile,omitempty"`
-	// Image is the name of the docker image to run - @deprecated as this is now in the addon
+	// Image is unused.
+	// +k8s:conversion-gen=false
 	Image string `json:"image,omitempty"`
-	// Replicas is the number of pod replicas - @deprecated as this is now in the addon, and controlled by autoscaler
+	// Replicas is unused.
+	// +k8s:conversion-gen=false
 	Replicas int `json:"replicas,omitempty"`
 	// Provider indicates whether CoreDNS or kube-dns will be the default service discovery.
 	Provider string `json:"provider,omitempty"`
@@ -543,8 +547,10 @@ const (
 // ExternalDNSConfig are options of the dns-controller
 type ExternalDNSConfig struct {
 	// Disable indicates we do not wish to run the dns-controller addon
+	// +k8s:conversion-gen=false
 	Disable bool `json:"disable,omitempty"`
-	// WatchIngress indicates you want the dns-controller to watch and create dns entries for ingress resources
+	// WatchIngress indicates you want the dns-controller to watch and create dns entries for ingress resources.
+	// Default: true if provider is 'external-dns', false otherwise.
 	WatchIngress *bool `json:"watchIngress,omitempty"`
 	// WatchNamespace is namespace to watch, defaults to all (use to control whom can creates dns entries)
 	WatchNamespace string `json:"watchNamespace,omitempty"`
@@ -627,14 +633,14 @@ type EtcdMemberSpec struct {
 	InstanceGroup *string `json:"instanceGroup,omitempty"`
 	// VolumeType is the underlying cloud storage class
 	VolumeType *string `json:"volumeType,omitempty"`
-	// If volume type is io1, then we need to specify the number of Iops.
-	VolumeIops *int32 `json:"volumeIops,omitempty"`
+	// If volume type is io1, then we need to specify the number of IOPS.
+	VolumeIOPS *int32 `json:"volumeIops,omitempty"`
 	// Parameter for disks that support provisioned throughput
 	VolumeThroughput *int32 `json:"volumeThroughput,omitempty"`
 	// VolumeSize is the underlying cloud volume size
 	VolumeSize *int32 `json:"volumeSize,omitempty"`
-	// KmsKeyId is a AWS KMS ID used to encrypt the volume
-	KmsKeyId *string `json:"kmsKeyId,omitempty"`
+	// KmsKeyID is a AWS KMS ID used to encrypt the volume
+	KmsKeyID *string `json:"kmsKeyId,omitempty"`
 	// EncryptedVolume indicates you want to encrypt the volume
 	EncryptedVolume *bool `json:"encryptedVolume,omitempty"`
 }

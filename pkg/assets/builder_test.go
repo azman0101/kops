@@ -17,7 +17,7 @@ limitations under the License.
 package assets
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -156,7 +156,6 @@ func TestValidate_RemapImage_ContainerRegistry_MappingMultipleTimesConverges(t *
 			t.Errorf("Error remapping image (Expecting: %s, got %s, iteration: %d)", expected, remapped, i)
 		}
 	}
-
 }
 
 func TestRemapEmptySection(t *testing.T) {
@@ -169,7 +168,7 @@ func TestRemapEmptySection(t *testing.T) {
 	inputPath := filepath.Join(testdir, key+".input.yaml")
 	expectedPath := filepath.Join(testdir, key+".expected.yaml")
 
-	input, err := ioutil.ReadFile(inputPath)
+	input, err := os.ReadFile(inputPath)
 	if err != nil {
 		t.Errorf("error reading file %q: %v", inputPath, err)
 	}

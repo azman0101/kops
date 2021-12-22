@@ -13,7 +13,6 @@ contents: |
     - args:
       - --cluster-cidr=100.96.0.0/11
       - --conntrack-max-per-core=131072
-      - --hostname-override=@aws
       - --kubeconfig=/var/lib/kube-proxy/kubeconfig
       - --master=https://127.0.0.1
       - --oom-score-adj=-998
@@ -23,7 +22,7 @@ contents: |
       - --log-file=/var/log/kube-proxy.log
       command:
       - /usr/local/bin/kube-proxy
-      image: k8s.gcr.io/kube-proxy-arm64:v1.18.0
+      image: k8s.gcr.io/kube-proxy-arm64:v1.22.0
       name: kube-proxy
       resources:
         requests:

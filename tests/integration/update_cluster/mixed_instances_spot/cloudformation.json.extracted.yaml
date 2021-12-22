@@ -41,7 +41,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersmixedinstancesexamplecom.Prop
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -64,7 +64,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersmixedinstancesexamplecom.Prop
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -131,7 +131,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersmixedinstancesexamplecom.Prop
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   encryptionConfig: null
@@ -197,7 +197,6 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersmixedinstancesexamplecom.Prop
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
-    hostnameOverride: '@aws'
     image: k8s.gcr.io/kube-proxy:v1.21.0
     logLevel: 2
   kubeScheduler:
@@ -214,11 +213,9 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersmixedinstancesexamplecom.Prop
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
   masterKubelet:
     anonymousAuth: false
@@ -229,11 +226,9 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersmixedinstancesexamplecom.Prop
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
     registerSchedulable: false
 
@@ -244,7 +239,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1amastersmixedinstancesexamplecom.Prop
   ConfigBase: memfs://clusters.example.com/mixedinstances.example.com
   InstanceGroupName: master-us-test-1a
   InstanceGroupRole: Master
-  NodeupConfigHash: Z8T3uaWJY6tDT9ieoX1qyQOphMoH6IJCnP6d7+3P0ho=
+  NodeupConfigHash: JRU3+9WGOVuVEPDf71l1HZb+xZJJGwMUpsuDilajJXo=
 
   __EOF_KUBE_ENV
 
@@ -293,7 +288,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1bmastersmixedinstancesexamplecom.Prop
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -316,7 +311,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1bmastersmixedinstancesexamplecom.Prop
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -383,7 +378,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1bmastersmixedinstancesexamplecom.Prop
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   encryptionConfig: null
@@ -449,7 +444,6 @@ Resources.AWSEC2LaunchTemplatemasterustest1bmastersmixedinstancesexamplecom.Prop
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
-    hostnameOverride: '@aws'
     image: k8s.gcr.io/kube-proxy:v1.21.0
     logLevel: 2
   kubeScheduler:
@@ -466,11 +460,9 @@ Resources.AWSEC2LaunchTemplatemasterustest1bmastersmixedinstancesexamplecom.Prop
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
   masterKubelet:
     anonymousAuth: false
@@ -481,11 +473,9 @@ Resources.AWSEC2LaunchTemplatemasterustest1bmastersmixedinstancesexamplecom.Prop
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
     registerSchedulable: false
 
@@ -496,7 +486,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1bmastersmixedinstancesexamplecom.Prop
   ConfigBase: memfs://clusters.example.com/mixedinstances.example.com
   InstanceGroupName: master-us-test-1b
   InstanceGroupRole: Master
-  NodeupConfigHash: Z8T3uaWJY6tDT9ieoX1qyQOphMoH6IJCnP6d7+3P0ho=
+  NodeupConfigHash: JRU3+9WGOVuVEPDf71l1HZb+xZJJGwMUpsuDilajJXo=
 
   __EOF_KUBE_ENV
 
@@ -545,7 +535,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1cmastersmixedinstancesexamplecom.Prop
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -568,7 +558,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1cmastersmixedinstancesexamplecom.Prop
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -635,7 +625,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1cmastersmixedinstancesexamplecom.Prop
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   encryptionConfig: null
@@ -701,7 +691,6 @@ Resources.AWSEC2LaunchTemplatemasterustest1cmastersmixedinstancesexamplecom.Prop
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
-    hostnameOverride: '@aws'
     image: k8s.gcr.io/kube-proxy:v1.21.0
     logLevel: 2
   kubeScheduler:
@@ -718,11 +707,9 @@ Resources.AWSEC2LaunchTemplatemasterustest1cmastersmixedinstancesexamplecom.Prop
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
   masterKubelet:
     anonymousAuth: false
@@ -733,11 +720,9 @@ Resources.AWSEC2LaunchTemplatemasterustest1cmastersmixedinstancesexamplecom.Prop
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
     registerSchedulable: false
 
@@ -748,7 +733,7 @@ Resources.AWSEC2LaunchTemplatemasterustest1cmastersmixedinstancesexamplecom.Prop
   ConfigBase: memfs://clusters.example.com/mixedinstances.example.com
   InstanceGroupName: master-us-test-1c
   InstanceGroupRole: Master
-  NodeupConfigHash: Z8T3uaWJY6tDT9ieoX1qyQOphMoH6IJCnP6d7+3P0ho=
+  NodeupConfigHash: JRU3+9WGOVuVEPDf71l1HZb+xZJJGwMUpsuDilajJXo=
 
   __EOF_KUBE_ENV
 
@@ -797,7 +782,7 @@ Resources.AWSEC2LaunchTemplatenodesmixedinstancesexamplecom.Properties.LaunchTem
       if ! validate-hash "${file}" "${hash}"; then
         rm -f "${file}"
       else
-        return
+        return 0
       fi
     fi
 
@@ -820,7 +805,7 @@ Resources.AWSEC2LaunchTemplatenodesmixedinstancesexamplecom.Properties.LaunchTem
             rm -f "${file}"
           else
             echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-            return
+            return 0
           fi
         done
       done
@@ -887,13 +872,12 @@ Resources.AWSEC2LaunchTemplatenodesmixedinstancesexamplecom.Properties.LaunchTem
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.4.11
+    version: 1.4.12
   docker:
     skipInstall: true
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
-    hostnameOverride: '@aws'
     image: k8s.gcr.io/kube-proxy:v1.21.0
     logLevel: 2
   kubelet:
@@ -905,11 +889,9 @@ Resources.AWSEC2LaunchTemplatenodesmixedinstancesexamplecom.Properties.LaunchTem
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podManifestPath: /etc/kubernetes/manifests
 
   __EOF_CLUSTER_SPEC
@@ -919,7 +901,7 @@ Resources.AWSEC2LaunchTemplatenodesmixedinstancesexamplecom.Properties.LaunchTem
   ConfigBase: memfs://clusters.example.com/mixedinstances.example.com
   InstanceGroupName: nodes
   InstanceGroupRole: Node
-  NodeupConfigHash: cYibNJpkNVEaVmVa2TF6wG3bgThiyxG+Fja1ifObcbY=
+  NodeupConfigHash: vfX0fmJK/o7qKtAmd1WSRTWymFToAevp7SU63+SY8zs=
 
   __EOF_KUBE_ENV
 

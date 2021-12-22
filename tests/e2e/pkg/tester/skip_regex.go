@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	skipRegexBase = "\\[Slow\\]|\\[Serial\\]|\\[Disruptive\\]|\\[Flaky\\]|\\[Feature:.+\\]|\\[HPA\\]|\\[Driver:.nfs\\]|Dashboard|Gluster|RuntimeClass|RuntimeHandler"
+	skipRegexBase = "\\[Slow\\]|\\[Serial\\]|\\[Disruptive\\]|\\[Flaky\\]|\\[Feature:.+\\]|\\[Driver:.nfs\\]|Gluster"
 )
 
 func (t *Tester) setSkipRegexFlag() error {
@@ -51,15 +51,13 @@ func (t *Tester) setSkipRegexFlag() error {
 		skipRegex += "|external.IP.is.not.assigned.to.a.node"
 		// https://github.com/cilium/cilium/issues/14287
 		skipRegex += "|same.port.number.but.different.protocols|same.hostPort.but.different.hostIP.and.protocol"
-		if strings.Contains(cluster.Spec.KubernetesVersion, "v1.23.0") {
+		if strings.Contains(cluster.Spec.KubernetesVersion, "v1.23") || strings.Contains(cluster.Spec.KubernetesVersion, "v1.24") {
 			// Reassess after https://github.com/kubernetes/kubernetes/pull/102643 is merged
 			// ref:
 			// https://github.com/kubernetes/kubernetes/issues/96717
 			// https://github.com/cilium/cilium/issues/5719
 			skipRegex += "|should.create.a.Pod.with.SCTP.HostPort"
 		}
-	} else if networking.Calico != nil {
-		skipRegex += "|Services.*functioning.*NodePort"
 	} else if networking.Kuberouter != nil {
 		skipRegex += "|load-balancer|hairpin|affinity\\stimeout|service\\.kubernetes\\.io|CLOSE_WAIT"
 	} else if networking.Kubenet != nil {
@@ -73,14 +71,27 @@ func (t *Tester) setSkipRegexFlag() error {
 		skipRegex += "|Firewall"
 		// kube-dns tests are not skipped automatically if a cluster uses CoreDNS instead
 		skipRegex += "|kube-dns"
+		// this tests assumes a custom config for containerd:
+		// https://github.com/kubernetes/test-infra/blob/578d86a7be187214be6ccd60e6ea7317b51aeb15/jobs/e2e_node/containerd/config.toml#L19-L21
+		// ref: https://github.com/kubernetes/kubernetes/pull/104803
+		skipRegex += "|RuntimeClass.should.run"
 		// this test assumes the cluster runs COS but kOps uses Ubuntu by default
 		// ref: https://github.com/kubernetes/test-infra/pull/22190
 		skipRegex += "|should.be.mountable.when.non-attachable"
+		// The in-tree driver and its E2E tests use `topology.kubernetes.io/zone` but the CSI driver uses `topology.gke.io/zone`
+		skipRegex += "|In-tree.Volumes.\\[Driver:.gcepd\\].*topology.should.provision.a.volume.and.schedule.a.pod.with.AllowedTopologies"
+	} else if strings.Contains(cluster.Spec.KubernetesVersion, "v1.1") ||
+		strings.Contains(cluster.Spec.KubernetesVersion, "v1.20.") ||
+		strings.Contains(cluster.Spec.KubernetesVersion, "v1.21.") ||
+		strings.Contains(cluster.Spec.KubernetesVersion, "v1.22.") {
+		// this tests assumes a custom config for containerd:
+		// https://github.com/kubernetes/test-infra/blob/578d86a7be187214be6ccd60e6ea7317b51aeb15/jobs/e2e_node/containerd/config.toml#L19-L21
+		// ref: https://github.com/kubernetes/kubernetes/pull/104803
+		skipRegex += "|RuntimeClass.should.run"
 	}
 
-	if cluster.Spec.CloudProvider == "aws" && utils.IsIPv6CIDR(cluster.Spec.NonMasqueradeCIDR) {
-		// AWS VPC Classic ELBs are IPv4 only
-		// ref: https://docs.aws.amazon.com/elasticloadbalancing/latest/classic/elb-internet-facing-load-balancers.html#internet-facing-ip-addresses
+	if strings.Contains(cluster.Spec.KubernetesVersion, "v1.23.") && cluster.Spec.CloudProvider == "aws" && utils.IsIPv6CIDR(cluster.Spec.NonMasqueradeCIDR) {
+		// ref: https://github.com/kubernetes/kubernetes/pull/106992
 		skipRegex += "|should.not.disrupt.a.cloud.load-balancer.s.connectivity.during.rollout"
 	}
 

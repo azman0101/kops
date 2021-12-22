@@ -51,9 +51,9 @@ type InstanceTemplate struct {
 
 	Lifecycle fi.Lifecycle
 
-	Network *Network
-	Tags    []string
-	//Labels      map[string]string
+	Network     *Network
+	Tags        []string
+	Labels      map[string]string
 	Preemptible *bool
 
 	BootDiskImage  *string
@@ -65,7 +65,7 @@ type InstanceTemplate struct {
 	AliasIPRanges map[string]string
 
 	Scopes          []string
-	ServiceAccounts []string
+	ServiceAccounts []*ServiceAccount
 
 	Metadata    map[string]fi.Resource
 	MachineType *string
@@ -77,8 +77,10 @@ type InstanceTemplate struct {
 	ID *string
 }
 
-var _ fi.Task = &InstanceTemplate{}
-var _ fi.CompareWithID = &InstanceTemplate{}
+var (
+	_ fi.Task          = &InstanceTemplate{}
+	_ fi.CompareWithID = &InstanceTemplate{}
+)
 
 func (e *InstanceTemplate) CompareWithID() *string {
 	return e.ID
@@ -114,6 +116,7 @@ func (e *InstanceTemplate) Find(c *fi.Context) (*InstanceTemplate, error) {
 		p := r.Properties
 
 		actual.Tags = append(actual.Tags, p.Tags.Items...)
+		actual.Labels = p.Labels
 		actual.MachineType = fi.String(lastComponent(p.MachineType))
 		actual.CanIPForward = &p.CanIpForward
 
@@ -161,7 +164,9 @@ func (e *InstanceTemplate) Find(c *fi.Context) (*InstanceTemplate, error) {
 			for _, scope := range serviceAccount.Scopes {
 				actual.Scopes = append(actual.Scopes, scopeToShortForm(scope))
 			}
-			actual.ServiceAccounts = append(actual.ServiceAccounts, serviceAccount.Email)
+			actual.ServiceAccounts = append(actual.ServiceAccounts, &ServiceAccount{
+				Email: &serviceAccount.Email,
+			})
 		}
 
 		// When we deal with additional disks (local disks), we'll need to map them like this...
@@ -303,25 +308,14 @@ func (e *InstanceTemplate) mapToGCE(project string, region string) (*compute.Ins
 			scopes = append(scopes, s)
 		}
 	}
-	serviceAccounts := []*compute.ServiceAccount{
-		{
-			Email:  e.ServiceAccounts[0],
+
+	var serviceAccounts []*compute.ServiceAccount
+	for _, sa := range e.ServiceAccounts {
+		serviceAccounts = append(serviceAccounts, &compute.ServiceAccount{
+			Email:  fi.StringValue(sa.Email),
 			Scopes: scopes,
-		},
+		})
 	}
-	// if e.ServiceAccounts != nil {
-	//	for _, s := range e.ServiceAccounts {
-	//		serviceAccounts = append(serviceAccounts, &compute.ServiceAccount{
-	//			Email:  s,
-	//			Scopes: scopes,
-	//		})
-	//	}
-	// } else {
-	//	serviceAccounts = append(serviceAccounts, &compute.ServiceAccount{
-	//		Email:  "default",
-	//		Scopes: scopes,
-	//	})
-	// }
 
 	var metadataItems []*compute.MetadataItems
 	for key, r := range e.Metadata {
@@ -355,7 +349,8 @@ func (e *InstanceTemplate) mapToGCE(project string, region string) (*compute.Ins
 
 			ServiceAccounts: serviceAccounts,
 
-			Tags: tags,
+			Labels: e.Labels,
+			Tags:   tags,
 		},
 	}
 
@@ -450,18 +445,19 @@ type terraformInstanceTemplate struct {
 	NamePrefix            string                                   `json:"name_prefix" cty:"name_prefix"`
 	CanIPForward          bool                                     `json:"can_ip_forward" cty:"can_ip_forward"`
 	MachineType           string                                   `json:"machine_type,omitempty" cty:"machine_type"`
-	ServiceAccount        *terraformServiceAccount                 `json:"service_account,omitempty" cty:"service_account"`
+	ServiceAccounts       []*terraformTemplateServiceAccount       `json:"service_account,omitempty" cty:"service_account"`
 	Scheduling            *terraformScheduling                     `json:"scheduling,omitempty" cty:"scheduling"`
 	Disks                 []*terraformInstanceTemplateAttachedDisk `json:"disk,omitempty" cty:"disk"`
+	Labels                map[string]string                        `json:"labels,omitempty" cty:"labels"`
 	NetworkInterfaces     []*terraformNetworkInterface             `json:"network_interface,omitempty" cty:"network_interface"`
 	Metadata              map[string]*terraformWriter.Literal      `json:"metadata,omitempty" cty:"metadata"`
 	MetadataStartupScript *terraformWriter.Literal                 `json:"metadata_startup_script,omitempty" cty:"metadata_startup_script"`
 	Tags                  []string                                 `json:"tags,omitempty" cty:"tags"`
 }
 
-type terraformServiceAccount struct {
-	Email  string   `json:"email" cty:"email"`
-	Scopes []string `json:"scopes" cty:"scopes"`
+type terraformTemplateServiceAccount struct {
+	Email  *terraformWriter.Literal `json:"email" cty:"email"`
+	Scopes []string                 `json:"scopes" cty:"scopes"`
 }
 
 type terraformScheduling struct {
@@ -541,23 +537,25 @@ func addMetadata(target *terraform.TerraformTarget, name string, metadata *compu
 	return m, nil
 }
 
-func addServiceAccounts(serviceAccounts []*compute.ServiceAccount) *terraformServiceAccount {
-	// there's an inconsistency here- GCP only lets you have one service account per VM
-	// terraform gets it right, but the golang api doesn't. womp womp :(
-	if len(serviceAccounts) != 1 {
-		klog.Fatal("Instances can only have 1 service account assigned.")
+func mapServiceAccountsToTerraform(serviceAccounts []*ServiceAccount, saScopes []string) []*terraformTemplateServiceAccount {
+	var scopes []string
+	for _, s := range saScopes {
+		s = scopeToLongForm(s)
+		scopes = append(scopes, s)
 	}
-	klog.Infof("adding csa: %v", serviceAccounts[0].Email)
-	csa := serviceAccounts[0]
-	tsa := &terraformServiceAccount{
-		Email:  csa.Email,
-		Scopes: csa.Scopes,
+	// Note that GCE currently only allows one service account per VM,
+	// but the model in both the API and terraform allows more.
+	var out []*terraformTemplateServiceAccount
+	for _, serviceAccount := range serviceAccounts {
+		tsa := &terraformTemplateServiceAccount{
+			Email:  serviceAccount.TerraformLink(),
+			Scopes: scopes,
+		}
+		out = append(out, tsa)
 	}
-	// for _, scope := range csa.Scopes {
-	//	tsa.Scopes = append(tsa.Scopes, scope)
-	// }
-	return tsa
+	return out
 }
+
 func (_ *InstanceTemplate) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *InstanceTemplate) error {
 	project := t.Project
 
@@ -574,10 +572,10 @@ func (_ *InstanceTemplate) RenderTerraform(t *terraform.TerraformTarget, a, e, c
 
 	tf.CanIPForward = i.Properties.CanIpForward
 	tf.MachineType = lastComponent(i.Properties.MachineType)
-	//tf.Zone = i.Properties.Zone
+	tf.Labels = i.Properties.Labels
 	tf.Tags = i.Properties.Tags.Items
 
-	tf.ServiceAccount = addServiceAccounts(i.Properties.ServiceAccounts)
+	tf.ServiceAccounts = mapServiceAccountsToTerraform(e.ServiceAccounts, e.Scopes)
 
 	for _, d := range i.Properties.Disks {
 		tfd := &terraformInstanceTemplateAttachedDisk{

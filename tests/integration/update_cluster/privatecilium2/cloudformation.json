@@ -1477,6 +1477,10 @@
           "Interval": "10",
           "Timeout": "5"
         },
+        "ConnectionDrainingPolicy": {
+          "Enabled": true,
+          "Timeout": 300
+        },
         "ConnectionSettings": {
           "IdleTimeout": 300
         },
@@ -1804,6 +1808,8 @@
                 "elasticloadbalancing:ApplySecurityGroupsToLoadBalancer",
                 "elasticloadbalancing:AttachLoadBalancerToSubnets",
                 "elasticloadbalancing:ConfigureHealthCheck",
+                "elasticloadbalancing:CreateLoadBalancerListeners",
+                "elasticloadbalancing:CreateLoadBalancerPolicy",
                 "elasticloadbalancing:DeleteListener",
                 "elasticloadbalancing:DeleteLoadBalancer",
                 "elasticloadbalancing:DeleteLoadBalancerListeners",
@@ -1833,8 +1839,6 @@
                 "ec2:CreateVolume",
                 "elasticloadbalancing:CreateListener",
                 "elasticloadbalancing:CreateLoadBalancer",
-                "elasticloadbalancing:CreateLoadBalancerListeners",
-                "elasticloadbalancing:CreateLoadBalancerPolicy",
                 "elasticloadbalancing:CreateTargetGroup"
               ],
               "Condition": {
@@ -1870,8 +1874,6 @@
                 "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/privatecilium.example.com/addons/*",
                 "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/privatecilium.example.com/cluster-completed.spec",
                 "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/privatecilium.example.com/igconfig/node/*",
-                "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/privatecilium.example.com/pki/private/kube-proxy/*",
-                "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/privatecilium.example.com/pki/private/kubelet/*",
                 "arn:aws-test:s3:::placeholder-read-bucket/clusters.example.com/privatecilium.example.com/secrets/dockerconfig"
               ]
             },

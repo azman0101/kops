@@ -44,6 +44,9 @@ API_OPTIONS?=
 GCFLAGS?=
 BAZEL_BIN=.bazel-bin
 
+# CODEGEN_VERSION is the version of k8s.io/code-generator to use
+CODEGEN_VERSION=v0.22.2
+
 
 UPLOAD_CMD=$(KOPS_ROOT)/hack/upload ${UPLOAD_ARGS}
 
@@ -66,13 +69,13 @@ GITSHA := $(shell cd ${KOPS_ROOT}; git describe --always)
 # We lock the versions of our controllers also
 # We need to keep in sync with:
 #   upup/models/cloudup/resources/addons/dns-controller/
-DNS_CONTROLLER_TAG=1.23.0-alpha.1
+DNS_CONTROLLER_TAG=1.24.0-alpha.1
 DNS_CONTROLLER_PUSH_TAG=$(shell tools/get_workspace_status.sh | grep STABLE_DNS_CONTROLLER_TAG | awk '{print $$2}')
 #   upup/models/cloudup/resources/addons/kops-controller.addons.k8s.io/
-KOPS_CONTROLLER_TAG=1.23.0-alpha.1
+KOPS_CONTROLLER_TAG=1.24.0-alpha.1
 KOPS_CONTROLLER_PUSH_TAG=$(shell tools/get_workspace_status.sh | grep STABLE_KOPS_CONTROLLER_TAG | awk '{print $$2}')
 #   pkg/model/components/kubeapiserver/model.go
-KUBE_APISERVER_HEALTHCHECK_TAG=1.23.0-alpha.1
+KUBE_APISERVER_HEALTHCHECK_TAG=1.24.0-alpha.1
 KUBE_APISERVER_HEALTHCHECK_PUSH_TAG=$(shell tools/get_workspace_status.sh | grep STABLE_KUBE_APISERVER_HEALTHCHECK_TAG | awk '{print $$2}')
 
 
@@ -327,8 +330,8 @@ bazel-crossbuild-dns-controller:
 
 .PHONY: dns-controller-push
 dns-controller-push: bazelisk
-	DOCKER_REGISTRY=${DOCKER_REGISTRY} DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX} DNS_CONTROLLER_TAG=${DNS_CONTROLLER_PUSH_TAG} ${BAZEL} run --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 //dns-controller/cmd/dns-controller:push-image-amd64
-	DOCKER_REGISTRY=${DOCKER_REGISTRY} DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX} DNS_CONTROLLER_TAG=${DNS_CONTROLLER_PUSH_TAG} ${BAZEL} run --platforms=@io_bazel_rules_go//go/toolchain:linux_arm64 //dns-controller/cmd/dns-controller:push-image-arm64
+	DOCKER_REGISTRY=${DOCKER_REGISTRY} DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX} DNS_CONTROLLER_TAG=${DNS_CONTROLLER_PUSH_TAG} ${BAZEL} run --@io_bazel_rules_go//go/config:pure --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 //dns-controller/cmd/dns-controller:push-image-amd64
+	DOCKER_REGISTRY=${DOCKER_REGISTRY} DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX} DNS_CONTROLLER_TAG=${DNS_CONTROLLER_PUSH_TAG} ${BAZEL} run --@io_bazel_rules_go//go/config:pure --platforms=@io_bazel_rules_go//go/toolchain:linux_arm64 //dns-controller/cmd/dns-controller:push-image-arm64
 
 .PHONY: dns-controller-manifest
 dns-controller-manifest:
@@ -414,9 +417,9 @@ verify-gendocs: ${KOPS}
 verify-bazel:
 	hack/verify-bazel.sh
 
-.PHONY: verify-staticcheck
-verify-staticcheck:
-	hack/verify-staticcheck.sh
+.PHONY: verify-golangci-lint
+verify-golangci-lint:
+	hack/verify-golangci-lint.sh
 
 .PHONY: verify-shellcheck
 verify-shellcheck:
@@ -437,7 +440,7 @@ verify-hashes:
 # ci target is for developers, it aims to cover all the CI jobs
 # verify-gendocs will call kops target
 .PHONY: ci
-ci: govet verify-gofmt verify-crds verify-gomod verify-goimports verify-boilerplate verify-bazel verify-versions verify-misspelling verify-shellcheck verify-staticcheck verify-terraform nodeup examples test | verify-gendocs verify-apimachinery verify-codegen
+ci: govet verify-gofmt verify-crds verify-gomod verify-goimports verify-boilerplate verify-bazel verify-versions verify-misspelling verify-shellcheck verify-golangci-lint verify-terraform nodeup examples test | verify-gendocs verify-apimachinery verify-codegen
 	echo "Done!"
 
 # we skip tasks that rely on bazel and are covered by other jobs
@@ -486,32 +489,39 @@ examples: ${BINDATA_TARGETS} # Install kops API example
 apimachinery: apimachinery-codegen goimports
 
 .PHONY: apimachinery-codegen
-apimachinery-codegen:
-	hack/update-apimachinery.sh
-	# These code-generator tools still depend on the kops repo being in GOPATH
-	# ref: https://github.com/kubernetes/gengo/issues/64
-	${KOPS_ROOT}/_output/bin/conversion-gen ${API_OPTIONS} --skip-unsafe=true --input-dirs k8s.io/kops/pkg/apis/kops/v1alpha2 --v=0  --output-file-base=zz_generated.conversion \
+apimachinery-codegen: apimachinery-codegen-conversion apimachinery-codegen-deepcopy apimachinery-codegen-defaulter apimachinery-codegen-client
+
+.PHONY: apimachinery-codegen-conversion
+apimachinery-codegen-conversion:
+	go run k8s.io/code-generator/cmd/conversion-gen@${CODEGEN_VERSION} ${API_OPTIONS} --skip-unsafe=true --input-dirs ./pkg/apis/kops/v1alpha2 --v=0  --output-file-base=zz_generated.conversion \
 		 --go-header-file "hack/boilerplate/boilerplate.generatego.txt"
 	grep 'requires manual conversion' ${KOPS_ROOT}/pkg/apis/kops/v1alpha2/zz_generated.conversion.go ; [ $$? -eq 1 ]
-	${KOPS_ROOT}/_output/bin/conversion-gen ${API_OPTIONS} --skip-unsafe=true --input-dirs k8s.io/kops/pkg/apis/kops/v1alpha3 --v=0  --output-file-base=zz_generated.conversion \
+	go run k8s.io/code-generator/cmd/conversion-gen@${CODEGEN_VERSION} ${API_OPTIONS} --skip-unsafe=true --input-dirs ./pkg/apis/kops/v1alpha3 --v=0  --output-file-base=zz_generated.conversion \
 		 --go-header-file "hack/boilerplate/boilerplate.generatego.txt"
 	grep 'requires manual conversion' ${KOPS_ROOT}/pkg/apis/kops/v1alpha3/zz_generated.conversion.go ; [ $$? -eq 1 ]
-	${KOPS_ROOT}/_output/bin/deepcopy-gen ${API_OPTIONS} --input-dirs k8s.io/kops/pkg/apis/kops --v=0  --output-file-base=zz_generated.deepcopy \
+
+.PHONY: apimachinery-codegen-deepcopy
+apimachinery-codegen-deepcopy:
+	go run k8s.io/code-generator/cmd/deepcopy-gen@${CODEGEN_VERSION} ${API_OPTIONS} --input-dirs ./pkg/apis/kops --v=0  --output-file-base=zz_generated.deepcopy \
 		 --go-header-file "hack/boilerplate/boilerplate.generatego.txt"
-	${KOPS_ROOT}/_output/bin/deepcopy-gen ${API_OPTIONS} --input-dirs k8s.io/kops/pkg/apis/kops/v1alpha2 --v=0  --output-file-base=zz_generated.deepcopy \
+	go run k8s.io/code-generator/cmd/deepcopy-gen@${CODEGEN_VERSION} ${API_OPTIONS} --input-dirs ./pkg/apis/kops/v1alpha2 --v=0  --output-file-base=zz_generated.deepcopy \
 		 --go-header-file "hack/boilerplate/boilerplate.generatego.txt"
-	${KOPS_ROOT}/_output/bin/deepcopy-gen ${API_OPTIONS} --input-dirs k8s.io/kops/pkg/apis/kops/v1alpha3 --v=0  --output-file-base=zz_generated.deepcopy \
+	go run k8s.io/code-generator/cmd/deepcopy-gen@${CODEGEN_VERSION} ${API_OPTIONS} --input-dirs ./pkg/apis/kops/v1alpha3 --v=0  --output-file-base=zz_generated.deepcopy \
 		 --go-header-file "hack/boilerplate/boilerplate.generatego.txt"
-	${KOPS_ROOT}/_output/bin/defaulter-gen ${API_OPTIONS} --input-dirs k8s.io/kops/pkg/apis/kops/v1alpha2 --v=0  --output-file-base=zz_generated.defaults \
+
+.PHONY: apimachinery-codegen-defaulter
+apimachinery-codegen-defaulter:
+	go run k8s.io/code-generator/cmd/defaulter-gen@${CODEGEN_VERSION} ${API_OPTIONS} --input-dirs ./pkg/apis/kops/v1alpha2 --v=0  --output-file-base=zz_generated.defaults \
 		 --go-header-file "hack/boilerplate/boilerplate.generatego.txt"
-	${KOPS_ROOT}/_output/bin/defaulter-gen ${API_OPTIONS} --input-dirs k8s.io/kops/pkg/apis/kops/v1alpha3 --v=0  --output-file-base=zz_generated.defaults \
+	go run k8s.io/code-generator/cmd/defaulter-gen@${CODEGEN_VERSION} ${API_OPTIONS} --input-dirs ./pkg/apis/kops/v1alpha3 --v=0  --output-file-base=zz_generated.defaults \
 		 --go-header-file "hack/boilerplate/boilerplate.generatego.txt"
-	#go install github.com/ugorji/go/codec/codecgen
-	# codecgen works only if invoked from directory where the file is located.
-	#cd pkg/apis/kops/ && ~/k8s/bin/codecgen -d 1234 -o types.generated.go instancegroup.go cluster.go
-	${KOPS_ROOT}/_output/bin/client-gen ${API_OPTIONS} --input-base k8s.io/kops/pkg/apis/ --input="kops/,kops/v1alpha2,kops/v1alpha3" --clientset-path k8s.io/kops/pkg/client/clientset_generated/ \
+
+.PHONY: apimachinery-codegen-client
+apimachinery-codegen-client:
+	# Hack: doesn't seem to be a way to output to the current directory - wants to insert the full package path
+	go run k8s.io/code-generator/cmd/client-gen@${CODEGEN_VERSION} ${API_OPTIONS} --input-base=k8s.io/kops/pkg/apis --input-dirs=. --input="kops/,kops/v1alpha2,kops/v1alpha3" --output-package=k8s.io/kops/pkg/client/clientset_generated/ --output-base=../../ \
 		 --go-header-file "hack/boilerplate/boilerplate.generatego.txt"
-	${KOPS_ROOT}/_output/bin/client-gen ${API_OPTIONS} --clientset-name="clientset" --input-base k8s.io/kops/pkg/apis/ --input="kops/,kops/v1alpha2,kops/v1alpha3" --clientset-path k8s.io/kops/pkg/client/clientset_generated/ \
+	go run k8s.io/code-generator/cmd/client-gen@${CODEGEN_VERSION} ${API_OPTIONS} --clientset-name="clientset" --input-base=k8s.io/kops/pkg/apis --input-dirs=. --input="kops/,kops/v1alpha2,kops/v1alpha3" --output-package=k8s.io/kops/pkg/client/clientset_generated/  --output-base=../../ \
 		 --go-header-file "hack/boilerplate/boilerplate.generatego.txt"
 
 .PHONY: verify-apimachinery
@@ -534,7 +544,7 @@ verify-versions:
 
 .PHONY: bazel-test
 bazel-test: bazelisk
-	${BAZEL} ${BAZEL_OPTIONS} test ${BAZEL_CONFIG} --test_output=errors -- //... -//vendor/...
+	${BAZEL} ${BAZEL_OPTIONS} test ${BAZEL_CONFIG} --@io_bazel_rules_go//go/config:pure --test_output=errors -- //... -//vendor/...
 
 .PHONY: bazel-build
 bazel-build: bazelisk
@@ -624,7 +634,7 @@ check-markdown-links:
 .PHONY: bazel-kube-apiserver-healthcheck-export-linux-amd64 bazel-kube-apiserver-healthcheck-export-linux-arm64
 bazel-kube-apiserver-healthcheck-export-linux-amd64 bazel-kube-apiserver-healthcheck-export-linux-arm64: bazel-kube-apiserver-healthcheck-export-linux-%:
 	mkdir -p ${BAZELIMAGES}
-	DOCKER_REGISTRY="" DOCKER_IMAGE_PREFIX="k8s.gcr.io/kops/" KUBE_APISERVER_HEALTHCHECK_TAG=${KUBE_APISERVER_HEALTHCHECK_TAG} ${BAZEL} ${BAZEL_OPTIONS} build ${BAZEL_CONFIG} --platforms=@io_bazel_rules_go//go/toolchain:linux_$* //cmd/kube-apiserver-healthcheck:image-bundle-$*.tar.gz.sha256
+	DOCKER_REGISTRY="" DOCKER_IMAGE_PREFIX="k8s.gcr.io/kops/" KUBE_APISERVER_HEALTHCHECK_TAG=${KUBE_APISERVER_HEALTHCHECK_TAG} ${BAZEL} ${BAZEL_OPTIONS} build ${BAZEL_CONFIG} --@io_bazel_rules_go//go/config:pure --platforms=@io_bazel_rules_go//go/toolchain:linux_$* //cmd/kube-apiserver-healthcheck:image-bundle-$*.tar.gz.sha256
 	cp -fp ${BAZEL_BIN}/cmd/kube-apiserver-healthcheck/image-bundle-$*.tar.gz ${BAZELIMAGES}/kube-apiserver-healthcheck-$*.tar.gz
 	cp -fp ${BAZEL_BIN}/cmd/kube-apiserver-healthcheck/image-bundle-$*.tar.gz.sha256 ${BAZELIMAGES}/kube-apiserver-healthcheck-$*.tar.gz.sha256
 
@@ -635,7 +645,7 @@ bazel-kube-apiserver-healthcheck-export: bazel-kube-apiserver-healthcheck-export
 .PHONY: bazel-kops-controller-export-linux-amd64 bazel-kops-controller-export-linux-arm64
 bazel-kops-controller-export-linux-amd64 bazel-kops-controller-export-linux-arm64: bazel-kops-controller-export-linux-%:
 	mkdir -p ${BAZELIMAGES}
-	DOCKER_REGISTRY="" DOCKER_IMAGE_PREFIX="k8s.gcr.io/kops/" KOPS_CONTROLLER_TAG=${KOPS_CONTROLLER_TAG} ${BAZEL} ${BAZEL_OPTIONS} build ${BAZEL_CONFIG} --platforms=@io_bazel_rules_go//go/toolchain:linux_$* //cmd/kops-controller:image-bundle-$*.tar.gz.sha256
+	DOCKER_REGISTRY="" DOCKER_IMAGE_PREFIX="k8s.gcr.io/kops/" KOPS_CONTROLLER_TAG=${KOPS_CONTROLLER_TAG} ${BAZEL} ${BAZEL_OPTIONS} build ${BAZEL_CONFIG} --@io_bazel_rules_go//go/config:pure --platforms=@io_bazel_rules_go//go/toolchain:linux_$* //cmd/kops-controller:image-bundle-$*.tar.gz.sha256
 	cp -fp ${BAZEL_BIN}/cmd/kops-controller/image-bundle-$*.tar.gz ${BAZELIMAGES}/kops-controller-$*.tar.gz
 	cp -fp ${BAZEL_BIN}/cmd/kops-controller/image-bundle-$*.tar.gz.sha256 ${BAZELIMAGES}/kops-controller-$*.tar.gz.sha256
 
@@ -646,7 +656,7 @@ bazel-kops-controller-export: bazel-kops-controller-export-linux-amd64 bazel-kop
 .PHONY: bazel-dns-controller-export-linux-amd64 bazel-dns-controller-export-linux-arm64
 bazel-dns-controller-export-linux-amd64 bazel-dns-controller-export-linux-arm64: bazel-dns-controller-export-linux-%:
 	mkdir -p ${BAZELIMAGES}
-	DOCKER_REGISTRY="" DOCKER_IMAGE_PREFIX="k8s.gcr.io/kops/" DNS_CONTROLLER_TAG=${DNS_CONTROLLER_TAG} ${BAZEL} ${BAZEL_OPTIONS} build ${BAZEL_CONFIG} --platforms=@io_bazel_rules_go//go/toolchain:linux_$* //dns-controller/cmd/dns-controller:image-bundle-$*.tar.gz.sha256
+	DOCKER_REGISTRY="" DOCKER_IMAGE_PREFIX="k8s.gcr.io/kops/" DNS_CONTROLLER_TAG=${DNS_CONTROLLER_TAG} ${BAZEL} ${BAZEL_OPTIONS} build ${BAZEL_CONFIG} --@io_bazel_rules_go//go/config:pure --platforms=@io_bazel_rules_go//go/toolchain:linux_$* //dns-controller/cmd/dns-controller:image-bundle-$*.tar.gz.sha256
 	cp -fp ${BAZEL_BIN}/dns-controller/cmd/dns-controller/image-bundle-$*.tar.gz ${BAZELIMAGES}/dns-controller-$*.tar.gz
 	cp -fp ${BAZEL_BIN}/dns-controller/cmd/dns-controller/image-bundle-$*.tar.gz.sha256 ${BAZELIMAGES}/dns-controller-$*.tar.gz.sha256
 
@@ -747,6 +757,20 @@ dev-upload-nodeup: bazel-crossbuild-nodeup
 	tools/sha256 ${BAZELUPLOAD}/kops/${VERSION}/linux/arm64/nodeup ${BAZELUPLOAD}/kops/${VERSION}/linux/arm64/nodeup.sha256
 	${UPLOAD_CMD} ${BAZELUPLOAD}/ ${UPLOAD_DEST}
 
+.PHONY: dev-upload-nodeup-amd64
+dev-upload-nodeup-amd64: bazel-build-nodeup-linux-amd64
+	mkdir -p ${BAZELUPLOAD}/kops/${VERSION}/linux/amd64/
+	cp -fp ${BAZEL_BIN}/cmd/nodeup/linux-amd64/nodeup ${BAZELUPLOAD}/kops/${VERSION}/linux/amd64/nodeup
+	tools/sha256 ${BAZELUPLOAD}/kops/${VERSION}/linux/amd64/nodeup ${BAZELUPLOAD}/kops/${VERSION}/linux/amd64/nodeup.sha256
+	${UPLOAD_CMD} ${BAZELUPLOAD}/ ${UPLOAD_DEST}
+
+.PHONY: dev-upload-nodeup-arm64
+dev-upload-nodeup-arm64: bazel-build-nodeup-linux-arm64
+	mkdir -p ${BAZELUPLOAD}/kops/${VERSION}/linux/arm64/
+	cp -fp ${BAZEL_BIN}/cmd/nodeup/linux-arm64/nodeup ${BAZELUPLOAD}/kops/${VERSION}/linux/arm64/nodeup
+	tools/sha256 ${BAZELUPLOAD}/kops/${VERSION}/linux/arm64/nodeup ${BAZELUPLOAD}/kops/${VERSION}/linux/arm64/nodeup.sha256
+	${UPLOAD_CMD} ${BAZELUPLOAD}/ ${UPLOAD_DEST}
+
 # dev-upload-protokube uploads protokube to GCS
 .PHONY: dev-upload-protokube
 dev-upload-protokube: bazel-crossbuild-protokube # Upload kops to GCS
@@ -833,8 +857,8 @@ crds:
 
 .PHONY: kops-controller-push
 kops-controller-push: bazelisk
-	DOCKER_REGISTRY=${DOCKER_REGISTRY} DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX} KOPS_CONTROLLER_TAG=${KOPS_CONTROLLER_PUSH_TAG} ${BAZEL} run --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 //cmd/kops-controller:push-image-amd64
-	DOCKER_REGISTRY=${DOCKER_REGISTRY} DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX} KOPS_CONTROLLER_TAG=${KOPS_CONTROLLER_PUSH_TAG} ${BAZEL} run --platforms=@io_bazel_rules_go//go/toolchain:linux_arm64 //cmd/kops-controller:push-image-arm64
+	DOCKER_REGISTRY=${DOCKER_REGISTRY} DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX} KOPS_CONTROLLER_TAG=${KOPS_CONTROLLER_PUSH_TAG} ${BAZEL} run --@io_bazel_rules_go//go/config:pure --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 //cmd/kops-controller:push-image-amd64
+	DOCKER_REGISTRY=${DOCKER_REGISTRY} DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX} KOPS_CONTROLLER_TAG=${KOPS_CONTROLLER_PUSH_TAG} ${BAZEL} run --@io_bazel_rules_go//go/config:pure --platforms=@io_bazel_rules_go//go/toolchain:linux_arm64 //cmd/kops-controller:push-image-arm64
 
 .PHONY: kops-controller-manifest
 kops-controller-manifest:
@@ -847,8 +871,8 @@ kops-controller-manifest:
 
 .PHONY: kube-apiserver-healthcheck-push
 kube-apiserver-healthcheck-push: bazelisk
-	DOCKER_REGISTRY=${DOCKER_REGISTRY} DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX} KUBE_APISERVER_HEALTHCHECK_TAG=${KUBE_APISERVER_HEALTHCHECK_PUSH_TAG} ${BAZEL} run --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 //cmd/kube-apiserver-healthcheck:push-image-amd64
-	DOCKER_REGISTRY=${DOCKER_REGISTRY} DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX} KUBE_APISERVER_HEALTHCHECK_TAG=${KUBE_APISERVER_HEALTHCHECK_PUSH_TAG} ${BAZEL} run --platforms=@io_bazel_rules_go//go/toolchain:linux_arm64 //cmd/kube-apiserver-healthcheck:push-image-arm64
+	DOCKER_REGISTRY=${DOCKER_REGISTRY} DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX} KUBE_APISERVER_HEALTHCHECK_TAG=${KUBE_APISERVER_HEALTHCHECK_PUSH_TAG} ${BAZEL} run --@io_bazel_rules_go//go/config:pure --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64 //cmd/kube-apiserver-healthcheck:push-image-amd64
+	DOCKER_REGISTRY=${DOCKER_REGISTRY} DOCKER_IMAGE_PREFIX=${DOCKER_IMAGE_PREFIX} KUBE_APISERVER_HEALTHCHECK_TAG=${KUBE_APISERVER_HEALTHCHECK_PUSH_TAG} ${BAZEL} run --@io_bazel_rules_go//go/config:pure --platforms=@io_bazel_rules_go//go/toolchain:linux_arm64 //cmd/kube-apiserver-healthcheck:push-image-arm64
 
 .PHONY: kube-apiserver-healthcheck-manifest
 kube-apiserver-healthcheck-manifest:

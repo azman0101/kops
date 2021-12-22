@@ -26,7 +26,6 @@ import (
 )
 
 func TestPrecreateDNSNames(t *testing.T) {
-
 	grid := []struct {
 		cluster  *kops.Cluster
 		expected []recordKey
@@ -80,7 +79,7 @@ func TestPrecreateDNSNames(t *testing.T) {
 				Spec: kops.ClusterSpec{
 					API: &kops.AccessSpec{
 						LoadBalancer: &kops.LoadBalancerAccessSpec{
-							UseForInternalApi: true,
+							UseForInternalAPI: true,
 						},
 					},
 				},

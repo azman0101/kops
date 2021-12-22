@@ -19,7 +19,7 @@ package protokube
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -75,7 +75,7 @@ func getLocalMetadata() (*InstanceMetadata, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -90,7 +90,6 @@ func getLocalMetadata() (*InstanceMetadata, error) {
 
 // NewOpenstackVolumes builds a OpenstackVolume
 func NewOpenstackVolumes() (*OpenstackVolumes, error) {
-
 	metadata, err := getLocalMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get server metadata: %v", err)
@@ -134,7 +133,6 @@ func (a *OpenstackVolumes) InternalIP() net.IP {
 }
 
 func (a *OpenstackVolumes) discoverTags() error {
-
 	// Cluster Name
 	{
 		a.clusterName = strings.TrimSpace(string(a.meta.UserMeta.ClusterName))

@@ -43,7 +43,6 @@ var _ loader.OptionsBuilder = &KubeControllerManagerOptionsBuilder{}
 
 // BuildOptions generates the configurations used to create kubernetes controller manager manifest
 func (b *KubeControllerManagerOptionsBuilder) BuildOptions(o interface{}) error {
-
 	clusterSpec := o.(*kops.ClusterSpec)
 	if clusterSpec.KubeControllerManager == nil {
 		clusterSpec.KubeControllerManager = &kops.KubeControllerManagerConfig{}
@@ -91,9 +90,6 @@ func (b *KubeControllerManagerOptionsBuilder) BuildOptions(o interface{}) error 
 	case kops.CloudProviderOpenstack:
 		kcm.CloudProvider = "openstack"
 
-	case kops.CloudProviderALI:
-		kcm.CloudProvider = "alicloud"
-
 	case kops.CloudProviderAzure:
 		kcm.CloudProvider = "azure"
 
@@ -101,7 +97,11 @@ func (b *KubeControllerManagerOptionsBuilder) BuildOptions(o interface{}) error 
 		return fmt.Errorf("unknown cloudprovider %q", clusterSpec.CloudProvider)
 	}
 
-	if clusterSpec.ExternalCloudControllerManager != nil {
+	if clusterSpec.ExternalCloudControllerManager == nil {
+		if kcm.CloudProvider == "aws" && b.IsKubernetesGTE("1.23") {
+			kcm.EnableLeaderMigration = fi.Bool(true)
+		}
+	} else {
 		kcm.CloudProvider = "external"
 	}
 

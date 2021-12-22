@@ -680,7 +680,7 @@ func (b *SpotInstanceGroupModelBuilder) buildPublicIpOpts(ig *kops.InstanceGroup
 		subnetType = subnet.Type
 	}
 
-	associatePublicIP := true
+	var associatePublicIP bool
 	switch subnetType {
 	case kops.SubnetTypePublic, kops.SubnetTypeUtility:
 		associatePublicIP = true
@@ -735,7 +735,7 @@ func (b *SpotInstanceGroupModelBuilder) buildRootVolumeOpts(ig *kops.InstanceGro
 
 	// IOPS.
 	{
-		iops := fi.Int32Value(ig.Spec.RootVolumeIops)
+		iops := fi.Int32Value(ig.Spec.RootVolumeIOPS)
 		if iops > 0 {
 			opts.IOPS = fi.Int64(int64(iops))
 		}

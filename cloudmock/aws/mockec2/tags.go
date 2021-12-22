@@ -61,6 +61,8 @@ func (m *MockEC2) addTags(resourceId string, tags ...*ec2.Tag) {
 		resourceType = ec2.ResourceTypeVolume
 	} else if strings.HasPrefix(resourceId, "igw-") {
 		resourceType = ec2.ResourceTypeInternetGateway
+	} else if strings.HasPrefix(resourceId, "eigw-") {
+		resourceType = ec2.ResourceTypeEgressOnlyInternetGateway
 	} else if strings.HasPrefix(resourceId, "nat-") {
 		resourceType = ec2.ResourceTypeNatgateway
 	} else if strings.HasPrefix(resourceId, "dopt-") {
@@ -207,9 +209,11 @@ func (m *MockEC2) DescribeTags(request *ec2.DescribeTagsInput) (*ec2.DescribeTag
 
 	return response, nil
 }
+
 func (m *MockEC2) DescribeTagsPages(*ec2.DescribeTagsInput, func(*ec2.DescribeTagsOutput, bool) bool) error {
 	panic("Not implemented")
 }
+
 func (m *MockEC2) DescribeTagsPagesWithContext(aws.Context, *ec2.DescribeTagsInput, func(*ec2.DescribeTagsOutput, bool) bool, ...request.Option) error {
 	panic("Not implemented")
 }

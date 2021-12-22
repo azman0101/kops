@@ -18,7 +18,6 @@ package nodetasks
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -63,8 +62,10 @@ type Service struct {
 	SmartRestart *bool `json:"smartRestart,omitempty"`
 }
 
-var _ fi.HasDependencies = &Service{}
-var _ fi.HasName = &Service{}
+var (
+	_ fi.HasDependencies = &Service{}
+	_ fi.HasName         = &Service{}
+)
 
 func (p *Service) GetDependencies(tasks map[string]fi.Task) []fi.Task {
 	var deps []fi.Task
@@ -169,7 +170,7 @@ func (e *Service) Find(c *fi.Context) (*Service, error) {
 
 	servicePath := path.Join(systemdSystemPath, e.Name)
 
-	d, err := ioutil.ReadFile(servicePath)
+	d, err := os.ReadFile(servicePath)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("Error reading systemd file %q: %v", servicePath, err)
@@ -279,7 +280,7 @@ func (_ *Service) RenderLocal(t *local.LocalTarget, a, e, changes *Service) erro
 
 	if changes.Definition != nil {
 		servicePath := path.Join(systemdSystemPath, serviceName)
-		err := fi.WriteFile(servicePath, fi.NewStringResource(*e.Definition), 0644, 0755, "", "")
+		err := fi.WriteFile(servicePath, fi.NewStringResource(*e.Definition), 0o644, 0o755, "", "")
 		if err != nil {
 			return fmt.Errorf("error writing systemd service file: %v", err)
 		}
@@ -384,7 +385,7 @@ func (_ *Service) RenderCloudInit(t *cloudinit.CloudInitTarget, a, e, changes *S
 	serviceName := e.Name
 
 	servicePath := path.Join(systemdSystemPath, serviceName)
-	err = t.WriteFile(servicePath, fi.NewStringResource(*e.Definition), 0644, 0755)
+	err = t.WriteFile(servicePath, fi.NewStringResource(*e.Definition), 0o644, 0o755)
 	if err != nil {
 		return err
 	}

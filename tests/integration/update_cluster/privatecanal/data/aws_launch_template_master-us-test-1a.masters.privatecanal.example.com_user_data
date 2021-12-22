@@ -40,7 +40,7 @@ download-or-bust() {
     if ! validate-hash "${file}" "${hash}"; then
       rm -f "${file}"
     else
-      return
+      return 0
     fi
   fi
 
@@ -63,7 +63,7 @@ download-or-bust() {
           rm -f "${file}"
         else
           echo "== Downloaded ${url} (SHA256 = ${hash}) =="
-          return
+          return 0
         fi
       done
     done
@@ -126,20 +126,20 @@ cat > conf/cluster_spec.yaml << '__EOF_CLUSTER_SPEC'
 cloudConfig:
   awsEBSCSIDriver:
     enabled: true
-    version: v1.4.0
+    version: v1.5.0
   manageStorageClasses: true
 containerRuntime: containerd
 containerd:
   logLevel: info
-  version: 1.4.11
+  version: 1.4.12
 docker:
   skipInstall: true
 encryptionConfig: null
 etcdClusters:
   events:
-    version: 3.5.0
+    version: 3.5.1
   main:
-    version: 3.5.0
+    version: 3.5.1
 kubeAPIServer:
   allowPrivileged: true
   anonymousAuth: false
@@ -199,7 +199,6 @@ kubeControllerManager:
 kubeProxy:
   clusterCIDR: 100.96.0.0/11
   cpuRequest: 100m
-  hostnameOverride: '@aws'
   image: k8s.gcr.io/kube-proxy:v1.22.0
   logLevel: 2
 kubeScheduler:
@@ -219,11 +218,9 @@ kubelet:
   featureGates:
     CSIMigrationAWS: "true"
     InTreePluginAWSUnregister: "true"
-  hostnameOverride: '@aws'
   kubeconfigPath: /var/lib/kubelet/kubeconfig
   logLevel: 2
   networkPluginName: cni
-  nonMasqueradeCIDR: 100.64.0.0/10
   podManifestPath: /etc/kubernetes/manifests
   protectKernelDefaults: true
 masterKubelet:
@@ -238,11 +235,9 @@ masterKubelet:
   featureGates:
     CSIMigrationAWS: "true"
     InTreePluginAWSUnregister: "true"
-  hostnameOverride: '@aws'
   kubeconfigPath: /var/lib/kubelet/kubeconfig
   logLevel: 2
   networkPluginName: cni
-  nonMasqueradeCIDR: 100.64.0.0/10
   podManifestPath: /etc/kubernetes/manifests
   protectKernelDefaults: true
   registerSchedulable: false
@@ -254,7 +249,7 @@ CloudProvider: aws
 ConfigBase: memfs://clusters.example.com/privatecanal.example.com
 InstanceGroupName: master-us-test-1a
 InstanceGroupRole: Master
-NodeupConfigHash: cDWy7b28g2HeI4L2fYq3N4v96GeAjsauylqNFQvNTEI=
+NodeupConfigHash: ElQGf+DucBUjJ29tQvHAlY2ruk5rCFA4FX2+zGSCpY8=
 
 __EOF_KUBE_ENV
 

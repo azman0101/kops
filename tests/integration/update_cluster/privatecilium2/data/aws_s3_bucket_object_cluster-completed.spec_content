@@ -42,14 +42,14 @@ spec:
     - instanceGroup: master-us-test-1a
       name: us-test-1a
     name: main
-    version: 3.4.3
+    version: 3.4.13
   - backups:
       backupStore: memfs://clusters.example.com/privatecilium.example.com/backups/etcd/events
     etcdMembers:
     - instanceGroup: master-us-test-1a
       name: us-test-1a
     name: events
-    version: 3.4.3
+    version: 3.4.13
   externalDns:
     provider: dns-controller
   iam:
@@ -76,7 +76,8 @@ spec:
     - https://127.0.0.1:4001
     etcdServersOverrides:
     - /events#https://127.0.0.1:4002
-    image: k8s.gcr.io/kube-apiserver:v1.18.15
+    image: k8s.gcr.io/kube-apiserver:v1.19.0
+    insecurePort: 0
     kubeletPreferredAddressTypes:
     - InternalIP
     - Hostname
@@ -100,7 +101,7 @@ spec:
     clusterCIDR: 100.96.0.0/11
     clusterName: privatecilium.example.com
     configureCloudRoutes: false
-    image: k8s.gcr.io/kube-controller-manager:v1.18.15
+    image: k8s.gcr.io/kube-controller-manager:v1.19.0
     leaderElection:
       leaderElect: true
     logLevel: 2
@@ -115,19 +116,17 @@ spec:
     nodeLocalDNS:
       cpuRequest: 25m
       enabled: false
-      image: k8s.gcr.io/dns/k8s-dns-node-cache:1.20.0
+      image: k8s.gcr.io/dns/k8s-dns-node-cache:1.21.3
       memoryRequest: 5Mi
     provider: KubeDNS
-    replicas: 2
     serverIP: 100.64.0.10
   kubeProxy:
     clusterCIDR: 100.96.0.0/11
     cpuRequest: 100m
-    hostnameOverride: '@aws'
-    image: k8s.gcr.io/kube-proxy:v1.18.15
+    image: k8s.gcr.io/kube-proxy:v1.19.0
     logLevel: 2
   kubeScheduler:
-    image: k8s.gcr.io/kube-scheduler:v1.18.15
+    image: k8s.gcr.io/kube-scheduler:v1.19.0
     leaderElection:
       leaderElect: true
     logLevel: 2
@@ -139,16 +138,14 @@ spec:
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podInfraContainerImage: k8s.gcr.io/pause:3.5
     podManifestPath: /etc/kubernetes/manifests
   kubernetesApiAccess:
   - 0.0.0.0/0
-  kubernetesVersion: 1.18.15
+  kubernetesVersion: 1.19.0
   masterInternalName: api.internal.privatecilium.example.com
   masterKubelet:
     anonymousAuth: false
@@ -158,11 +155,9 @@ spec:
     clusterDomain: cluster.local
     enableDebuggingHandlers: true
     evictionHard: memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%
-    hostnameOverride: '@aws'
     kubeconfigPath: /var/lib/kubelet/kubeconfig
     logLevel: 2
     networkPluginName: cni
-    nonMasqueradeCIDR: 100.64.0.0/10
     podInfraContainerImage: k8s.gcr.io/pause:3.5
     podManifestPath: /etc/kubernetes/manifests
     registerSchedulable: false
