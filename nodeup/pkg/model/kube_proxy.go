@@ -63,6 +63,8 @@ func (b *KubeProxyBuilder) Build(c *fi.ModelBuilderContext) error {
 			return fmt.Errorf("error building kube-proxy manifest: %v", err)
 		}
 
+		pod.ObjectMeta.Labels["kubernetes.io/managed-by"] = "nodeup"
+
 		manifest, err := k8scodecs.ToVersionedYaml(pod)
 		if err != nil {
 			return fmt.Errorf("error marshaling manifest to yaml: %v", err)
@@ -189,13 +191,14 @@ func (b *KubeProxyBuilder) buildPod() (*v1.Pod, error) {
 	}
 
 	// Log both to docker and to the logfile
-	addHostPathMapping(pod, container, "logfile", "/var/log/kube-proxy.log").ReadOnly = false
+	kubemanifest.AddHostPathMapping(pod, container, "logfile", "/var/log/kube-proxy.log").WithReadWrite()
 	// We use lighter containers that don't include shells
 	// But they have richer logging support via klog
 	if b.IsKubernetesGTE("1.23") {
 		container.Command = []string{"/go-runner"}
 		container.Args = []string{
 			"--log-file=/var/log/kube-proxy.log",
+			"--also-stdout",
 			"/usr/local/bin/kube-proxy",
 		}
 		container.Args = append(container.Args, sortedStrings(flags)...)
@@ -208,23 +211,23 @@ func (b *KubeProxyBuilder) buildPod() (*v1.Pod, error) {
 			"--log-file=/var/log/kube-proxy.log")
 	}
 	{
-		addHostPathMapping(pod, container, "kubeconfig", "/var/lib/kube-proxy/kubeconfig")
+		kubemanifest.AddHostPathMapping(pod, container, "kubeconfig", "/var/lib/kube-proxy/kubeconfig")
 		// @note: mapping the host modules directory to fix the missing ipvs kernel module
-		addHostPathMapping(pod, container, "modules", "/lib/modules")
+		kubemanifest.AddHostPathMapping(pod, container, "modules", "/lib/modules")
 
 		// Map SSL certs from host: /usr/share/ca-certificates -> /etc/ssl/certs
-		sslCertsHost := addHostPathMapping(pod, container, "ssl-certs-hosts", "/usr/share/ca-certificates")
-		sslCertsHost.MountPath = "/etc/ssl/certs"
+		sslCertsHost := kubemanifest.AddHostPathMapping(pod, container, "ssl-certs-hosts", "/usr/share/ca-certificates")
+		sslCertsHost.VolumeMount.MountPath = "/etc/ssl/certs"
 	}
 
 	if dns.IsGossipHostname(b.Cluster.Name) {
 		// Map /etc/hosts from host, so that we see the updates that are made by protokube
-		addHostPathMapping(pod, container, "etchosts", "/etc/hosts")
+		kubemanifest.AddHostPathMapping(pod, container, "etchosts", "/etc/hosts")
 	}
 
 	// Mount the iptables lock file
 	{
-		addHostPathMapping(pod, container, "iptableslock", "/run/xtables.lock").ReadOnly = false
+		kubemanifest.AddHostPathMapping(pod, container, "iptableslock", "/run/xtables.lock").WithReadWrite()
 
 		vol := pod.Spec.Volumes[len(pod.Spec.Volumes)-1]
 		if vol.Name != "iptableslock" {

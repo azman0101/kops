@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.94.1
+# cloud.google.com/go v0.97.0
 ## explicit; go 1.11
 cloud.google.com/go/compute/metadata
 # github.com/Azure/azure-pipeline-go v0.2.3
@@ -215,7 +215,7 @@ github.com/digitalocean/godo
 # github.com/dimchansky/utfbom v1.1.1
 ## explicit
 github.com/dimchansky/utfbom
-# github.com/docker/cli v20.10.7+incompatible
+# github.com/docker/cli v20.10.10+incompatible
 ## explicit
 github.com/docker/cli/cli/config
 github.com/docker/cli/cli/config/configfile
@@ -235,7 +235,7 @@ github.com/docker/distribution/registry/client/auth/challenge
 github.com/docker/distribution/registry/client/transport
 github.com/docker/distribution/registry/storage/cache
 github.com/docker/distribution/registry/storage/cache/memory
-# github.com/docker/docker v20.10.7+incompatible
+# github.com/docker/docker v20.10.10+incompatible
 ## explicit
 github.com/docker/docker/api/types
 github.com/docker/docker/api/types/blkiodev
@@ -256,8 +256,8 @@ github.com/docker/docker/pkg/longpath
 github.com/docker/docker/pkg/stringid
 github.com/docker/docker/registry
 github.com/docker/docker/rootless
-# github.com/docker/docker-credential-helpers v0.6.3
-## explicit
+# github.com/docker/docker-credential-helpers v0.6.4
+## explicit; go 1.13
 github.com/docker/docker-credential-helpers/client
 github.com/docker/docker-credential-helpers/credentials
 # github.com/docker/go-connections v0.4.0
@@ -335,7 +335,7 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
-# github.com/google/go-containerregistry v0.6.0
+# github.com/google/go-containerregistry v0.7.0
 ## explicit; go 1.14
 github.com/google/go-containerregistry/internal/and
 github.com/google/go-containerregistry/internal/gzip
@@ -388,8 +388,8 @@ github.com/googleapis/gnostic/compiler
 github.com/googleapis/gnostic/extensions
 github.com/googleapis/gnostic/jsonschema
 github.com/googleapis/gnostic/openapiv2
-# github.com/gophercloud/gophercloud v0.23.0
-## explicit; go 1.13
+# github.com/gophercloud/gophercloud v0.24.0
+## explicit; go 1.14
 github.com/gophercloud/gophercloud
 github.com/gophercloud/gophercloud/openstack
 github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes
@@ -625,7 +625,7 @@ github.com/oklog/ulid
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
-# github.com/opencontainers/image-spec v1.0.1
+# github.com/opencontainers/image-spec v1.0.2-0.20210730191737-8e42a01fb1b7
 ## explicit
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
@@ -804,7 +804,7 @@ golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
+# golang.org/x/net v0.0.0-20211209124913-491a49abca63
 ## explicit; go 1.17
 golang.org/x/net/bpf
 golang.org/x/net/context
@@ -820,7 +820,7 @@ golang.org/x/net/internal/timeseries
 golang.org/x/net/ipv4
 golang.org/x/net/ipv6
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
+# golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 ## explicit; go 1.11
 golang.org/x/oauth2
 golang.org/x/oauth2/authhandler
@@ -917,12 +917,12 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20211005153810-c76a74d43a8e
+# google.golang.org/genproto v0.0.0-20211111162719-482062a4217b
 ## explicit; go 1.11
 google.golang.org/genproto/googleapis/rpc/code
 google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.41.0
+# google.golang.org/grpc v1.42.0
 ## explicit; go 1.14
 google.golang.org/grpc
 google.golang.org/grpc/attributes
@@ -1047,7 +1047,7 @@ helm.sh/helm/v3/pkg/helmpath
 helm.sh/helm/v3/pkg/helmpath/xdg
 helm.sh/helm/v3/pkg/plugin
 helm.sh/helm/v3/pkg/strvals
-# k8s.io/api v0.23.0 => k8s.io/api v0.23.0
+# k8s.io/api v0.23.1 => k8s.io/api v0.23.1
 ## explicit; go 1.16
 k8s.io/api/admission/v1
 k8s.io/api/admission/v1beta1
@@ -1097,11 +1097,11 @@ k8s.io/api/scheduling/v1beta1
 k8s.io/api/storage/v1
 k8s.io/api/storage/v1alpha1
 k8s.io/api/storage/v1beta1
-# k8s.io/apiextensions-apiserver v0.23.0 => k8s.io/apiextensions-apiserver v0.23.0
+# k8s.io/apiextensions-apiserver v0.23.1 => k8s.io/apiextensions-apiserver v0.23.1
 ## explicit; go 1.16
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
-# k8s.io/apimachinery v0.23.0 => k8s.io/apimachinery v0.23.0
+# k8s.io/apimachinery v0.23.1 => k8s.io/apimachinery v0.23.1
 ## explicit; go 1.16
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
@@ -1158,12 +1158,12 @@ k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/netutil
 k8s.io/apimachinery/third_party/forked/golang/reflect
-# k8s.io/cli-runtime v0.23.0 => k8s.io/cli-runtime v0.23.0
+# k8s.io/cli-runtime v0.23.1 => k8s.io/cli-runtime v0.23.1
 ## explicit; go 1.16
 k8s.io/cli-runtime/pkg/genericclioptions
 k8s.io/cli-runtime/pkg/printers
 k8s.io/cli-runtime/pkg/resource
-# k8s.io/client-go v0.23.0 => k8s.io/client-go v0.23.0
+# k8s.io/client-go v0.23.1 => k8s.io/client-go v0.23.1
 ## explicit; go 1.16
 k8s.io/client-go/applyconfigurations/admissionregistration/v1
 k8s.io/client-go/applyconfigurations/admissionregistration/v1beta1
@@ -1460,7 +1460,7 @@ k8s.io/client-go/util/jsonpath
 k8s.io/client-go/util/keyutil
 k8s.io/client-go/util/retry
 k8s.io/client-go/util/workqueue
-# k8s.io/cloud-provider v0.23.0 => k8s.io/cloud-provider v0.23.0
+# k8s.io/cloud-provider v0.23.1 => k8s.io/cloud-provider v0.23.1
 ## explicit; go 1.16
 k8s.io/cloud-provider
 k8s.io/cloud-provider/node/helpers
@@ -1468,7 +1468,7 @@ k8s.io/cloud-provider/service/helpers
 k8s.io/cloud-provider/volume
 k8s.io/cloud-provider/volume/errors
 k8s.io/cloud-provider/volume/helpers
-# k8s.io/component-base v0.23.0 => k8s.io/component-base v0.23.0
+# k8s.io/component-base v0.23.1 => k8s.io/component-base v0.23.1
 ## explicit; go 1.16
 k8s.io/component-base/config
 k8s.io/component-base/config/v1alpha1
@@ -1476,7 +1476,7 @@ k8s.io/component-base/metrics
 k8s.io/component-base/metrics/legacyregistry
 k8s.io/component-base/metrics/prometheus/restclient
 k8s.io/component-base/version
-# k8s.io/csi-translation-lib v0.23.0 => k8s.io/csi-translation-lib v0.23.0
+# k8s.io/csi-translation-lib v0.23.1 => k8s.io/csi-translation-lib v0.23.1
 ## explicit; go 1.16
 k8s.io/csi-translation-lib/plugins
 # k8s.io/gengo v0.0.0-20210813121822-485abfe95c7c
@@ -1499,7 +1499,7 @@ k8s.io/kube-openapi/pkg/schemaconv
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/util/proto/validation
 k8s.io/kube-openapi/pkg/validation/spec
-# k8s.io/kubectl v0.23.0 => k8s.io/kubectl v0.23.0
+# k8s.io/kubectl v0.23.1 => k8s.io/kubectl v0.23.1
 ## explicit; go 1.16
 k8s.io/kubectl/pkg/cmd/apiresources
 k8s.io/kubectl/pkg/cmd/get
@@ -1517,11 +1517,11 @@ k8s.io/kubectl/pkg/util/openapi/validation
 k8s.io/kubectl/pkg/util/templates
 k8s.io/kubectl/pkg/util/term
 k8s.io/kubectl/pkg/validation
-# k8s.io/legacy-cloud-providers v0.23.0 => k8s.io/legacy-cloud-providers v0.23.0
+# k8s.io/legacy-cloud-providers v0.23.1 => k8s.io/legacy-cloud-providers v0.23.1
 ## explicit; go 1.16
 k8s.io/legacy-cloud-providers/aws
 k8s.io/legacy-cloud-providers/gce
-# k8s.io/mount-utils v0.23.0 => k8s.io/mount-utils v0.23.0
+# k8s.io/mount-utils v0.23.1 => k8s.io/mount-utils v0.23.1
 ## explicit; go 1.16
 k8s.io/mount-utils
 # k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b
@@ -1682,26 +1682,30 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
-# k8s.io/api => k8s.io/api v0.23.0
-# k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.23.0
-# k8s.io/apimachinery => k8s.io/apimachinery v0.23.0
-# k8s.io/apiserver => k8s.io/apiserver v0.23.0
-# k8s.io/cli-runtime => k8s.io/cli-runtime v0.23.0
-# k8s.io/client-go => k8s.io/client-go v0.23.0
-# k8s.io/cloud-provider => k8s.io/cloud-provider v0.23.0
-# k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.23.0
-# k8s.io/component-base => k8s.io/component-base v0.23.0
-# k8s.io/component-helpers => k8s.io/component-helpers v0.23.0
-# k8s.io/controller-manager => k8s.io/controller-manager v0.23.0
-# k8s.io/cri-api => k8s.io/cri-api v0.23.0
-# k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.23.0
-# k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.23.0
-# k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.23.0
-# k8s.io/kube-proxy => k8s.io/kube-proxy v0.23.0
-# k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.23.0
-# k8s.io/kubectl => k8s.io/kubectl v0.23.0
-# k8s.io/kubelet => k8s.io/kubelet v0.23.0
-# k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.23.0
-# k8s.io/metrics => k8s.io/metrics v0.23.0
-# k8s.io/mount-utils => k8s.io/mount-utils v0.23.0
-# k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.23.0
+# github.com/satori/go.uuid => github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
+# k8s.io/api => k8s.io/api v0.23.1
+# k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.23.1
+# k8s.io/apimachinery => k8s.io/apimachinery v0.23.1
+# k8s.io/apiserver => k8s.io/apiserver v0.23.1
+# k8s.io/cli-runtime => k8s.io/cli-runtime v0.23.1
+# k8s.io/client-go => k8s.io/client-go v0.23.1
+# k8s.io/cloud-provider => k8s.io/cloud-provider v0.23.1
+# k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.23.1
+# k8s.io/code-generator => k8s.io/code-generator v0.23.1
+# k8s.io/component-base => k8s.io/component-base v0.23.1
+# k8s.io/component-helpers => k8s.io/component-helpers v0.23.1
+# k8s.io/controller-manager => k8s.io/controller-manager v0.23.1
+# k8s.io/cri-api => k8s.io/cri-api v0.23.1
+# k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.23.1
+# k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.23.1
+# k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.23.1
+# k8s.io/kube-proxy => k8s.io/kube-proxy v0.23.1
+# k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.23.1
+# k8s.io/kubectl => k8s.io/kubectl v0.23.1
+# k8s.io/kubelet => k8s.io/kubelet v0.23.1
+# k8s.io/kubernetes => k8s.io/kubernetes v1.23.1
+# k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.23.1
+# k8s.io/metrics => k8s.io/metrics v0.23.1
+# k8s.io/mount-utils => k8s.io/mount-utils v0.23.1
+# k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.23.1
+# k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.23.1

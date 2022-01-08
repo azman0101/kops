@@ -229,7 +229,7 @@ data: {} # Injected by karpenter-webhook
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: config-logging
+  name: karpenter-config-logging
   namespace: kube-system
   labels:
     app.kubernetes.io/part-of: karpenter
@@ -426,7 +426,7 @@ metadata:
   name: karpenter-controller
   namespace: kube-system
 spec:
-  replicas: 1
+  replicas: {{ ControlPlaneControllerReplicas false }}
   strategy:
     type: Recreate
   selector:
@@ -439,15 +439,15 @@ spec:
     spec:
       priorityClassName: system-cluster-critical
       serviceAccountName: karpenter
+      dnsPolicy: Default
       containers:
         - name: manager
           image: public.ecr.aws/karpenter/controller:v0.5.3
           resources: 
             limits:
-              cpu: 1
               memory: 1Gi
             requests:
-              cpu: 1
+              cpu: 500m
               memory: 1Gi
           ports:
             - name: metrics
@@ -465,7 +465,7 @@ spec:
           env:
             {{ if UsesInstanceIDForNodeName }}
             - name: AWS_NODE_NAME_CONVENTION
-              value: "resouce-name"
+              value: "resource-name"
             {{ end }}
             - name: AWS_REGION
               value: {{ Region }}
@@ -473,6 +473,8 @@ spec:
               value: {{ ClusterName }}
             - name: CLUSTER_ENDPOINT
               value: https://{{ .MasterInternalName }}
+            - name: CONFIG_LOGGING_NAME
+              value: "karpenter-config-logging"
             - name: SYSTEM_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -488,6 +490,25 @@ spec:
                 - linux
               - key: karpenter.sh/provisioner-name
                 operator: DoesNotExist
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: "topology.kubernetes.io/zone"
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            karpenter: webhook
+      - maxSkew: 1
+        topologyKey: "kubernetes.io/hostname"
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            karpenter: webhook
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+
 ---
 # Source: karpenter/templates/webhook/deployment.yaml
 apiVersion: apps/v1
@@ -496,7 +517,7 @@ metadata:
   name: karpenter-webhook
   namespace: kube-system
 spec:
-  replicas: 1
+  replicas: {{ ControlPlaneControllerReplicas false }}
   strategy:
     type: Recreate
   selector:
@@ -539,6 +560,8 @@ spec:
               value: {{ ClusterName }}
             - name: CLUSTER_ENDPOINT
               value: https://{{ .MasterInternalName }}
+            - name: CONFIG_LOGGING_NAME
+              value: "karpenter-config-logging"
             - name: SYSTEM_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -554,6 +577,24 @@ spec:
                 - linux
               - key: karpenter.sh/provisioner-name
                 operator: DoesNotExist
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: "topology.kubernetes.io/zone"
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            karpenter: webhook
+      - maxSkew: 1
+        topologyKey: "kubernetes.io/hostname"
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            karpenter: webhook
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
 ---
 # Source: karpenter/templates/webhook/webhooks.yaml
 apiVersion: admissionregistration.k8s.io/v1
@@ -643,11 +684,8 @@ spec:
     - key: "node.kubernetes.io/instance-type"
       operator: In
       values:
-      - {{ $spec.MachineType }}
-      {{ with $spec.MixedInstancesPolicy }}
-      {{ range $key := .Instances }}
-      - {{ $key }}
-      {{ end }}
+      {{ range $type := KarpenterInstanceTypes $spec }}
+      - {{ $type }}
       {{ end }}
 {{ with $spec.Taints }}
   taints:

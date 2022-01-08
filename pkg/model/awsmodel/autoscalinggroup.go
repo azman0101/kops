@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
 
 	"k8s.io/kops/pkg/apis/kops"
@@ -187,7 +188,6 @@ func (b *AutoscalingGroupModelBuilder) buildLaunchTemplateTask(c *fi.ModelBuilde
 		ImageID:                      fi.String(ig.Spec.Image),
 		InstanceInterruptionBehavior: ig.Spec.InstanceInterruptionBehavior,
 		InstanceMonitoring:           fi.Bool(false),
-		InstanceType:                 fi.String(strings.Split(ig.Spec.MachineType, ",")[0]),
 		IPv6AddressCount:             fi.Int64(0),
 		RootVolumeIops:               fi.Int64(int64(fi.Int32Value(ig.Spec.RootVolumeIOPS))),
 		RootVolumeOptimization:       ig.Spec.RootVolumeOptimization,
@@ -198,6 +198,10 @@ func (b *AutoscalingGroupModelBuilder) buildLaunchTemplateTask(c *fi.ModelBuilde
 		SecurityGroups:               securityGroups,
 		Tags:                         tags,
 		UserData:                     userData,
+	}
+
+	if ig.Spec.Manager == kops.InstanceManagerCloudGroup {
+		lt.InstanceType = fi.String(strings.Split(ig.Spec.MachineType, ",")[0])
 	}
 
 	{
@@ -492,8 +496,42 @@ func (b *AutoscalingGroupModelBuilder) buildAutoScalingGroupTask(c *fi.ModelBuil
 	sort.Stable(awstasks.OrderTargetGroupsByName(t.TargetGroups))
 
 	// @step: are we using a mixed instance policy
-	if ig.Spec.MixedInstancesPolicy != nil {
+	if ig.Spec.MixedInstancesPolicy != nil && ig.Spec.Manager == kops.InstanceManagerCloudGroup {
 		spec := ig.Spec.MixedInstancesPolicy
+
+		if spec.InstanceRequirements != nil {
+
+			ir := &awstasks.InstanceRequirements{}
+
+			cpu := spec.InstanceRequirements.CPU
+			if cpu != nil {
+				if cpu.Max != nil {
+					cpuMax, _ := spec.InstanceRequirements.CPU.Max.AsInt64()
+					ir.CPUMax = &cpuMax
+				}
+				if cpu.Min != nil {
+					cpuMin, _ := spec.InstanceRequirements.CPU.Min.AsInt64()
+					ir.CPUMin = &cpuMin
+				}
+			} else {
+				ir.CPUMin = fi.Int64(0)
+			}
+
+			memory := spec.InstanceRequirements.Memory
+			if memory != nil {
+				if memory.Max != nil {
+					memoryMax := spec.InstanceRequirements.Memory.Max.ScaledValue(resource.Mega)
+					ir.MemoryMax = &memoryMax
+				}
+				if memory.Min != nil {
+					memoryMin := spec.InstanceRequirements.Memory.Min.ScaledValue(resource.Mega)
+					ir.MemoryMin = &memoryMin
+				}
+			} else {
+				ir.MemoryMin = fi.Int64(0)
+			}
+			t.InstanceRequirements = ir
+		}
 
 		t.MixedInstanceOverrides = spec.Instances
 		t.MixedOnDemandAboveBase = spec.OnDemandAboveBase

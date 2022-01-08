@@ -6,7 +6,7 @@ spec:
   addons:
   - id: k8s-1.16
     manifest: kops-controller.addons.k8s.io/k8s-1.16.yaml
-    manifestHash: cf36b038a6f310bf9bfff46872bc6173a59ecd99d5fd9216663159823d0d81fb
+    manifestHash: 12f3e73f54be7d257ee835b2c9c018ffbcd1ccee1e926f2a8a0ad9d983509645
     name: kops-controller.addons.k8s.io
     needsRollingUpdate: control-plane
     selector:
@@ -32,6 +32,13 @@ spec:
     selector:
       k8s-addon: kubelet-api.rbac.addons.k8s.io
     version: 9.99.0
+  - id: k8s-1.23
+    manifest: leader-migration.rbac.addons.k8s.io/k8s-1.23.yaml
+    manifestHash: b9c91e09c0f28c9b74ff140b8395d611834c627d698846d625c10975a74a48c4
+    name: leader-migration.rbac.addons.k8s.io
+    selector:
+      k8s-addon: leader-migration.rbac.addons.k8s.io
+    version: 9.99.0
   - manifest: limit-range.addons.k8s.io/v1.5.0.yaml
     manifestHash: 2d55c3bc5e354e84a3730a65b42f39aba630a59dc8d32b30859fcce3d3178bc2
     name: limit-range.addons.k8s.io
@@ -40,7 +47,7 @@ spec:
     version: 9.99.0
   - id: k8s-1.12
     manifest: dns-controller.addons.k8s.io/k8s-1.12.yaml
-    manifestHash: 0eb80b93de3c34dcac920b6e5423509d2cbdefda2f106cacfe6ce065304ac822
+    manifestHash: 2803adcfa7cd78f39d390b1f53a5a90540d1d33c4c85651436dccf237a7bb318
     name: dns-controller.addons.k8s.io
     selector:
       k8s-addon: dns-controller.addons.k8s.io

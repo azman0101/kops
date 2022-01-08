@@ -162,12 +162,13 @@ func (b *BootstrapChannelBuilder) Build(c *fi.ModelBuilderContext) error {
 			Cluster: b.Cluster,
 		}
 
-		wellKnownAddons, crds, err := ob.Build()
+		addonPackages, clusterAddons, err := ob.Build(b.ClusterAddons)
 		if err != nil {
 			return fmt.Errorf("error building well-known operators: %v", err)
 		}
+		b.ClusterAddons = clusterAddons
 
-		for _, a := range wellKnownAddons {
+		for _, a := range addonPackages {
 			key := *a.Spec.Name
 			if a.Spec.Id != "" {
 				key = key + "-" + a.Spec.Id
@@ -205,8 +206,6 @@ func (b *BootstrapChannelBuilder) Build(c *fi.ModelBuilderContext) error {
 			addon := addons.Add(&a.Spec)
 			addon.ManifestData = manifestBytes
 		}
-
-		b.ClusterAddons = append(b.ClusterAddons, crds...)
 	}
 
 	if b.ClusterAddons != nil {
@@ -452,10 +451,10 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 		}
 	}
 
-	if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderAWS &&
-		b.IsKubernetesGTE("1.23") &&
-		b.IsKubernetesLT("1.26") {
-		// AWS KCM-to-CCM leader migration
+	if b.IsKubernetesGTE("1.23") && b.IsKubernetesLT("1.26") &&
+		(kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderAWS ||
+			kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderGCE) {
+		// AWS and GCE KCM-to-CCM leader migration
 		key := "leader-migration.rbac.addons.k8s.io"
 
 		if b.IsKubernetesLT("1.25") {
@@ -793,9 +792,25 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 				Id:       id,
 			})
 		}
+
+		if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderGCE {
+			if b.Cluster.Spec.ExternalCloudControllerManager != nil {
+				key := "gcp-cloud-controller.addons.k8s.io"
+				{
+					id := "k8s-1.23"
+					location := key + "/" + id + ".yaml"
+					addons.Add(&channelsapi.AddonSpec{
+						Name:     fi.String(key),
+						Manifest: fi.String(location),
+						Selector: map[string]string{"k8s-addon": key},
+						Id:       id,
+					})
+				}
+			}
+		}
 	}
 
-	if b.Cluster.Spec.Networking.Kopeio != nil {
+	if b.Cluster.Spec.Networking.Kopeio != nil && !featureflag.UseAddonOperators.Enabled() {
 		key := "networking.kope.io"
 
 		{

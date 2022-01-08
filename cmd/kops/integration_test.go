@@ -237,7 +237,7 @@ func TestMinimalGossip(t *testing.T) {
 // TestMinimalGCE runs tests on a minimal GCE configuration
 func TestMinimalGCE(t *testing.T) {
 	newIntegrationTest("minimal-gce.example.com", "minimal_gce").
-		withAddons(dnsControllerAddon, "gcp-pd-csi-driver.addons.k8s.io-k8s-1.23").
+		withAddons(dnsControllerAddon, leaderElectionAddon, "gcp-pd-csi-driver.addons.k8s.io-k8s-1.23").
 		runTestTerraformGCE(t)
 }
 
@@ -299,7 +299,7 @@ func TestMinimalIPv6(t *testing.T) {
 // TestMinimalIPv6 runs the test on a minimum IPv6 configuration
 func TestMinimalIPv6Private(t *testing.T) {
 	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6-private").
-		withAddons(awsCCMAddon, awsEBSCSIAddon, dnsControllerAddon).
+		withAddons(awsCCMAddon, awsEBSCSIAddon, dnsControllerAddon, leaderElectionAddon).
 		runTestTerraformAWS(t)
 }
 
@@ -608,8 +608,10 @@ func TestKarpenter(t *testing.T) {
 		withAddons("karpenter.sh-k8s-1.19").
 		withServiceAccountRole("karpenter.kube-system", true)
 	test.expectTerraformFilenames = append(test.expectTerraformFilenames,
-		"aws_launch_template_karpenter-nodes.minimal.example.com_user_data",
-		"aws_s3_bucket_object_nodeupconfig-karpenter-nodes_content",
+		"aws_launch_template_karpenter-nodes-single-machinetype.minimal.example.com_user_data",
+		"aws_launch_template_karpenter-nodes-default.minimal.example.com_user_data",
+		"aws_s3_bucket_object_nodeupconfig-karpenter-nodes-single-machinetype_content",
+		"aws_s3_bucket_object_nodeupconfig-karpenter-nodes-default_content",
 	)
 	test.runTestTerraformAWS(t)
 }

@@ -131,7 +131,7 @@ cloudConfig:
 containerRuntime: containerd
 containerd:
   logLevel: info
-  version: 1.6.0-beta.4
+  version: 1.6.0-beta.5
 docker:
   skipInstall: true
 encryptionConfig: null
@@ -189,6 +189,7 @@ kubeControllerManager:
   clusterCIDR: 100.96.0.0/11
   clusterName: minimal-gce-example-com
   configureCloudRoutes: false
+  enableLeaderMigration: true
   image: k8s.gcr.io/kube-controller-manager:v1.23.0
   leaderElection:
     leaderElect: true
@@ -243,7 +244,7 @@ CloudProvider: gce
 ConfigBase: memfs://tests/minimal-gce.example.com
 InstanceGroupName: master-us-test1-a
 InstanceGroupRole: Master
-NodeupConfigHash: Vm2WRMqgHkMHrvvGYVH40yDB5cJTzZp3NYV2VABM7ro=
+NodeupConfigHash: fBFEAM7RDZuj5BdLORPhF3ursQLJOmChHE+1YhZO2Fc=
 
 __EOF_KUBE_ENV
 

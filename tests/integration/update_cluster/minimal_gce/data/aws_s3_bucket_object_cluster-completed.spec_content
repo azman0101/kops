@@ -22,7 +22,7 @@ spec:
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.6.0-beta.4
+    version: 1.6.0-beta.5
   dnsZone: "1"
   docker:
     skipInstall: true
@@ -95,6 +95,7 @@ spec:
     clusterCIDR: 100.96.0.0/11
     clusterName: minimal-gce-example-com
     configureCloudRoutes: false
+    enableLeaderMigration: true
     image: k8s.gcr.io/kube-controller-manager:v1.23.0
     leaderElection:
       leaderElect: true

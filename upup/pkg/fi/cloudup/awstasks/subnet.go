@@ -106,7 +106,7 @@ func (e *Subnet) Find(c *fi.Context) (*Subnet, error) {
 
 	actual.ResourceBasedNaming = fi.Bool(aws.StringValue(subnet.PrivateDnsNameOptionsOnLaunch.HostnameType) == ec2.HostnameTypeResourceName)
 	if *actual.ResourceBasedNaming {
-		if !aws.BoolValue(subnet.PrivateDnsNameOptionsOnLaunch.EnableResourceNameDnsARecord) {
+		if fi.StringValue(actual.CIDR) != "" && !aws.BoolValue(subnet.PrivateDnsNameOptionsOnLaunch.EnableResourceNameDnsARecord) {
 			actual.ResourceBasedNaming = nil
 		}
 		if fi.StringValue(actual.IPv6CIDR) != "" && !aws.BoolValue(subnet.PrivateDnsNameOptionsOnLaunch.EnableResourceNameDnsAAAARecord) {
@@ -175,9 +175,8 @@ func (s *Subnet) CheckChanges(a, e, changes *Subnet) error {
 			errors = append(errors, field.Required(fieldPath.Child("VPC"), "must specify a VPC"))
 		}
 
-		if e.CIDR == nil {
-			// TODO: Auto-assign CIDR?
-			errors = append(errors, field.Required(fieldPath.Child("CIDR"), "must specify a CIDR"))
+		if e.CIDR == nil && e.IPv6CIDR == nil {
+			errors = append(errors, field.Required(fieldPath.Child("CIDR"), "must specify a CIDR or IPv6CIDR"))
 		}
 	}
 
@@ -256,7 +255,7 @@ func (_ *Subnet) RenderAWS(t *awsup.AWSAPITarget, a, e, changes *Subnet) error {
 	}
 
 	if a == nil {
-		klog.V(2).Infof("Creating Subnet with CIDR: %q", *e.CIDR)
+		klog.V(2).Infof("Creating Subnet with CIDR: %q IPv6CIDR: %q", fi.StringValue(e.CIDR), fi.StringValue(e.IPv6CIDR))
 
 		request := &ec2.CreateSubnetInput{
 			CidrBlock:         e.CIDR,
@@ -264,6 +263,10 @@ func (_ *Subnet) RenderAWS(t *awsup.AWSAPITarget, a, e, changes *Subnet) error {
 			AvailabilityZone:  e.AvailabilityZone,
 			VpcId:             e.VPC.ID,
 			TagSpecifications: awsup.EC2TagSpecification(ec2.ResourceTypeSubnet, e.Tags),
+		}
+
+		if e.CIDR == nil {
+			request.Ipv6Native = aws.Bool(true)
 		}
 
 		response, err := t.Cloud.EC2().CreateSubnet(request)
@@ -300,13 +303,24 @@ func (_ *Subnet) RenderAWS(t *awsup.AWSAPITarget, a, e, changes *Subnet) error {
 			return fmt.Errorf("error modifying hostname type: %w", err)
 		}
 
-		request = &ec2.ModifySubnetAttributeInput{
-			SubnetId:                             e.ID,
-			EnableResourceNameDnsARecordOnLaunch: &ec2.AttributeBooleanValue{Value: changes.ResourceBasedNaming},
-		}
-		_, err = t.Cloud.EC2().ModifySubnetAttribute(request)
-		if err != nil {
-			return fmt.Errorf("error modifying A records: %w", err)
+		if fi.StringValue(e.CIDR) == "" {
+			request = &ec2.ModifySubnetAttributeInput{
+				SubnetId:    e.ID,
+				EnableDns64: &ec2.AttributeBooleanValue{Value: aws.Bool(true)},
+			}
+			_, err = t.Cloud.EC2().ModifySubnetAttribute(request)
+			if err != nil {
+				return fmt.Errorf("error enabling DNS64: %w", err)
+			}
+		} else {
+			request = &ec2.ModifySubnetAttributeInput{
+				SubnetId:                             e.ID,
+				EnableResourceNameDnsARecordOnLaunch: &ec2.AttributeBooleanValue{Value: changes.ResourceBasedNaming},
+			}
+			_, err = t.Cloud.EC2().ModifySubnetAttribute(request)
+			if err != nil {
+				return fmt.Errorf("error modifying A records: %w", err)
+			}
 		}
 
 		if fi.StringValue(e.IPv6CIDR) != "" {
@@ -341,11 +355,16 @@ func subnetSlicesEqualIgnoreOrder(l, r []*Subnet) bool {
 }
 
 type terraformSubnet struct {
-	VPCID            *terraformWriter.Literal `json:"vpc_id" cty:"vpc_id"`
-	CIDR             *string                  `json:"cidr_block" cty:"cidr_block"`
-	IPv6CIDR         *string                  `json:"ipv6_cidr_block" cty:"ipv6_cidr_block"`
-	AvailabilityZone *string                  `json:"availability_zone" cty:"availability_zone"`
-	Tags             map[string]string        `json:"tags,omitempty" cty:"tags"`
+	VPCID                                   *terraformWriter.Literal `cty:"vpc_id"`
+	CIDR                                    *string                  `cty:"cidr_block"`
+	IPv6CIDR                                *string                  `cty:"ipv6_cidr_block"`
+	IPv6Native                              *bool                    `cty:"ipv6_native"`
+	AvailabilityZone                        *string                  `cty:"availability_zone"`
+	EnableDNS64                             *bool                    `cty:"enable_dns64"`
+	EnableResourceNameDNSAAAARecordOnLaunch *bool                    `cty:"enable_resource_name_dns_aaaa_record_on_launch"`
+	EnableResourceNameDNSARecordOnLaunch    *bool                    `cty:"enable_resource_name_dns_a_record_on_launch"`
+	PrivateDNSHostnameTypeOnLaunch          *string                  `cty:"private_dns_hostname_type_on_launch"`
+	Tags                                    map[string]string        `cty:"tags"`
 }
 
 func (_ *Subnet) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *Subnet) error {
@@ -379,6 +398,23 @@ func (_ *Subnet) RenderTerraform(t *terraform.TerraformTarget, a, e, changes *Su
 		IPv6CIDR:         e.IPv6CIDR,
 		AvailabilityZone: e.AvailabilityZone,
 		Tags:             e.Tags,
+	}
+	if fi.StringValue(e.CIDR) == "" {
+		tf.EnableDNS64 = fi.Bool(true)
+		tf.IPv6Native = fi.Bool(true)
+	}
+	if e.ResourceBasedNaming != nil {
+		hostnameType := ec2.HostnameTypeIpName
+		if *e.ResourceBasedNaming {
+			hostnameType = ec2.HostnameTypeResourceName
+		}
+		tf.PrivateDNSHostnameTypeOnLaunch = fi.String(hostnameType)
+		if fi.StringValue(e.CIDR) != "" {
+			tf.EnableResourceNameDNSARecordOnLaunch = e.ResourceBasedNaming
+		}
+		if fi.StringValue(e.IPv6CIDR) != "" {
+			tf.EnableResourceNameDNSAAAARecordOnLaunch = e.ResourceBasedNaming
+		}
 	}
 
 	return t.RenderResource("aws_subnet", *e.Name, tf)

@@ -6,7 +6,7 @@ spec:
   addons:
   - id: k8s-1.16
     manifest: kops-controller.addons.k8s.io/k8s-1.16.yaml
-    manifestHash: 7eb2e21eff3c1f501f7aaf1007d533fcfa5ae8bd862dcea053ae62559a478e81
+    manifestHash: 372d72a7fa6ef1fc24cf6e3719f5790dc4e3652ecf3c7b2f5ff8baf9075bbb44
     name: kops-controller.addons.k8s.io
     needsRollingUpdate: control-plane
     selector:
@@ -40,7 +40,7 @@ spec:
     version: 9.99.0
   - id: k8s-1.12
     manifest: dns-controller.addons.k8s.io/k8s-1.12.yaml
-    manifestHash: 595f7ea5bff4f4668b9fdac3cb76ffce2fef68e3ae08e1781d657474a46b8df9
+    manifestHash: 44df1420090c866e04b3f3d67a491d7875157ff37d31e71fb2f722c74b31ed18
     name: dns-controller.addons.k8s.io
     selector:
       k8s-addon: dns-controller.addons.k8s.io
@@ -54,7 +54,7 @@ spec:
     version: 9.99.0
   - id: k8s-1.19
     manifest: karpenter.sh/k8s-1.19.yaml
-    manifestHash: aa53e65325a4e3d28c9374f8910c0c359880c3654b1612a35f0a626c718cea5b
+    manifestHash: e21c09e2b55aca845c28ce60c470ec78633e07f4842f146edb5a178354616958
     name: karpenter.sh
     selector:
       k8s-addon: karpenter.sh
