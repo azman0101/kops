@@ -231,7 +231,6 @@ KeypairIDs:
   kubernetes-ca: "6982820025135291416230495506"
   service-account: "2"
 KubeletConfig:
-  anonymousAuth: false
   cgroupDriver: systemd
   cgroupRoot: /
   cloudProvider: aws
@@ -248,6 +247,7 @@ KubeletConfig:
     node-role.kubernetes.io/control-plane: ""
     node-role.kubernetes.io/master: ""
     node.kubernetes.io/exclude-from-external-load-balancers: ""
+  podInfraContainerImage: k8s.gcr.io/pause:3.6
   podManifestPath: /etc/kubernetes/manifests
   registerSchedulable: false
 UpdatePolicy: automatic

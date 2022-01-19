@@ -162,20 +162,21 @@ func (b *KubeletOptionsBuilder) BuildOptions(o interface{}) error {
 		if networking == nil {
 			return fmt.Errorf("no networking mode set")
 		}
-		if UsesKubenet(networking) {
-			clusterSpec.Kubelet.NetworkPluginName = "kubenet"
+		if UsesKubenet(networking) && b.IsKubernetesLT("1.24") {
+			clusterSpec.Kubelet.NetworkPluginName = fi.String("kubenet")
 			clusterSpec.Kubelet.NetworkPluginMTU = fi.Int32(9001)
-			clusterSpec.Kubelet.NonMasqueradeCIDR = clusterSpec.NonMasqueradeCIDR
+			clusterSpec.Kubelet.NonMasqueradeCIDR = fi.String(clusterSpec.NonMasqueradeCIDR)
 		}
-
-		// Specify our pause image
-		image := "k8s.gcr.io/pause:3.5"
-		var err error
-		if image, err = b.AssetBuilder.RemapImage(image); err != nil {
-			return err
-		}
-		clusterSpec.Kubelet.PodInfraContainerImage = image
 	}
+
+	// Prevent image GC from pruning the pause image
+	// https://github.com/kubernetes/enhancements/tree/master/keps/sig-node/2040-kubelet-cri#pinned-images
+	image := "k8s.gcr.io/pause:3.6"
+	var err error
+	if image, err = b.AssetBuilder.RemapImage(image); err != nil {
+		return err
+	}
+	clusterSpec.Kubelet.PodInfraContainerImage = image
 
 	if clusterSpec.Kubelet.FeatureGates == nil {
 		clusterSpec.Kubelet.FeatureGates = make(map[string]string)

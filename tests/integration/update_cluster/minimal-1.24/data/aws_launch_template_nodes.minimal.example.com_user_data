@@ -153,7 +153,7 @@ kubelet:
     InTreePluginAWSUnregister: "true"
   kubeconfigPath: /var/lib/kubelet/kubeconfig
   logLevel: 2
-  networkPluginName: cni
+  podInfraContainerImage: k8s.gcr.io/pause:3.6
   podManifestPath: /etc/kubernetes/manifests
   protectKernelDefaults: true
 
@@ -164,7 +164,7 @@ CloudProvider: aws
 ConfigBase: memfs://tests/minimal.example.com
 InstanceGroupName: nodes
 InstanceGroupRole: Node
-NodeupConfigHash: 761GI5NIkJH7vSaSF2Igb/MV8d3cz873JAmFTzT2RX0=
+NodeupConfigHash: dS5lnX2XTmenHjGjKIorVmEn6K6GOi70fe9JQTItSVU=
 
 __EOF_KUBE_ENV
 
