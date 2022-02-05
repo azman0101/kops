@@ -21,6 +21,8 @@ spec:
     configureCloudRoutes: false
     enableLeaderMigration: true
     image: gcr.io/k8s-staging-provider-aws/cloud-controller-manager:latest
+    leaderElection:
+      leaderElect: true
   cloudProvider: aws
   clusterDNSDomain: cluster.local
   configBase: memfs://tests/minimal.example.com
@@ -28,7 +30,7 @@ spec:
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.6.0-rc.0
+    version: 1.6.0-rc.2
   dnsZone: Z1AFAKE1ZON3YO
   docker:
     skipInstall: true
