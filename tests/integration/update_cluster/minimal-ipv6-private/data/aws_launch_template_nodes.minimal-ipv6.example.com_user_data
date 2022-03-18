@@ -134,7 +134,7 @@ cloudConfig:
 containerRuntime: containerd
 containerd:
   logLevel: info
-  version: 1.6.0-rc.2
+  version: 1.6.1
 docker:
   skipInstall: true
 kubeProxy:
@@ -159,6 +159,8 @@ kubelet:
   podInfraContainerImage: k8s.gcr.io/pause:3.6
   podManifestPath: /etc/kubernetes/manifests
   protectKernelDefaults: true
+  shutdownGracePeriod: 30s
+  shutdownGracePeriodCriticalPods: 10s
 
 __EOF_CLUSTER_SPEC
 
@@ -167,7 +169,7 @@ CloudProvider: aws
 ConfigBase: memfs://clusters.example.com/minimal-ipv6.example.com
 InstanceGroupName: nodes
 InstanceGroupRole: Node
-NodeupConfigHash: hRmwlcrqutnWOSSHI765tnlz5ZWBhLyPOy4J5/VTyR4=
+NodeupConfigHash: a3r4T260vRQp+C6fnu4C7eKScTVFe2E+bR41EORWAak=
 
 __EOF_KUBE_ENV
 

@@ -984,6 +984,16 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddGeneratedConversionFunc((*PodIdentityWebhookConfig)(nil), (*kops.PodIdentityWebhookConfig)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha2_PodIdentityWebhookConfig_To_kops_PodIdentityWebhookConfig(a.(*PodIdentityWebhookConfig), b.(*kops.PodIdentityWebhookConfig), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*kops.PodIdentityWebhookConfig)(nil), (*PodIdentityWebhookConfig)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_kops_PodIdentityWebhookConfig_To_v1alpha2_PodIdentityWebhookConfig(a.(*kops.PodIdentityWebhookConfig), b.(*PodIdentityWebhookConfig), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddGeneratedConversionFunc((*RBACAuthorizationSpec)(nil), (*kops.RBACAuthorizationSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha2_RBACAuthorizationSpec_To_kops_RBACAuthorizationSpec(a.(*RBACAuthorizationSpec), b.(*kops.RBACAuthorizationSpec), scope)
 	}); err != nil {
@@ -2189,6 +2199,7 @@ func autoConvert_v1alpha2_CloudControllerManagerConfig_To_kops_CloudControllerMa
 	out.ClusterCIDR = in.ClusterCIDR
 	out.AllocateNodeCIDRs = in.AllocateNodeCIDRs
 	out.ConfigureCloudRoutes = in.ConfigureCloudRoutes
+	out.Controllers = in.Controllers
 	out.CIDRAllocatorType = in.CIDRAllocatorType
 	if in.LeaderElection != nil {
 		in, out := &in.LeaderElection, &out.LeaderElection
@@ -2218,6 +2229,7 @@ func autoConvert_kops_CloudControllerManagerConfig_To_v1alpha2_CloudControllerMa
 	out.ClusterCIDR = in.ClusterCIDR
 	out.AllocateNodeCIDRs = in.AllocateNodeCIDRs
 	out.ConfigureCloudRoutes = in.ConfigureCloudRoutes
+	out.Controllers = in.Controllers
 	out.CIDRAllocatorType = in.CIDRAllocatorType
 	if in.LeaderElection != nil {
 		in, out := &in.LeaderElection, &out.LeaderElection
@@ -2365,6 +2377,7 @@ func autoConvert_v1alpha2_ClusterSpec_To_kops_ClusterSpec(in *ClusterSpec, out *
 	}
 	out.ConfigBase = in.ConfigBase
 	out.CloudProvider = in.CloudProvider
+	// INFO: in.LegacyCloudProvider opted out of conversion generation
 	if in.GossipConfig != nil {
 		in, out := &in.GossipConfig, &out.GossipConfig
 		*out = new(kops.GossipConfig)
@@ -2762,6 +2775,15 @@ func autoConvert_v1alpha2_ClusterSpec_To_kops_ClusterSpec(in *ClusterSpec, out *
 		}
 	} else {
 		out.Karpenter = nil
+	}
+	if in.PodIdentityWebhook != nil {
+		in, out := &in.PodIdentityWebhook, &out.PodIdentityWebhook
+		*out = new(kops.PodIdentityWebhookConfig)
+		if err := Convert_v1alpha2_PodIdentityWebhookConfig_To_kops_PodIdentityWebhookConfig(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.PodIdentityWebhook = nil
 	}
 	return nil
 }
@@ -3178,6 +3200,15 @@ func autoConvert_kops_ClusterSpec_To_v1alpha2_ClusterSpec(in *kops.ClusterSpec, 
 		}
 	} else {
 		out.Karpenter = nil
+	}
+	if in.PodIdentityWebhook != nil {
+		in, out := &in.PodIdentityWebhook, &out.PodIdentityWebhook
+		*out = new(PodIdentityWebhookConfig)
+		if err := Convert_kops_PodIdentityWebhookConfig_To_v1alpha2_PodIdentityWebhookConfig(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.PodIdentityWebhook = nil
 	}
 	return nil
 }
@@ -4371,6 +4402,15 @@ func autoConvert_v1alpha2_InstanceGroupSpec_To_kops_InstanceGroupSpec(in *Instan
 	} else {
 		out.WarmPool = nil
 	}
+	if in.Containerd != nil {
+		in, out := &in.Containerd, &out.Containerd
+		*out = new(kops.ContainerdConfig)
+		if err := Convert_v1alpha2_ContainerdConfig_To_kops_ContainerdConfig(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Containerd = nil
+	}
 	return nil
 }
 
@@ -4532,6 +4572,15 @@ func autoConvert_kops_InstanceGroupSpec_To_v1alpha2_InstanceGroupSpec(in *kops.I
 		}
 	} else {
 		out.WarmPool = nil
+	}
+	if in.Containerd != nil {
+		in, out := &in.Containerd, &out.Containerd
+		*out = new(ContainerdConfig)
+		if err := Convert_kops_ContainerdConfig_To_v1alpha2_ContainerdConfig(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Containerd = nil
 	}
 	return nil
 }
@@ -5464,6 +5513,8 @@ func autoConvert_v1alpha2_KubeletConfigSpec_To_kops_KubeletConfigSpec(in *Kubele
 	out.ContainerLogMaxFiles = in.ContainerLogMaxFiles
 	out.EnableCadvisorJsonEndpoints = in.EnableCadvisorJsonEndpoints
 	out.PodPidsLimit = in.PodPidsLimit
+	out.ShutdownGracePeriod = in.ShutdownGracePeriod
+	out.ShutdownGracePeriodCriticalPods = in.ShutdownGracePeriodCriticalPods
 	return nil
 }
 
@@ -5561,6 +5612,8 @@ func autoConvert_kops_KubeletConfigSpec_To_v1alpha2_KubeletConfigSpec(in *kops.K
 	out.ContainerLogMaxFiles = in.ContainerLogMaxFiles
 	out.EnableCadvisorJsonEndpoints = in.EnableCadvisorJsonEndpoints
 	out.PodPidsLimit = in.PodPidsLimit
+	out.ShutdownGracePeriod = in.ShutdownGracePeriod
+	out.ShutdownGracePeriodCriticalPods = in.ShutdownGracePeriodCriticalPods
 	return nil
 }
 
@@ -6681,6 +6734,26 @@ func autoConvert_kops_PackagesConfig_To_v1alpha2_PackagesConfig(in *kops.Package
 // Convert_kops_PackagesConfig_To_v1alpha2_PackagesConfig is an autogenerated conversion function.
 func Convert_kops_PackagesConfig_To_v1alpha2_PackagesConfig(in *kops.PackagesConfig, out *PackagesConfig, s conversion.Scope) error {
 	return autoConvert_kops_PackagesConfig_To_v1alpha2_PackagesConfig(in, out, s)
+}
+
+func autoConvert_v1alpha2_PodIdentityWebhookConfig_To_kops_PodIdentityWebhookConfig(in *PodIdentityWebhookConfig, out *kops.PodIdentityWebhookConfig, s conversion.Scope) error {
+	out.Enabled = in.Enabled
+	return nil
+}
+
+// Convert_v1alpha2_PodIdentityWebhookConfig_To_kops_PodIdentityWebhookConfig is an autogenerated conversion function.
+func Convert_v1alpha2_PodIdentityWebhookConfig_To_kops_PodIdentityWebhookConfig(in *PodIdentityWebhookConfig, out *kops.PodIdentityWebhookConfig, s conversion.Scope) error {
+	return autoConvert_v1alpha2_PodIdentityWebhookConfig_To_kops_PodIdentityWebhookConfig(in, out, s)
+}
+
+func autoConvert_kops_PodIdentityWebhookConfig_To_v1alpha2_PodIdentityWebhookConfig(in *kops.PodIdentityWebhookConfig, out *PodIdentityWebhookConfig, s conversion.Scope) error {
+	out.Enabled = in.Enabled
+	return nil
+}
+
+// Convert_kops_PodIdentityWebhookConfig_To_v1alpha2_PodIdentityWebhookConfig is an autogenerated conversion function.
+func Convert_kops_PodIdentityWebhookConfig_To_v1alpha2_PodIdentityWebhookConfig(in *kops.PodIdentityWebhookConfig, out *PodIdentityWebhookConfig, s conversion.Scope) error {
+	return autoConvert_kops_PodIdentityWebhookConfig_To_v1alpha2_PodIdentityWebhookConfig(in, out, s)
 }
 
 func autoConvert_v1alpha2_RBACAuthorizationSpec_To_kops_RBACAuthorizationSpec(in *RBACAuthorizationSpec, out *kops.RBACAuthorizationSpec, s conversion.Scope) error {

@@ -182,6 +182,7 @@ const (
 	awsCCMAddon         = "aws-cloud-controller.addons.k8s.io-k8s-1.18"
 	awsEBSCSIAddon      = "aws-ebs-csi-driver.addons.k8s.io-k8s-1.17"
 	leaderElectionAddon = "leader-migration.rbac.addons.k8s.io-k8s-1.23"
+	certManagerAddon    = "certmanager.io-k8s-1.16"
 )
 
 // TestMinimal runs the test on a minimum configuration, similar to kops create cluster minimal.example.com --zones us-west-1a
@@ -519,7 +520,7 @@ func TestAWSLBController(t *testing.T) {
 		withOIDCDiscovery().
 		withServiceAccountRole("dns-controller.kube-system", true).
 		withServiceAccountRole("aws-load-balancer-controller.kube-system", true).
-		withAddons("aws-load-balancer-controller.addons.k8s.io-k8s-1.9",
+		withAddons("aws-load-balancer-controller.addons.k8s.io-k8s-1.19",
 			"certmanager.io-k8s-1.16",
 			dnsControllerAddon).
 		runTestTerraformAWS(t)
@@ -528,7 +529,7 @@ func TestAWSLBController(t *testing.T) {
 func TestManyAddons(t *testing.T) {
 	newIntegrationTest("minimal.example.com", "many-addons").
 		withAddons("aws-ebs-csi-driver.addons.k8s.io-k8s-1.17",
-			"aws-load-balancer-controller.addons.k8s.io-k8s-1.9",
+			"aws-load-balancer-controller.addons.k8s.io-k8s-1.19",
 			"certmanager.io-k8s-1.16",
 			"cluster-autoscaler.addons.k8s.io-k8s-1.15",
 			"networking.amazon-vpc-routed-eni-k8s-1.16",
@@ -549,7 +550,7 @@ func TestManyAddonsCCMIRSA(t *testing.T) {
 		withServiceAccountRole("aws-node-termination-handler.kube-system", true).
 		withAddons(
 			"aws-ebs-csi-driver.addons.k8s.io-k8s-1.17",
-			"aws-load-balancer-controller.addons.k8s.io-k8s-1.9",
+			"aws-load-balancer-controller.addons.k8s.io-k8s-1.19",
 			"certmanager.io-k8s-1.16",
 			"cluster-autoscaler.addons.k8s.io-k8s-1.15",
 			"networking.amazon-vpc-routed-eni-k8s-1.16",
@@ -564,12 +565,14 @@ func TestManyAddonsCCMIRSA(t *testing.T) {
 func TestManyAddonsCCMIRSA23(t *testing.T) {
 	newIntegrationTest("minimal.example.com", "many-addons-ccm-irsa23").
 		withOIDCDiscovery().
+		withServiceAccountRole("aws-load-balancer-controller.kube-system", true).
 		withServiceAccountRole("dns-controller.kube-system", true).
 		withServiceAccountRole("aws-cloud-controller-manager.kube-system", true).
 		withServiceAccountRole("cluster-autoscaler.kube-system", true).
 		withServiceAccountRole("ebs-csi-controller-sa.kube-system", true).
 		withServiceAccountRole("aws-node-termination-handler.kube-system", true).
 		withAddons(
+			"aws-load-balancer-controller.addons.k8s.io-k8s-1.19",
 			"aws-ebs-csi-driver.addons.k8s.io-k8s-1.17",
 			"certmanager.io-k8s-1.16",
 			"cluster-autoscaler.addons.k8s.io-k8s-1.15",
@@ -587,7 +590,7 @@ func TestCCM(t *testing.T) {
 	newIntegrationTest("minimal.example.com", "many-addons-ccm").
 		withAddons(
 			"aws-ebs-csi-driver.addons.k8s.io-k8s-1.17",
-			"aws-load-balancer-controller.addons.k8s.io-k8s-1.9",
+			"aws-load-balancer-controller.addons.k8s.io-k8s-1.19",
 			"certmanager.io-k8s-1.16",
 			"cluster-autoscaler.addons.k8s.io-k8s-1.15",
 			"networking.amazon-vpc-routed-eni-k8s-1.16",
@@ -763,6 +766,20 @@ func TestCustomIRSA(t *testing.T) {
 		withServiceAccountRole("myserviceaccount.default", false).
 		withServiceAccountRole("myserviceaccount.test-wildcard", false).
 		withServiceAccountRole("myotherserviceaccount.myapp", true).
+		withAddons(dnsControllerAddon).
+		withAddons(certManagerAddon).
+		withAddons("eks-pod-identity-webhook.addons.k8s.io-k8s-1.16").
+		runTestTerraformAWS(t)
+}
+
+// TestCustomIRSA119 runs a simple k8s 1.19 configuration, but with some additional IAM roles for ServiceAccounts
+func TestCustomIRSA119(t *testing.T) {
+	newIntegrationTest("minimal.example.com", "irsa119").
+		withOIDCDiscovery().
+		withServiceAccountRole("myserviceaccount.default", false).
+		withServiceAccountRole("myserviceaccount.test-wildcard", false).
+		withServiceAccountRole("myotherserviceaccount.myapp", true).
+		withKubeDNS().
 		withAddons(dnsControllerAddon).
 		runTestTerraformAWS(t)
 }

@@ -98,7 +98,7 @@ Read more about cert-manager in the [official documentation](https://cert-manage
 #### Karpenter
 {{ kops_feature_table(kops_added_default='1.24') }}
 
-The Karpenter addon enables Karpenter-managed InstanceGroups. 
+The Karpenter addon enables Karpenter-managed InstanceGroups.
 
 ```yaml
 spec:
@@ -224,6 +224,28 @@ spec:
     memoryRequest: 32Mi
     cpuRequest: 10m
 ```
+
+#### Pod Identity Webhook
+
+{{ kops_feature_table(kops_added_default='1.23') }}
+
+When using [IAM roles for Service Accounts](/cluster_spec/#service-account-issuer-discovery-and-aws-iam-roles-for-service-accounts-irsa) (IRSA), Pods require an additinal token to authenticate with the AWS API. In addition, the SDK requires specific environment variables set to make use of these tokens. This addon will mutate Pods configured to use IRSA so that users do not need to do this themselves.
+
+All ServiceAccounts configured with AWS privileges in the Cluster spec will automatically be mutated to assume the configured role.
+
+
+```yaml
+spec:
+  certManager:
+    enabled: true
+  podIdentityWebhook:
+    enabled: true
+```
+
+The EKS annotations on ServiceAccounts are typically not necessary as kOps will configure the webhook with all ServiceAccount to role mapping configured in the Cluster spec. But if you need specific configuration, you may annotate the ServiceAccount, overriding the kOps configuration.
+
+Read more about Pod Identity Webhook in the [official documentation](https://github.com/aws/amazon-eks-pod-identity-webhook).
+
 #### Snapshot controller
 
 {{ kops_feature_table(kops_added_default='1.21', k8s_min='1.20') }}
@@ -246,7 +268,6 @@ spec:
     awsEBSCSIDriver:
       enabled: true
 ```
-
 
 ## Custom addons
 

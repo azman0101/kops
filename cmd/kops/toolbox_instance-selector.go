@@ -239,7 +239,7 @@ func RunToolboxInstanceSelector(ctx context.Context, f *util.Factory, out io.Wri
 		return err
 	}
 
-	if kops.CloudProviderID(cluster.Spec.CloudProvider) != kops.CloudProviderAWS {
+	if cluster.Spec.GetCloudProvider() != kops.CloudProviderAWS {
 		return fmt.Errorf("cannot select instance types from non-aws cluster")
 	}
 
@@ -332,7 +332,7 @@ func RunToolboxInstanceSelector(ctx context.Context, f *util.Factory, out io.Wri
 					return fmt.Errorf("error writing cluster yaml to stdout: %v", err)
 				}
 			case OutputJSON:
-				if err := fullOutputJSON(out, ig); err != nil {
+				if err := fullOutputJSON(out, true, ig); err != nil {
 					return fmt.Errorf("error writing cluster json to stdout: %v", err)
 				}
 			default:

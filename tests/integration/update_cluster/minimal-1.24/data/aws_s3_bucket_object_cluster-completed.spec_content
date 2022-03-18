@@ -20,7 +20,7 @@ spec:
     clusterName: minimal.example.com
     configureCloudRoutes: false
     enableLeaderMigration: true
-    image: gcr.io/k8s-staging-provider-aws/cloud-controller-manager:latest
+    image: k8s.gcr.io/provider-aws/cloud-controller-manager:v1.23.0-alpha.0
     leaderElection:
       leaderElect: true
   cloudProvider: aws
@@ -30,7 +30,7 @@ spec:
   containerRuntime: containerd
   containerd:
     logLevel: info
-    version: 1.6.0-rc.2
+    version: 1.6.1
   dnsZone: Z1AFAKE1ZON3YO
   docker:
     skipInstall: true
@@ -84,6 +84,9 @@ spec:
     - https://127.0.0.1:4001
     etcdServersOverrides:
     - /events#https://127.0.0.1:4002
+    featureGates:
+      CSIMigrationAWS: "true"
+      InTreePluginAWSUnregister: "true"
     image: k8s.gcr.io/kube-apiserver:v1.24.0-alpha.1
     kubeletPreferredAddressTypes:
     - InternalIP
@@ -110,9 +113,9 @@ spec:
     clusterCIDR: 100.96.0.0/11
     clusterName: minimal.example.com
     configureCloudRoutes: false
-    enableLeaderMigration: true
     featureGates:
       CSIMigrationAWS: "true"
+      InTreePluginAWSUnregister: "true"
     image: k8s.gcr.io/kube-controller-manager:v1.24.0-alpha.1
     leaderElection:
       leaderElect: true
@@ -138,6 +141,9 @@ spec:
     image: k8s.gcr.io/kube-proxy:v1.24.0-alpha.1
     logLevel: 2
   kubeScheduler:
+    featureGates:
+      CSIMigrationAWS: "true"
+      InTreePluginAWSUnregister: "true"
     image: k8s.gcr.io/kube-scheduler:v1.24.0-alpha.1
     leaderElection:
       leaderElect: true
@@ -159,6 +165,8 @@ spec:
     podInfraContainerImage: k8s.gcr.io/pause:3.6
     podManifestPath: /etc/kubernetes/manifests
     protectKernelDefaults: true
+    shutdownGracePeriod: 30s
+    shutdownGracePeriodCriticalPods: 10s
   kubernetesApiAccess:
   - 0.0.0.0/0
   - ::/0
@@ -182,6 +190,8 @@ spec:
     podManifestPath: /etc/kubernetes/manifests
     protectKernelDefaults: true
     registerSchedulable: false
+    shutdownGracePeriod: 30s
+    shutdownGracePeriodCriticalPods: 10s
   masterPublicName: api.minimal.example.com
   networkCIDR: 172.20.0.0/16
   networking:

@@ -131,7 +131,7 @@ cloudConfig:
 containerRuntime: containerd
 containerd:
   logLevel: info
-  version: 1.6.0-rc.2
+  version: 1.6.1
 docker:
   skipInstall: true
 encryptionConfig: null
@@ -163,6 +163,9 @@ kubeAPIServer:
   - https://127.0.0.1:4001
   etcdServersOverrides:
   - /events#https://127.0.0.1:4002
+  featureGates:
+    CSIMigrationAWS: "true"
+    InTreePluginAWSUnregister: "true"
   image: k8s.gcr.io/kube-apiserver:v1.23.0
   kubeletPreferredAddressTypes:
   - InternalIP
@@ -191,6 +194,7 @@ kubeControllerManager:
   configureCloudRoutes: false
   featureGates:
     CSIMigrationAWS: "true"
+    InTreePluginAWSUnregister: "true"
   image: k8s.gcr.io/kube-controller-manager:v1.23.0
   leaderElection:
     leaderElect: true
@@ -201,6 +205,9 @@ kubeProxy:
   image: k8s.gcr.io/kube-proxy:v1.23.0
   logLevel: 2
 kubeScheduler:
+  featureGates:
+    CSIMigrationAWS: "true"
+    InTreePluginAWSUnregister: "true"
   image: k8s.gcr.io/kube-scheduler:v1.23.0
   leaderElection:
     leaderElect: true
@@ -223,6 +230,8 @@ kubelet:
   podInfraContainerImage: k8s.gcr.io/pause:3.6
   podManifestPath: /etc/kubernetes/manifests
   protectKernelDefaults: true
+  shutdownGracePeriod: 0s
+  shutdownGracePeriodCriticalPods: 0s
 masterKubelet:
   anonymousAuth: false
   cgroupDriver: systemd
@@ -242,6 +251,8 @@ masterKubelet:
   podManifestPath: /etc/kubernetes/manifests
   protectKernelDefaults: true
   registerSchedulable: false
+  shutdownGracePeriod: 0s
+  shutdownGracePeriodCriticalPods: 0s
 
 __EOF_CLUSTER_SPEC
 
@@ -250,7 +261,7 @@ CloudProvider: aws
 ConfigBase: memfs://clusters.example.com/minimal.example.com
 InstanceGroupName: master-us-test-1a
 InstanceGroupRole: Master
-NodeupConfigHash: kCFd6y0ozkd4yZPLo0twTr4CSfC70PJCxZzGVdM97vM=
+NodeupConfigHash: Brkg1K7x18CYFaHYzMy1xP8B8x+O9RQVIMztVJSywo8=
 
 __EOF_KUBE_ENV
 

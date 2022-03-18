@@ -91,6 +91,14 @@ func (c *GCEModelContext) NameForIPAddress(id string) string {
 	return c.SafeObjectName(id)
 }
 
+func (c *GCEModelContext) NameForPoolHealthcheck(id string) string {
+	return c.SafeObjectName(id)
+}
+
+func (c *GCEModelContext) NameForHealthcheck(id string) string {
+	return c.SafeObjectName(id)
+}
+
 func (c *GCEModelContext) NameForFirewallRule(id string) string {
 	return c.SafeObjectName(id)
 }
@@ -120,13 +128,13 @@ func (c *GCEModelContext) LinkToServiceAccount(ig *kops.InstanceGroup) *gcetasks
 	name := ""
 	switch role {
 	case kops.InstanceGroupRoleAPIServer, kops.InstanceGroupRoleMaster:
-		name = "control-plane"
+		name = gce.ControlPlane
 
 	case kops.InstanceGroupRoleBastion:
-		name = "bastion"
+		name = gce.Bastion
 
 	case kops.InstanceGroupRoleNode:
-		name = "node"
+		name = gce.Node
 
 	default:
 		klog.Fatalf("unknown role %q", role)

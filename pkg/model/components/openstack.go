@@ -32,7 +32,7 @@ var _ loader.OptionsBuilder = &OpenStackOptionsBulder{}
 func (b *OpenStackOptionsBulder) BuildOptions(o interface{}) error {
 	clusterSpec := o.(*kops.ClusterSpec)
 
-	if kops.CloudProviderID(clusterSpec.CloudProvider) != kops.CloudProviderOpenstack {
+	if clusterSpec.GetCloudProvider() != kops.CloudProviderOpenstack {
 		return nil
 	}
 
@@ -59,7 +59,12 @@ func (b *OpenStackOptionsBulder) BuildOptions(o interface{}) error {
 	}
 
 	if clusterSpec.ExternalCloudControllerManager == nil {
-		clusterSpec.ExternalCloudControllerManager = &kops.CloudControllerManagerConfig{}
+		clusterSpec.ExternalCloudControllerManager = &kops.CloudControllerManagerConfig{
+			// No significant downside to always doing a leader election.
+			// Also, having a replicated (HA) control plane requires leader election.
+			LeaderElection: &kops.LeaderElectionConfiguration{LeaderElect: fi.Bool(true)},
+		}
 	}
+
 	return nil
 }

@@ -35,7 +35,7 @@ var _ loader.OptionsBuilder = &AWSCloudControllerManagerOptionsBuilder{}
 func (b *AWSCloudControllerManagerOptionsBuilder) BuildOptions(o interface{}) error {
 	clusterSpec := o.(*kops.ClusterSpec)
 
-	if kops.CloudProviderID(clusterSpec.CloudProvider) != kops.CloudProviderAWS {
+	if clusterSpec.GetCloudProvider() != kops.CloudProviderAWS {
 		return nil
 	}
 
@@ -94,8 +94,10 @@ func (b *AWSCloudControllerManagerOptionsBuilder) BuildOptions(o interface{}) er
 		case 21:
 			eccm.Image = "k8s.gcr.io/provider-aws/cloud-controller-manager:v1.21.0-alpha.0"
 		case 22:
-			eccm.Image = "k8s.gcr.io/provider-aws/cloud-controller-manager:v1.22.0-alpha.1"
+			eccm.Image = "k8s.gcr.io/provider-aws/cloud-controller-manager:v1.22.0-alpha.2"
 		case 23:
+			eccm.Image = "k8s.gcr.io/provider-aws/cloud-controller-manager:v1.23.0-alpha.0"
+		case 24:
 			eccm.Image = "k8s.gcr.io/provider-aws/cloud-controller-manager:v1.23.0-alpha.0"
 		default:
 			eccm.Image = "gcr.io/k8s-staging-provider-aws/cloud-controller-manager:latest"

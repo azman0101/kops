@@ -257,6 +257,10 @@ spec:
     - 12.34.56.78/32
 ```
 
+{{ kops_feature_table(kops_added_default='1.23') }}
+
+In AWS, instead of listing all CIDRs, it is possible to specify a pre-existing [AWS Prefix List](https://docs.aws.amazon.com/vpc/latest/userguide/managed-prefix-lists.html) ID.
+
 ## kubernetesApiAccess
 
 This array configures the CIDRs that are able to access the kubernetes API. On AWS this is manifested as inbound security group rules on the ELB or master security groups.
@@ -268,6 +272,10 @@ spec:
   kubernetesApiAccess:
     - 12.34.56.78/32
 ```
+
+{{ kops_feature_table(kops_added_default='1.23') }}
+
+In AWS, instead of listing all CIDRs, it is possible to specify a pre-existing [AWS Prefix List](https://docs.aws.amazon.com/vpc/latest/userguide/managed-prefix-lists.html) ID.
 
 ## cluster.spec Subnet Keys
 
@@ -741,6 +749,25 @@ spec:
   kubelet:
     logFormat: json
 ```
+
+### Graceful Node Shutdown
+
+{{ kops_feature_table(kops_added_default='1.23', k8s_min='1.21') }}
+
+Graceful node shutdown allows kubelet to prevent instance shutdown until Pods have been safely terminated or a timeout has been reached.
+
+For all CNIs except `amazonaws`, kOps will try to add a 30 second timeout for 30 seconds where the first 20 seconds is reserved for normal Pods and the last 10 seconds for critical Pods. When using `amazonaws` this feature is disabled, as it leads to [leaking ENIs](https://github.com/aws/amazon-vpc-cni-k8s/issues/1223).
+
+This configuration can be changed as follows:
+
+```yaml
+spec:
+  kubelet:
+    shutdownGracePeriod: 60s
+    shutdownGracePeriodCriticalPods: 20s
+```
+
+Note that Kubelet will fail to install the shutdown inhibtor on systems where logind is configured with an `InhibitDelayMaxSeconds` lower than `shutdownGracePeriod`. On Ubuntu, this setting is 30 seconds.
 
 ## kubeScheduler
 
@@ -1431,3 +1458,5 @@ spec:
               }
             ]
 ```
+
+To configure Pods to assume the given IAM roles, enable the [Pod Identity Webhook](/addons/#pod-identity-webhook). Without this webhook, you need to modify your Pod specs yourself for your Pod to assume the defined roles.

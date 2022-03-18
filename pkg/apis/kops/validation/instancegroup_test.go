@@ -185,7 +185,9 @@ func TestValidMasterInstanceGroup(t *testing.T) {
 func TestValidBootDevice(t *testing.T) {
 	cluster := &kops.Cluster{
 		Spec: kops.ClusterSpec{
-			CloudProvider: "aws",
+			CloudProvider: kops.CloudProviderSpec{
+				AWS: &kops.AWSSpec{},
+			},
 		},
 	}
 	grid := []struct {
@@ -304,6 +306,34 @@ func TestIGCloudLabelIsIGName(t *testing.T) {
 		ig.Spec.CloudLabels[aws.CloudTagInstanceGroupName] = g.label
 		errs := ValidateInstanceGroup(ig, nil, true)
 		testErrors(t, g.label, errs, g.expected)
+	}
+}
+
+func TestValidTaints(t *testing.T) {
+	grid := []struct {
+		taints   []string
+		expected []string
+	}{
+		{
+			taints: []string{
+				"nvidia.com/gpu:NoSchedule",
+			},
+		},
+		{
+			taints: []string{
+				"nvidia.com/gpu:NoSchedule",
+				"nvidia.com/gpu=1:NoSchedule",
+			},
+			expected: []string{"Forbidden::spec.taints[1]"},
+		},
+	}
+
+	for _, g := range grid {
+		ig := createMinimalInstanceGroup()
+
+		ig.Spec.Taints = g.taints
+		errs := ValidateInstanceGroup(ig, nil, true)
+		testErrors(t, g.taints, errs, g.expected)
 	}
 }
 

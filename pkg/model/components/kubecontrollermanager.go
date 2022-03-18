@@ -76,25 +76,29 @@ func (b *KubeControllerManagerOptionsBuilder) BuildOptions(o interface{}) error 
 	}
 
 	kcm.ClusterName = b.ClusterName
-	switch kops.CloudProviderID(clusterSpec.CloudProvider) {
-	case kops.CloudProviderAWS:
-		kcm.CloudProvider = "aws"
-
-	case kops.CloudProviderGCE:
-		kcm.CloudProvider = "gce"
-		kcm.ClusterName = gce.SafeClusterName(b.ClusterName)
-
-	case kops.CloudProviderDO:
+	if b.IsKubernetesGTE("1.24") {
 		kcm.CloudProvider = "external"
+	} else {
+		switch kops.CloudProviderID(clusterSpec.GetCloudProvider()) {
+		case kops.CloudProviderAWS:
+			kcm.CloudProvider = "aws"
 
-	case kops.CloudProviderOpenstack:
-		kcm.CloudProvider = "openstack"
+		case kops.CloudProviderGCE:
+			kcm.CloudProvider = "gce"
+			kcm.ClusterName = gce.SafeClusterName(b.ClusterName)
 
-	case kops.CloudProviderAzure:
-		kcm.CloudProvider = "azure"
+		case kops.CloudProviderDO:
+			kcm.CloudProvider = "external"
 
-	default:
-		return fmt.Errorf("unknown cloudprovider %q", clusterSpec.CloudProvider)
+		case kops.CloudProviderOpenstack:
+			kcm.CloudProvider = "openstack"
+
+		case kops.CloudProviderAzure:
+			kcm.CloudProvider = "azure"
+
+		default:
+			return fmt.Errorf("unknown cloudprovider %q", clusterSpec.GetCloudProvider())
+		}
 	}
 
 	if clusterSpec.ExternalCloudControllerManager == nil {
@@ -105,7 +109,9 @@ func (b *KubeControllerManagerOptionsBuilder) BuildOptions(o interface{}) error 
 		kcm.CloudProvider = "external"
 	}
 
-	kcm.LogLevel = 2
+	if kcm.LogLevel == 0 {
+		kcm.LogLevel = 2
+	}
 
 	image, err := Image("kube-controller-manager", clusterSpec, b.AssetBuilder)
 	if err != nil {
@@ -178,12 +184,12 @@ func (b *KubeControllerManagerOptionsBuilder) BuildOptions(o interface{}) error 
 		}
 
 		if b.IsKubernetesLT("1.21.0") {
-			if _, found := clusterSpec.Kubelet.FeatureGates["CSIMigrationAWSComplete"]; !found {
-				clusterSpec.Kubelet.FeatureGates["CSIMigrationAWSComplete"] = "true"
+			if _, found := kcm.FeatureGates["CSIMigrationAWSComplete"]; !found {
+				kcm.FeatureGates["CSIMigrationAWSComplete"] = "true"
 			}
 		} else {
-			if _, found := clusterSpec.Kubelet.FeatureGates["InTreePluginAWSUnregister"]; !found {
-				clusterSpec.Kubelet.FeatureGates["InTreePluginAWSUnregister"] = "true"
+			if _, found := kcm.FeatureGates["InTreePluginAWSUnregister"]; !found {
+				kcm.FeatureGates["InTreePluginAWSUnregister"] = "true"
 			}
 		}
 

@@ -60,8 +60,8 @@ type ClusterSpec struct {
 	// both because this must be accessible to the cluster,
 	// and because it might be on a different cloud or storage system (etcd vs S3)
 	ConfigBase string `json:"configBase,omitempty"`
-	// The CloudProvider to use (aws or gce)
-	CloudProvider string `json:"cloudProvider,omitempty"`
+	// CloudProvider configures the cloud provider to use.
+	CloudProvider CloudProviderSpec `json:"cloudProvider,omitempty"`
 	// GossipConfig for the cluster assuming the use of gossip DNS
 	GossipConfig *GossipConfig `json:"gossipConfig,omitempty"`
 	// Container runtime to use for Kubernetes
@@ -76,9 +76,10 @@ type ClusterSpec struct {
 	MasterPublicName string `json:"masterPublicName,omitempty"`
 	// MasterInternalName is the internal DNS name for the master nodes
 	MasterInternalName string `json:"masterInternalName,omitempty"`
-	// NetworkCIDR is the CIDR used for the AWS VPC / GCE Network, or otherwise allocated to k8s
+	// NetworkCIDR is the CIDR used for the AWS VPC / DO/ GCE Network, or otherwise allocated to k8s
 	// This is a real CIDR, not the internal k8s network
 	// On AWS, it maps to the VPC CIDR.  It is not required on GCE.
+	// On DO, it maps to the VPC CIDR.
 	NetworkCIDR string `json:"networkCIDR,omitempty"`
 	// AdditionalNetworkCIDRs is a list of additional CIDR used for the AWS VPC
 	// or otherwise allocated to k8s. This is a real CIDR, not the internal k8s network
@@ -216,6 +217,47 @@ type ClusterSpec struct {
 	SnapshotController *SnapshotControllerConfig `json:"snapshotController,omitempty"`
 	// Karpenter defines the Karpenter configuration.
 	Karpenter *KarpenterConfig `json:"karpenter,omitempty"`
+	// PodIdentityWebhook determines the EKS Pod Identity Webhook configuration.
+	PodIdentityWebhook *PodIdentityWebhookConfig `json:"podIdentityWebhook,omitempty"`
+}
+
+// PodIdentityWebhookConfig configures an EKS Pod Identity Webhook.
+type PodIdentityWebhookConfig struct {
+	Enabled bool `json:"enabled,omitempty"`
+}
+
+// CloudProviderSpec configures the cloud provider to use.
+type CloudProviderSpec struct {
+	// AWS configures the AWS cloud provider.
+	AWS *AWSSpec `json:"aws,omitempty"`
+	// Azure configures the Azure cloud provider.
+	Azure *AzureSpec `json:"azure,omitempty"`
+	// DO configures the Digital Ocean cloud provider.
+	DO *DOSpec `json:"do,omitempty"`
+	// GCE configures the GCE cloud provider.
+	GCE *GCESpec `json:"gce,omitempty"`
+	// Openstack configures the Openstack cloud provider.
+	Openstack *OpenstackSpec `json:"openstack,omitempty"`
+}
+
+// AWSSpec configures the AWS cloud provider.
+type AWSSpec struct {
+}
+
+// AzureSpec configures the Azure cloud provider.
+type AzureSpec struct {
+}
+
+// DOSpec configures the Digital Ocean cloud provider.
+type DOSpec struct {
+}
+
+// GCESpec configures the GCE cloud provider.
+type GCESpec struct {
+}
+
+// OpenstackSpec configures the Openstack cloud provider.
+type OpenstackSpec struct {
 }
 
 type KarpenterConfig struct {
@@ -839,6 +881,21 @@ func (c *ClusterSpec) IsIPv6Only() bool {
 
 func (c *ClusterSpec) IsKopsControllerIPAM() bool {
 	return c.IsIPv6Only()
+}
+
+func (c *ClusterSpec) GetCloudProvider() CloudProviderID {
+	if c.CloudProvider.AWS != nil {
+		return CloudProviderAWS
+	} else if c.CloudProvider.Azure != nil {
+		return CloudProviderAzure
+	} else if c.CloudProvider.DO != nil {
+		return CloudProviderDO
+	} else if c.CloudProvider.GCE != nil {
+		return CloudProviderGCE
+	} else if c.CloudProvider.Openstack != nil {
+		return CloudProviderOpenstack
+	}
+	return ""
 }
 
 // EnvVar represents an environment variable present in a Container.

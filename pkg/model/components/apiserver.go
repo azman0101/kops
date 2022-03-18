@@ -97,7 +97,7 @@ func (b *KubeAPIServerOptionsBuilder) BuildOptions(o interface{}) error {
 	}
 	c.Image = image
 
-	switch kops.CloudProviderID(clusterSpec.CloudProvider) {
+	switch clusterSpec.GetCloudProvider() {
 	case kops.CloudProviderAWS:
 		c.CloudProvider = "aws"
 	case kops.CloudProviderGCE:
@@ -109,7 +109,7 @@ func (b *KubeAPIServerOptionsBuilder) BuildOptions(o interface{}) error {
 	case kops.CloudProviderAzure:
 		c.CloudProvider = "azure"
 	default:
-		return fmt.Errorf("unknown cloudprovider %q", clusterSpec.CloudProvider)
+		return fmt.Errorf("unknown cloudprovider %q", clusterSpec.GetCloudProvider())
 	}
 
 	if clusterSpec.ExternalCloudControllerManager != nil {
@@ -174,6 +174,33 @@ func (b *KubeAPIServerOptionsBuilder) BuildOptions(o interface{}) error {
 	if metricsServer != nil && fi.BoolValue(metricsServer.Enabled) {
 		if c.EnableAggregatorRouting == nil {
 			c.EnableAggregatorRouting = fi.Bool(true)
+		}
+	}
+
+	if c.FeatureGates == nil {
+		c.FeatureGates = make(map[string]string)
+	}
+
+	if clusterSpec.CloudConfig != nil && clusterSpec.CloudConfig.AWSEBSCSIDriver != nil && fi.BoolValue(clusterSpec.CloudConfig.AWSEBSCSIDriver.Enabled) {
+
+		if b.IsKubernetesLT("1.21.0") {
+			if _, found := c.FeatureGates["CSIMigrationAWSComplete"]; !found {
+				c.FeatureGates["CSIMigrationAWSComplete"] = "true"
+			}
+		} else {
+			if _, found := c.FeatureGates["InTreePluginAWSUnregister"]; !found {
+				c.FeatureGates["InTreePluginAWSUnregister"] = "true"
+			}
+		}
+
+		if _, found := c.FeatureGates["CSIMigrationAWS"]; !found {
+			c.FeatureGates["CSIMigrationAWS"] = "true"
+		}
+	}
+
+	if b.IsKubernetesLT("1.20") && clusterSpec.ServiceAccountIssuerDiscovery != nil && fi.BoolValue(&clusterSpec.ServiceAccountIssuerDiscovery.EnableAWSOIDCProvider) {
+		if _, found := c.FeatureGates["ServiceAccountIssuerDiscovery"]; !found {
+			c.FeatureGates["ServiceAccountIssuerDiscovery"] = "true"
 		}
 	}
 

@@ -131,7 +131,7 @@ cloudConfig:
 containerRuntime: containerd
 containerd:
   logLevel: info
-  version: 1.6.0-rc.2
+  version: 1.6.1
 docker:
   skipInstall: true
 kubeProxy:
@@ -155,6 +155,8 @@ kubelet:
   podInfraContainerImage: k8s.gcr.io/pause:3.6
   podManifestPath: /etc/kubernetes/manifests
   protectKernelDefaults: true
+  shutdownGracePeriod: 30s
+  shutdownGracePeriodCriticalPods: 10s
 
 __EOF_CLUSTER_SPEC
 
@@ -163,7 +165,7 @@ CloudProvider: gce
 ConfigBase: memfs://tests/minimal-gce.example.com
 InstanceGroupName: nodes
 InstanceGroupRole: Node
-NodeupConfigHash: gXNGYoSwJCRZJcb+hhkZ6SsWk+NX5/U1KQN/L6HehSI=
+NodeupConfigHash: MMfnxaI6ma5BXVTTpavYER4Q2ijztlaDvwU4/vOj5fg=
 
 __EOF_KUBE_ENV
 

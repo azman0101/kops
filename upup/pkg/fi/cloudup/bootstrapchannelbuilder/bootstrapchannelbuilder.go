@@ -452,8 +452,8 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 	}
 
 	if b.IsKubernetesGTE("1.23") && b.IsKubernetesLT("1.26") &&
-		(kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderAWS ||
-			kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderGCE) {
+		(b.Cluster.Spec.GetCloudProvider() == kops.CloudProviderAWS ||
+			b.Cluster.Spec.GetCloudProvider() == kops.CloudProviderGCE) {
 		// AWS and GCE KCM-to-CCM leader migration
 		key := "leader-migration.rbac.addons.k8s.io"
 
@@ -658,8 +658,15 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 	}
 
 	nvidia := b.Cluster.Spec.Containerd.NvidiaGPU
+	igNvidia := false
+	for _, ig := range b.KopsModelContext.InstanceGroups {
+		if ig.Spec.Containerd != nil && ig.Spec.Containerd.NvidiaGPU != nil && fi.BoolValue(ig.Spec.Containerd.NvidiaGPU.Enabled) {
+			igNvidia = true
+			break
+		}
+	}
 
-	if nvidia != nil && fi.BoolValue(nvidia.Enabled) {
+	if nvidia != nil && fi.BoolValue(nvidia.Enabled) || igNvidia {
 
 		key := "nvidia.addons.k8s.io"
 
@@ -680,9 +687,20 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 
 		key := "aws-load-balancer-controller.addons.k8s.io"
 
-		{
+		if b.IsKubernetesLT("1.19") {
 			location := key + "/k8s-1.9.yaml"
 			id := "k8s-1.9"
+
+			addons.Add(&channelsapi.AddonSpec{
+				Name:     fi.String(key),
+				Selector: map[string]string{"k8s-addon": key},
+				Manifest: fi.String(location),
+				Id:       id,
+				NeedsPKI: true,
+			})
+		} else {
+			location := key + "/k8s-1.19.yaml"
+			id := "k8s-1.19"
 
 			addons.Add(&channelsapi.AddonSpec{
 				Name:     fi.String(key),
@@ -699,7 +717,27 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 		}
 	}
 
-	if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderAWS {
+	if b.Cluster.Spec.PodIdentityWebhook != nil && fi.BoolValue(&b.Cluster.Spec.PodIdentityWebhook.Enabled) {
+
+		key := "eks-pod-identity-webhook.addons.k8s.io"
+
+		{
+			id := "k8s-1.16"
+			location := key + "/" + id + ".yaml"
+
+			addons.Add(&channelsapi.AddonSpec{
+				Name: fi.String(key),
+				Selector: map[string]string{
+					"k8s-addon": key,
+				},
+				Manifest: fi.String(location),
+				Id:       id,
+				NeedsPKI: true,
+			})
+		}
+	}
+
+	if b.Cluster.Spec.GetCloudProvider() == kops.CloudProviderAWS {
 		key := "storage-aws.addons.k8s.io"
 
 		{
@@ -715,7 +753,7 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 		}
 	}
 
-	if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderDO {
+	if b.Cluster.Spec.GetCloudProvider() == kops.CloudProviderDO {
 		key := "digitalocean-cloud-controller.addons.k8s.io"
 
 		{
@@ -731,7 +769,7 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 		}
 	}
 
-	if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderGCE {
+	if b.Cluster.Spec.GetCloudProvider() == kops.CloudProviderGCE {
 		key := "storage-gce.addons.k8s.io"
 
 		{
@@ -779,7 +817,7 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 
 	// The metadata-proxy daemonset conceals node metadata endpoints in GCE.
 	// It will land on nodes labeled cloud.google.com/metadata-proxy-ready=true
-	if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderGCE {
+	if b.Cluster.Spec.GetCloudProvider() == kops.CloudProviderGCE {
 		key := "metadata-proxy.addons.k8s.io"
 
 		{
@@ -794,18 +832,19 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 			})
 		}
 
-		if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderGCE {
+		if b.Cluster.Spec.GetCloudProvider() == kops.CloudProviderGCE {
 			if b.Cluster.Spec.ExternalCloudControllerManager != nil {
 				key := "gcp-cloud-controller.addons.k8s.io"
 				{
 					id := "k8s-1.23"
 					location := key + "/" + id + ".yaml"
-					addons.Add(&channelsapi.AddonSpec{
+					addon := addons.Add(&channelsapi.AddonSpec{
 						Name:     fi.String(key),
 						Manifest: fi.String(location),
 						Selector: map[string]string{"k8s-addon": key},
 						Id:       id,
 					})
+					addon.BuildPrune = true
 				}
 			}
 		}
@@ -976,7 +1015,7 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 		}
 	}
 
-	if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderOpenstack {
+	if b.Cluster.Spec.GetCloudProvider() == kops.CloudProviderOpenstack {
 		{
 			key := "storage-openstack.addons.k8s.io"
 
@@ -1023,7 +1062,7 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 		}
 	}
 
-	if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderAWS {
+	if b.Cluster.Spec.GetCloudProvider() == kops.CloudProviderAWS {
 
 		if b.Cluster.Spec.ExternalCloudControllerManager != nil {
 			key := "aws-cloud-controller.addons.k8s.io"
@@ -1106,7 +1145,7 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 		})
 	}
 
-	if kops.CloudProviderID(b.Cluster.Spec.CloudProvider) == kops.CloudProviderAWS && b.Cluster.Spec.KubeAPIServer.ServiceAccountIssuer != nil {
+	if b.Cluster.Spec.GetCloudProvider() == kops.CloudProviderAWS && b.Cluster.Spec.KubeAPIServer.ServiceAccountIssuer != nil {
 		awsModelContext := &awsmodel.AWSModelContext{
 			KopsModelContext: b.KopsModelContext,
 		}

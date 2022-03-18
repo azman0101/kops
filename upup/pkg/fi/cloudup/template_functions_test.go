@@ -39,7 +39,9 @@ func Test_TemplateFunctions_CloudControllerConfigArgv(t *testing.T) {
 		{
 			desc: "Default Configuration",
 			cluster: &kops.Cluster{Spec: kops.ClusterSpec{
-				CloudProvider:                  string(kops.CloudProviderOpenstack),
+				CloudProvider: kops.CloudProviderSpec{
+					Openstack: &kops.OpenstackSpec{},
+				},
 				ExternalCloudControllerManager: &kops.CloudControllerManagerConfig{},
 			}},
 			expectedArgv: []string{
@@ -53,7 +55,9 @@ func Test_TemplateFunctions_CloudControllerConfigArgv(t *testing.T) {
 			desc: "Log Level Configuration",
 			cluster: &kops.Cluster{
 				Spec: kops.ClusterSpec{
-					CloudProvider: string(kops.CloudProviderOpenstack),
+					CloudProvider: kops.CloudProviderSpec{
+						Openstack: &kops.OpenstackSpec{},
+					},
 					ExternalCloudControllerManager: &kops.CloudControllerManagerConfig{
 						LogLevel: 3,
 					},
@@ -77,8 +81,8 @@ func Test_TemplateFunctions_CloudControllerConfigArgv(t *testing.T) {
 				},
 			},
 			expectedArgv: []string{
-				"--v=3",
 				"--cloud-provider=openstack",
+				"--v=3",
 				"--use-service-account-credentials=true",
 				"--cloud-config=/etc/kubernetes/cloud.config",
 			},
@@ -97,15 +101,17 @@ func Test_TemplateFunctions_CloudControllerConfigArgv(t *testing.T) {
 		{
 			desc: "k8s cluster name",
 			cluster: &kops.Cluster{Spec: kops.ClusterSpec{
-				CloudProvider: string(kops.CloudProviderOpenstack),
+				CloudProvider: kops.CloudProviderSpec{
+					Openstack: &kops.OpenstackSpec{},
+				},
 				ExternalCloudControllerManager: &kops.CloudControllerManagerConfig{
 					ClusterName: "k8s",
 				},
 			}},
 			expectedArgv: []string{
+				"--cluster-name=k8s",
 				"--v=2",
 				"--cloud-provider=openstack",
-				"--cluster-name=k8s",
 				"--use-service-account-credentials=true",
 				"--cloud-config=/etc/kubernetes/cloud.config",
 			},
@@ -113,7 +119,9 @@ func Test_TemplateFunctions_CloudControllerConfigArgv(t *testing.T) {
 		{
 			desc: "Default Configuration",
 			cluster: &kops.Cluster{Spec: kops.ClusterSpec{
-				CloudProvider: string(kops.CloudProviderOpenstack),
+				CloudProvider: kops.CloudProviderSpec{
+					Openstack: &kops.OpenstackSpec{},
+				},
 				ExternalCloudControllerManager: &kops.CloudControllerManagerConfig{
 					Master: "127.0.0.1",
 				},
@@ -129,15 +137,17 @@ func Test_TemplateFunctions_CloudControllerConfigArgv(t *testing.T) {
 		{
 			desc: "Cluster-cidr Configuration",
 			cluster: &kops.Cluster{Spec: kops.ClusterSpec{
-				CloudProvider: string(kops.CloudProviderOpenstack),
+				CloudProvider: kops.CloudProviderSpec{
+					Openstack: &kops.OpenstackSpec{},
+				},
 				ExternalCloudControllerManager: &kops.CloudControllerManagerConfig{
 					ClusterCIDR: "10.0.0.0/24",
 				},
 			}},
 			expectedArgv: []string{
+				"--cluster-cidr=10.0.0.0/24",
 				"--v=2",
 				"--cloud-provider=openstack",
-				"--cluster-cidr=10.0.0.0/24",
 				"--use-service-account-credentials=true",
 				"--cloud-config=/etc/kubernetes/cloud.config",
 			},
@@ -145,15 +155,17 @@ func Test_TemplateFunctions_CloudControllerConfigArgv(t *testing.T) {
 		{
 			desc: "AllocateNodeCIDRs Configuration",
 			cluster: &kops.Cluster{Spec: kops.ClusterSpec{
-				CloudProvider: string(kops.CloudProviderOpenstack),
+				CloudProvider: kops.CloudProviderSpec{
+					Openstack: &kops.OpenstackSpec{},
+				},
 				ExternalCloudControllerManager: &kops.CloudControllerManagerConfig{
 					AllocateNodeCIDRs: fi.Bool(true),
 				},
 			}},
 			expectedArgv: []string{
+				"--allocate-node-cidrs=true",
 				"--v=2",
 				"--cloud-provider=openstack",
-				"--allocate-node-cidrs=true",
 				"--use-service-account-credentials=true",
 				"--cloud-config=/etc/kubernetes/cloud.config",
 			},
@@ -161,15 +173,17 @@ func Test_TemplateFunctions_CloudControllerConfigArgv(t *testing.T) {
 		{
 			desc: "ConfigureCloudRoutes Configuration",
 			cluster: &kops.Cluster{Spec: kops.ClusterSpec{
-				CloudProvider: string(kops.CloudProviderOpenstack),
+				CloudProvider: kops.CloudProviderSpec{
+					Openstack: &kops.OpenstackSpec{},
+				},
 				ExternalCloudControllerManager: &kops.CloudControllerManagerConfig{
 					ConfigureCloudRoutes: fi.Bool(true),
 				},
 			}},
 			expectedArgv: []string{
+				"--configure-cloud-routes=true",
 				"--v=2",
 				"--cloud-provider=openstack",
-				"--configure-cloud-routes=true",
 				"--use-service-account-credentials=true",
 				"--cloud-config=/etc/kubernetes/cloud.config",
 			},
@@ -177,15 +191,17 @@ func Test_TemplateFunctions_CloudControllerConfigArgv(t *testing.T) {
 		{
 			desc: "CIDRAllocatorType Configuration",
 			cluster: &kops.Cluster{Spec: kops.ClusterSpec{
-				CloudProvider: string(kops.CloudProviderOpenstack),
+				CloudProvider: kops.CloudProviderSpec{
+					Openstack: &kops.OpenstackSpec{},
+				},
 				ExternalCloudControllerManager: &kops.CloudControllerManagerConfig{
 					CIDRAllocatorType: fi.String("RangeAllocator"),
 				},
 			}},
 			expectedArgv: []string{
+				"--cidr-allocator-type=RangeAllocator",
 				"--v=2",
 				"--cloud-provider=openstack",
-				"--cidr-allocator-type=RangeAllocator",
 				"--use-service-account-credentials=true",
 				"--cloud-config=/etc/kubernetes/cloud.config",
 			},
@@ -193,15 +209,73 @@ func Test_TemplateFunctions_CloudControllerConfigArgv(t *testing.T) {
 		{
 			desc: "CIDRAllocatorType Configuration",
 			cluster: &kops.Cluster{Spec: kops.ClusterSpec{
-				CloudProvider: string(kops.CloudProviderOpenstack),
+				CloudProvider: kops.CloudProviderSpec{
+					Openstack: &kops.OpenstackSpec{},
+				},
 				ExternalCloudControllerManager: &kops.CloudControllerManagerConfig{
 					UseServiceAccountCredentials: fi.Bool(false),
 				},
 			}},
 			expectedArgv: []string{
+				"--use-service-account-credentials=false",
 				"--v=2",
 				"--cloud-provider=openstack",
-				"--use-service-account-credentials=false",
+				"--cloud-config=/etc/kubernetes/cloud.config",
+			},
+		},
+		{
+			desc: "Leader Election",
+			cluster: &kops.Cluster{Spec: kops.ClusterSpec{
+				CloudProvider: kops.CloudProviderSpec{
+					Openstack: &kops.OpenstackSpec{},
+				},
+				ExternalCloudControllerManager: &kops.CloudControllerManagerConfig{
+					LeaderElection: &kops.LeaderElectionConfiguration{LeaderElect: fi.Bool(true)},
+				},
+			}},
+			expectedArgv: []string{
+				"--leader-elect=true",
+				"--v=2",
+				"--cloud-provider=openstack",
+				"--use-service-account-credentials=true",
+				"--cloud-config=/etc/kubernetes/cloud.config",
+			},
+		},
+		{
+			desc: "Leader Migration",
+			cluster: &kops.Cluster{Spec: kops.ClusterSpec{
+				CloudProvider: kops.CloudProviderSpec{
+					Openstack: &kops.OpenstackSpec{},
+				},
+				ExternalCloudControllerManager: &kops.CloudControllerManagerConfig{
+					LeaderElection:        &kops.LeaderElectionConfiguration{LeaderElect: fi.Bool(true)},
+					EnableLeaderMigration: fi.Bool(true),
+				},
+			}},
+			expectedArgv: []string{
+				"--enable-leader-migration=true",
+				"--leader-elect=true",
+				"--v=2",
+				"--cloud-provider=openstack",
+				"--use-service-account-credentials=true",
+				"--cloud-config=/etc/kubernetes/cloud.config",
+			},
+		},
+		{
+			desc: "Disable Controller",
+			cluster: &kops.Cluster{Spec: kops.ClusterSpec{
+				CloudProvider: kops.CloudProviderSpec{
+					Openstack: &kops.OpenstackSpec{},
+				},
+				ExternalCloudControllerManager: &kops.CloudControllerManagerConfig{
+					Controllers: []string{"*", "-nodeipam"},
+				},
+			}},
+			expectedArgv: []string{
+				"--controllers=*,-nodeipam",
+				"--v=2",
+				"--cloud-provider=openstack",
+				"--use-service-account-credentials=true",
 				"--cloud-config=/etc/kubernetes/cloud.config",
 			},
 		},

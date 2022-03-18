@@ -19,7 +19,9 @@ package components
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	"k8s.io/kops/pkg/apis/kops"
@@ -120,7 +122,7 @@ func (b *KubeletOptionsBuilder) BuildOptions(o interface{}) error {
 		clusterSpec.MasterKubelet.HairpinMode = "none"
 	}
 
-	cloudProvider := kops.CloudProviderID(clusterSpec.CloudProvider)
+	cloudProvider := clusterSpec.GetCloudProvider()
 
 	clusterSpec.Kubelet.CgroupRoot = "/"
 
@@ -205,6 +207,16 @@ func (b *KubeletOptionsBuilder) BuildOptions(o interface{}) error {
 
 	if b.IsKubernetesGTE("1.22") && clusterSpec.Kubelet.ProtectKernelDefaults == nil {
 		clusterSpec.Kubelet.ProtectKernelDefaults = fi.Bool(true)
+	}
+
+	// We do not enable graceful shutdown when using amazonaws due to leaking ENIs.
+	// Graceful shutdown is also not available by default on k8s < 1.21
+	if b.IsKubernetesGTE("1.21") && clusterSpec.Kubelet.ShutdownGracePeriod == nil && clusterSpec.Networking.AmazonVPC == nil {
+		clusterSpec.Kubelet.ShutdownGracePeriod = &metav1.Duration{Duration: time.Duration(30 * time.Second)}
+		clusterSpec.Kubelet.ShutdownGracePeriodCriticalPods = &metav1.Duration{Duration: time.Duration(10 * time.Second)}
+	} else if clusterSpec.Networking.AmazonVPC != nil {
+		clusterSpec.Kubelet.ShutdownGracePeriod = &metav1.Duration{Duration: 0}
+		clusterSpec.Kubelet.ShutdownGracePeriodCriticalPods = &metav1.Duration{Duration: 0}
 	}
 
 	return nil
