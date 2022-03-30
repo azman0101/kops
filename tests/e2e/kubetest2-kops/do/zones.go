@@ -25,14 +25,13 @@ import (
 var allZones = []string{
 	"nyc1",
 	"nyc3",
-	"sfo3",
-	"sfo2",
 	"tor1",
 	"lon1",
 	"sgp1",
 	"blr1",
-	"sfo2",
 	"sfo3",
+	"ams3",
+	"fra1",
 }
 
 // ErrNoEligibleRegion indicates the requested number of zones is not available in any region
