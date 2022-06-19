@@ -19,7 +19,6 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -44,7 +43,7 @@ func TestS3RenderTerraform(t *testing.T) {
 			{
 				"acl": "bucket-owner-full-control",
 				"bucket": "foo",
-				"content": "${file(\"${path.module}/data/aws_s3_bucket_object_bar_content\")}",
+				"content": "${file(\"${path.module}/data/aws_s3_object_bar_content\")}",
 				"key": "bar",
 				"provider": "${aws.files}",
 				"server_side_encryption": "AES256"
@@ -52,13 +51,9 @@ func TestS3RenderTerraform(t *testing.T) {
 			`,
 		},
 	}
-	origEndpoint := os.Getenv("S3_ENDPOINT")
-	os.Setenv("S3_ENDPOINT", "foo.s3.amazonaws.com")
-	defer os.Setenv("S3_ENDPOINT", origEndpoint)
+	t.Setenv("S3_ENDPOINT", "foo.s3.amazonaws.com")
 
-	origACL := os.Getenv("KOPS_STATE_S3_ACL")
-	os.Setenv("KOPS_STATE_S3_ACL", "bucket-owner-full-control")
-	defer os.Setenv("KOPS_STATE_S3_ACL", origACL)
+	t.Setenv("KOPS_STATE_S3_ACL", "bucket-owner-full-control")
 	for _, tc := range grid {
 
 		t.Run(tc.s3Path, func(t *testing.T) {
@@ -88,15 +83,15 @@ func TestS3RenderTerraform(t *testing.T) {
 				t.Fatalf("error fetching terraform resources: %v", err)
 				t.FailNow()
 			}
-			if objs := res["aws_s3_bucket_object"]; objs == nil {
-				t.Fatalf("aws_s3_bucket_object resources not found: %v", res)
+			if objs := res["aws_s3_object"]; objs == nil {
+				t.Fatalf("aws_s3_object resources not found: %v", res)
 				t.FailNow()
 			}
-			if obj := res["aws_s3_bucket_object"][tc.s3Object]; obj == nil {
-				t.Fatalf("aws_s3_bucket_object object not found: %v", res["aws_s3_bucket_object"])
+			if obj := res["aws_s3_object"][tc.s3Object]; obj == nil {
+				t.Fatalf("aws_s3_object object not found: %v", res["aws_s3_object"])
 				t.FailNow()
 			}
-			obj, err := json.Marshal(res["aws_s3_bucket_object"][tc.s3Object])
+			obj, err := json.Marshal(res["aws_s3_object"][tc.s3Object])
 			if err != nil {
 				t.Fatalf("error marshaling s3 object: %v", err)
 				t.FailNow()
@@ -104,12 +99,12 @@ func TestS3RenderTerraform(t *testing.T) {
 			if !assert.JSONEq(t, tc.expectedJSON, string(obj), "JSON representation of terraform resource did not match") {
 				t.FailNow()
 			}
-			if objs := target.TerraformWriter.Files[fmt.Sprintf("data/aws_s3_bucket_object_%v_content", tc.s3Object)]; objs == nil {
-				t.Fatalf("aws_s3_bucket_object content file not found: %v", target.TerraformWriter.Files)
+			if objs := target.TerraformWriter.Files[fmt.Sprintf("data/aws_s3_object_%v_content", tc.s3Object)]; objs == nil {
+				t.Fatalf("aws_s3_object content file not found: %v", target.TerraformWriter.Files)
 				t.FailNow()
 			}
-			actualContent := string(target.TerraformWriter.Files[fmt.Sprintf("data/aws_s3_bucket_object_%v_content", tc.s3Object)])
-			if !assert.Equal(t, content, actualContent, "aws_s3_bucket_object content did not match") {
+			actualContent := string(target.TerraformWriter.Files[fmt.Sprintf("data/aws_s3_object_%v_content", tc.s3Object)])
+			if !assert.Equal(t, content, actualContent, "aws_s3_object content did not match") {
 				t.FailNow()
 			}
 		})

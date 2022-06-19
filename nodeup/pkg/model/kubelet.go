@@ -25,21 +25,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"k8s.io/kops/pkg/model/components"
-
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/klog/v2"
-	kubelet "k8s.io/kubelet/config/v1beta1"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-
+	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/flagbuilder"
+	"k8s.io/kops/pkg/model/components"
 	"k8s.io/kops/pkg/nodelabels"
 	"k8s.io/kops/pkg/rbac"
 	"k8s.io/kops/pkg/systemd"
@@ -47,6 +42,7 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/awsup"
 	"k8s.io/kops/upup/pkg/fi/nodeup/nodetasks"
 	"k8s.io/kops/util/pkg/distributions"
+	kubelet "k8s.io/kubelet/config/v1beta1"
 )
 
 const (
@@ -295,13 +291,13 @@ func (b *KubeletBuilder) buildSystemdEnvironmentFile(kubeletConfig *kops.Kubelet
 	}
 
 	if b.UsesSecondaryIP() {
-		sess := session.Must(session.NewSession())
-		metadata := ec2metadata.New(sess)
-		localIpv4, err := metadata.GetMetadata("local-ipv4")
+		localIP, err := b.GetMetadataLocalIP()
 		if err != nil {
-			return nil, fmt.Errorf("error fetching the local-ipv4 address from the ec2 meta-data: %v", err)
+			return nil, err
 		}
-		flags += " --node-ip=" + localIpv4
+		if localIP != "" {
+			flags += " --node-ip=" + localIP
+		}
 	}
 
 	if b.usesContainerizedMounter() {
@@ -588,7 +584,11 @@ func (b *KubeletBuilder) buildKubeletConfigSpec() (*kops.KubeletConfigSpec, erro
 	{
 		if len(c.Taints) == 0 && isMaster {
 			// (Even though the value is empty, we still expect <Key>=<Value>:<Effect>)
-			c.Taints = append(c.Taints, nodelabels.RoleLabelMaster16+"=:"+string(v1.TaintEffectNoSchedule))
+			if b.IsKubernetesLT("1.24") {
+				c.Taints = append(c.Taints, nodelabels.RoleLabelMaster16+"=:"+string(v1.TaintEffectNoSchedule))
+			} else {
+				c.Taints = append(c.Taints, nodelabels.RoleLabelControlPlane20+"=:"+string(v1.TaintEffectNoSchedule))
+			}
 		}
 		if len(c.Taints) == 0 && isAPIServer {
 			// (Even though the value is empty, we still expect <Key>=<Value>:<Effect>)

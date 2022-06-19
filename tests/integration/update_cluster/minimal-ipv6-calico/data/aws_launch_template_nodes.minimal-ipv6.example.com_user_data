@@ -126,7 +126,7 @@ cat > conf/cluster_spec.yaml << '__EOF_CLUSTER_SPEC'
 cloudConfig:
   awsEBSCSIDriver:
     enabled: true
-    version: v1.5.0
+    version: v1.6.2
   manageStorageClasses: true
   nodeIPFamilies:
   - ipv6
@@ -134,12 +134,12 @@ cloudConfig:
 containerRuntime: containerd
 containerd:
   logLevel: info
-  version: 1.4.12
+  version: 1.6.6
 docker:
   skipInstall: true
 kubeProxy:
   cpuRequest: 100m
-  image: registry.k8s.io/kube-proxy:v1.21.0
+  image: registry.k8s.io/kube-proxy:v1.24.0
   logLevel: 2
 kubelet:
   anonymousAuth: false
@@ -155,9 +155,9 @@ kubelet:
     InTreePluginAWSUnregister: "true"
   kubeconfigPath: /var/lib/kubelet/kubeconfig
   logLevel: 2
-  networkPluginName: cni
   podInfraContainerImage: registry.k8s.io/pause:3.6
   podManifestPath: /etc/kubernetes/manifests
+  protectKernelDefaults: true
   shutdownGracePeriod: 30s
   shutdownGracePeriodCriticalPods: 10s
 
@@ -168,7 +168,7 @@ CloudProvider: aws
 ConfigBase: memfs://clusters.example.com/minimal-ipv6.example.com
 InstanceGroupName: nodes
 InstanceGroupRole: Node
-NodeupConfigHash: jycf2UcZw5xd4lE+V/y/LowQ7qd9dg7399iHXUaYxF0=
+NodeupConfigHash: ZeZuT+GMRBKCW1X0nMJFHAoem0TPwhpNveKxeOJZJww=
 
 __EOF_KUBE_ENV
 

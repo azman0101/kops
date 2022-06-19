@@ -169,6 +169,10 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 		return os.Getenv("DIGITALOCEAN_ACCESS_TOKEN")
 	}
 
+	dest["HCLOUD_TOKEN"] = func() string {
+		return os.Getenv("HCLOUD_TOKEN")
+	}
+
 	if featureflag.Spotinst.Enabled() {
 		if creds, err := spotinst.LoadCredentials(); err == nil {
 			dest["SpotinstToken"] = func() string { return creds.Token }
@@ -182,7 +186,24 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 		c := cluster.Spec.Networking.AmazonVPC
 		dest["AmazonVpcEnvVars"] = func() map[string]string {
 			envVars := map[string]string{
-				"AWS_VPC_K8S_CNI_CONFIGURE_RPFILTER": "false",
+				// Use defaults from the official AWS VPC CNI Helm chart:
+				// https://github.com/aws/amazon-vpc-cni-k8s/blob/master/charts/aws-vpc-cni/values.yaml
+				"AWS_VPC_CNI_NODE_PORT_SUPPORT":         "true",
+				"AWS_VPC_ENI_MTU":                       "9001",
+				"AWS_VPC_K8S_CNI_CONFIGURE_RPFILTER":    "false",
+				"AWS_VPC_K8S_CNI_CUSTOM_NETWORK_CFG":    "false",
+				"AWS_VPC_K8S_CNI_EXTERNALSNAT":          "false",
+				"AWS_VPC_K8S_CNI_LOG_FILE":              "/host/var/log/aws-routed-eni/ipamd.log",
+				"AWS_VPC_K8S_CNI_LOGLEVEL":              "DEBUG",
+				"AWS_VPC_K8S_CNI_RANDOMIZESNAT":         "prng",
+				"AWS_VPC_K8S_CNI_VETHPREFIX":            "eni",
+				"AWS_VPC_K8S_PLUGIN_LOG_FILE":           "/var/log/aws-routed-eni/plugin.log",
+				"AWS_VPC_K8S_PLUGIN_LOG_LEVEL":          "DEBUG",
+				"DISABLE_INTROSPECTION":                 "false",
+				"DISABLE_METRICS":                       "false",
+				"ENABLE_POD_ENI":                        "false",
+				"WARM_ENI_TARGET":                       "1",
+				"DISABLE_NETWORK_RESOURCE_PROVISIONING": "false",
 			}
 			for _, e := range c.Env {
 				envVars[e.Name] = e.Value
@@ -307,6 +328,13 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 	}
 
 	dest["PodIdentityWebhookConfigMapData"] = tf.podIdentityWebhookConfigMapData
+
+	dest["HasSnapshotController"] = func() bool {
+		sc := cluster.Spec.SnapshotController
+		return sc != nil && fi.BoolValue(sc.Enabled)
+	}
+
+	dest["IsKubernetesGTE"] = tf.IsKubernetesGTE
 
 	return nil
 }
@@ -736,6 +764,8 @@ func (tf *TemplateFunctions) OpenStackCCMTag() string {
 		} else if parsed.Minor == 23 {
 			// The bugfix release, see https://github.com/kubernetes/cloud-provider-openstack/releases
 			tag = "v1.23.1"
+		} else if parsed.Minor == 24 {
+			tag = "v1.24.1"
 		} else {
 			// otherwise we use always .0 ccm image, if needed that can be overrided using clusterspec
 			tag = fmt.Sprintf("v%d.%d.0", parsed.Major, parsed.Minor)
@@ -752,8 +782,12 @@ func (tf *TemplateFunctions) OpenStackCSITag() string {
 	if err != nil {
 		tag = "latest"
 	} else {
-		// otherwise we use always .0 csi image, if needed that can be overrided using cloud config spec
-		tag = fmt.Sprintf("v%d.%d.0", parsed.Major, parsed.Minor)
+		if parsed.Minor == 24 {
+			tag = "v1.24.1"
+		} else {
+			// otherwise we use always .0 csi image, if needed that can be overrided using cloud config spec
+			tag = fmt.Sprintf("v%d.%d.0", parsed.Major, parsed.Minor)
+		}
 	}
 	return tag
 }

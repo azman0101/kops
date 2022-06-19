@@ -41,6 +41,7 @@ else
   KOPS_BASE_URL=$(kops-base-from-marker "${KOPS_VERSION_B}")
   KOPS_BASE_URL_B="${KOPS_BASE_URL}"
   KOPS_B=$(kops-download-from-base)
+  CHANNELS=$(kops-channels-download-from-base)
 fi
 
 ${KUBETEST2} \
@@ -92,6 +93,8 @@ kubectl get nodes -owide --kubeconfig "${KUBECONFIG_A}"
 # Sleep to ensure channels has done its thing
 sleep 60s
 
+${CHANNELS} apply channel "$KOPS_STATE_STORE"/"${CLUSTER_NAME}"/addons/bootstrap-channel.yaml --yes -v4
+
 "${KOPS_B}" rolling-update cluster
 "${KOPS_B}" rolling-update cluster --yes --validation-timeout 30m
 
@@ -110,5 +113,4 @@ ${KUBETEST2} \
 		--test=kops \
 		-- \
 		--test-package-version="${K8S_VERSION_B}" \
-		--parallel 25 \
-		--skip-regex="\[Slow\]|\[Serial\]|\[Disruptive\]|\[Flaky\]|\[Feature:.+\]|\[HPA\]|Dashboard|RuntimeClass|RuntimeHandler|TCP.CLOSE_WAIT|Projected.configMap.optional.updates|Invalid.AWS.KMS.key|Volume.limits.should.verify.that.all.nodes.have.volume.limits"
+		--parallel 25

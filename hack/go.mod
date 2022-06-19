@@ -1,12 +1,10 @@
 module k8s.io/kops/hack
 
-go 1.17
+go 1.18
 
 require (
-	github.com/bazelbuild/bazel-gazelle v0.23.0
-	github.com/bazelbuild/bazelisk v1.10.1
 	github.com/client9/misspell v0.3.4
-	github.com/golangci/golangci-lint v1.45.0
+	github.com/golangci/golangci-lint v1.45.2
 	golang.org/x/tools v0.1.10
 	honnef.co/go/tools v0.2.2
 	sigs.k8s.io/controller-tools v0.5.0
@@ -23,11 +21,9 @@ require (
 	github.com/alexkohler/prealloc v1.0.0 // indirect
 	github.com/ashanbrown/forbidigo v1.3.0 // indirect
 	github.com/ashanbrown/makezero v1.1.1 // indirect
-	github.com/bazelbuild/buildtools v0.0.0-20200718160251-b1667ff58f71 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bkielbasa/cyclop v1.2.0 // indirect
-	github.com/blizzy78/varnamelen v0.6.0 // indirect
-	github.com/bmatcuk/doublestar v1.2.2 // indirect
+	github.com/blizzy78/varnamelen v0.6.1 // indirect
 	github.com/bombsimon/wsl/v3 v3.3.0 // indirect
 	github.com/breml/bidichk v0.2.2 // indirect
 	github.com/breml/errchkjson v0.2.3 // indirect
@@ -45,7 +41,7 @@ require (
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/fzipp/gocyclo v0.4.0 // indirect
 	github.com/go-critic/go-critic v0.6.2 // indirect
-	github.com/go-logr/logr v0.4.0 // indirect
+	github.com/go-logr/logr v1.2.0 // indirect
 	github.com/go-toolsmith/astcast v1.0.0 // indirect
 	github.com/go-toolsmith/astcopy v1.0.0 // indirect
 	github.com/go-toolsmith/astequal v1.0.1 // indirect
@@ -77,7 +73,7 @@ require (
 	github.com/gostaticanalysis/nilerr v0.1.1 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hashicorp/go-version v1.3.0 // indirect
+	github.com/hashicorp/go-version v1.4.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hexops/gotextdiff v1.0.3 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -118,10 +114,10 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/polyfloyd/go-errorlint v0.0.0-20211125173453-6d6d39c5bb8b // indirect
-	github.com/prometheus/client_golang v1.7.1 // indirect
+	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.10.0 // indirect
-	github.com/prometheus/procfs v0.6.0 // indirect
+	github.com/prometheus/common v0.32.1 // indirect
+	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/quasilyte/go-ruleguard v0.3.15 // indirect
 	github.com/quasilyte/gogrep v0.0.0-20220103110004-ffaa07af02e3 // indirect
 	github.com/quasilyte/regex/syntax v0.0.0-20200407221936-30656e2c4a95 // indirect
@@ -143,7 +139,7 @@ require (
 	github.com/spf13/viper v1.10.1 // indirect
 	github.com/ssgreg/nlreturn/v2 v2.2.1 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
-	github.com/stretchr/testify v1.7.0 // indirect
+	github.com/stretchr/testify v1.7.1 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/sylvia7788/contextcheck v1.0.4 // indirect
 	github.com/tdakkota/asciicheck v0.1.1 // indirect
@@ -158,7 +154,7 @@ require (
 	github.com/yeya24/promlinter v0.1.1-0.20210918184747-d757024714a1 // indirect
 	gitlab.com/bosi/decorder v0.2.1 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
-	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
 	golang.org/x/text v0.3.7 // indirect
@@ -168,15 +164,16 @@ require (
 	gopkg.in/ini.v1 v1.66.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
-	k8s.io/api v0.20.2 // indirect
-	k8s.io/apiextensions-apiserver v0.20.2 // indirect
-	k8s.io/apimachinery v0.20.2 // indirect
-	k8s.io/klog/v2 v2.9.0 // indirect
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920 // indirect
+	k8s.io/api v0.24.0 // indirect
+	k8s.io/apiextensions-apiserver v0.24.0 // indirect
+	k8s.io/apimachinery v0.24.0 // indirect
+	k8s.io/klog/v2 v2.60.1 // indirect
+	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
 	mvdan.cc/gofumpt v0.3.0 // indirect
 	mvdan.cc/interfacer v0.0.0-20180901003855-c20040233aed // indirect
 	mvdan.cc/lint v0.0.0-20170908181259-adc824a0674b // indirect
 	mvdan.cc/unparam v0.0.0-20211214103731-d0ef000c54e5 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
+	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )

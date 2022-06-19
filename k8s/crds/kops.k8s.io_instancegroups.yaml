@@ -203,6 +203,9 @@ spec:
                     isBase64:
                       description: IsBase64 indicates the contents is base64 encoded
                       type: boolean
+                    mode:
+                      description: Mode is this file's mode and permission bits
+                      type: string
                     name:
                       description: Name is a shortened reference to the asset
                       type: string
@@ -834,6 +837,11 @@ spec:
                 description: NodeLabels indicates the kubernetes labels for nodes
                   in this instance group
                 type: object
+              packages:
+                description: Packages specifies additional packages to be installed.
+                items:
+                  type: string
+                type: array
               role:
                 description: 'Type determines the role of instances in this instance
                   group: masters or nodes'

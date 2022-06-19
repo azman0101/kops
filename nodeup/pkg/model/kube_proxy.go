@@ -167,7 +167,7 @@ func (b *KubeProxyBuilder) buildPod() (*v1.Pod, error) {
 	if b.Architecture != architectures.ArchitectureAmd64 {
 		image = strings.Replace(image, "-amd64", "-"+string(b.Architecture), 1)
 	}
-	if components.IsBaseURL(b.Cluster.Spec.KubernetesVersion) {
+	if components.IsBaseURL(b.Cluster.Spec.KubernetesVersion) && b.IsKubernetesLT("1.25") {
 		image = strings.Replace(image, "registry.k8s.io", "k8s.gcr.io", 1)
 	}
 
@@ -247,27 +247,6 @@ func (b *KubeProxyBuilder) buildPod() (*v1.Pod, error) {
 	}
 
 	pod.Spec.Containers = append(pod.Spec.Containers, *container)
-
-	// Note that e.g. kubeadm has this as a daemonset, but this doesn't have a lot of test coverage AFAICT
-	// ServiceAccountName: "kube-proxy",
-
-	//d := &v1beta1.DaemonSet{
-	//	ObjectMeta: metav1.ObjectMeta{
-	//		Labels: map[string]string{
-	//			"k8s-app": "kube-proxy",
-	//		},
-	//		Name: "kube-proxy",
-	//		Namespace: "kube-proxy",
-	//	},
-	//	Spec: v1beta1.DeploymentSpec{
-	//		Selector: &metav1.LabelSelector{
-	//			MatchLabels: map[string]string{
-	//				"k8s-app": "kube-proxy",
-	//			},
-	//		},
-	//		Template: template,
-	//	},
-	//}
 
 	// This annotation ensures that kube-proxy does not get evicted if the node
 	// supports critical pod annotation based priority scheme.

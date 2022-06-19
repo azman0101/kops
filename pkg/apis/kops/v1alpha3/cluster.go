@@ -233,16 +233,14 @@ type CloudProviderSpec struct {
 	DO *DOSpec `json:"do,omitempty"`
 	// GCE configures the GCE cloud provider.
 	GCE *GCESpec `json:"gce,omitempty"`
+	// Hetzner configures the Hetzner cloud provider.
+	Hetzner *HetznerSpec `json:"hetzner,omitempty"`
 	// Openstack configures the Openstack cloud provider.
 	Openstack *OpenstackSpec `json:"openstack,omitempty"`
 }
 
 // AWSSpec configures the AWS cloud provider.
 type AWSSpec struct {
-}
-
-// AzureSpec configures the Azure cloud provider.
-type AzureSpec struct {
 }
 
 // DOSpec configures the Digital Ocean cloud provider.
@@ -253,8 +251,8 @@ type DOSpec struct {
 type GCESpec struct {
 }
 
-// OpenstackSpec configures the Openstack cloud provider.
-type OpenstackSpec struct {
+// HetznerSpec configures the Hetzner cloud provider.
+type HetznerSpec struct {
 }
 
 type KarpenterConfig struct {
@@ -307,6 +305,8 @@ type FileAssetSpec struct {
 	Content string `json:"content,omitempty"`
 	// IsBase64 indicates the contents is base64 encoded
 	IsBase64 bool `json:"isBase64,omitempty"`
+	// Mode is this file's mode and permission bits
+	Mode string `json:"mode,omitempty"`
 }
 
 // Assets defined the privately hosted assets
@@ -544,6 +544,9 @@ type NodeLocalDNSConfig struct {
 	MemoryRequest *resource.Quantity `json:"memoryRequest,omitempty"`
 	// CPURequest specifies the cpu requests of each node-local-dns container in the daemonset. Default 25m.
 	CPURequest *resource.Quantity `json:"cpuRequest,omitempty"`
+	// PodAnnotations makes possible to add additional annotations to node-local-dns.
+	// Default: none
+	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 }
 
 type ExternalDNSProvider string
@@ -664,6 +667,16 @@ type ClusterSubnetSpec struct {
 	Type SubnetType `json:"type,omitempty"`
 	// PublicIP to attach to NatGateway
 	PublicIP string `json:"publicIP,omitempty"`
+
+	// AdditionalRoutes to attach to the subnet's route table
+	AdditionalRoutes []RouteSpec `json:"additionalRoutes,omitempty"`
+}
+
+type RouteSpec struct {
+	// CIDR destination of the route
+	CIDR string `json:"cidr,omitempty"`
+	// Target of the route
+	Target string `json:"target,omitempty"`
 }
 
 type EgressProxySpec struct {

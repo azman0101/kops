@@ -690,6 +690,9 @@ type CloudControllerManagerConfig struct {
 	UseServiceAccountCredentials *bool `json:"useServiceAccountCredentials,omitempty" flag:"use-service-account-credentials"`
 	// EnableLeaderMigration enables controller leader migration.
 	EnableLeaderMigration *bool `json:"enableLeaderMigration,omitempty" flag:"enable-leader-migration"`
+	// CPURequest of CloudControllerManager container.
+	// Default: 200m
+	CPURequest *resource.Quantity `json:"cpuRequest,omitempty"`
 }
 
 // KubeSchedulerConfig is the configuration for the kube-scheduler
@@ -811,8 +814,8 @@ type OpenstackMetadata struct {
 	ConfigDrive *bool `json:"configDrive,omitempty"`
 }
 
-// OpenstackConfiguration defines cloud config elements for the openstack cloud provider
-type OpenstackConfiguration struct {
+// OpenstackSpec defines cloud config elements for the openstack cloud provider
+type OpenstackSpec struct {
 	Loadbalancer       *OpenstackLoadbalancerConfig `json:"loadbalancer,omitempty"`
 	Monitor            *OpenstackMonitor            `json:"monitor,omitempty"`
 	Router             *OpenstackRouter             `json:"router,omitempty"`
@@ -822,8 +825,8 @@ type OpenstackConfiguration struct {
 	Metadata           *OpenstackMetadata           `json:"metadata,omitempty"`
 }
 
-// AzureConfiguration defines Azure specific cluster configuration.
-type AzureConfiguration struct {
+// AzureSpec defines Azure specific cluster configuration.
+type AzureSpec struct {
 	// SubscriptionID specifies the subscription used for the cluster installation.
 	SubscriptionID string `json:"subscriptionId,omitempty"`
 	// TenantID is the ID of the tenant that the cluster is deployed in.
@@ -886,9 +889,11 @@ type CloudConfiguration struct {
 	SpotinstProduct     *string `json:"spotinstProduct,omitempty"`
 	SpotinstOrientation *string `json:"spotinstOrientation,omitempty"`
 	// Openstack cloud-config options
-	Openstack *OpenstackConfiguration `json:"openstack,omitempty"`
+	// +k8s:conversion-gen=false
+	Openstack *OpenstackSpec `json:"openstack,omitempty"`
 	// Azure cloud-config options
-	Azure *AzureConfiguration `json:"azure,omitempty"`
+	// +k8s:conversion-gen=false
+	Azure *AzureSpec `json:"azure,omitempty"`
 	// AWSEBSCSIDriver is the config for the AWS EBS CSI driver
 	AWSEBSCSIDriver *AWSEBSCSIDriver `json:"awsEBSCSIDriver,omitempty"`
 	// GCPPDCSIDriver is the config for the GCP PD CSI driver
@@ -910,6 +915,10 @@ type AWSEBSCSIDriver struct {
 	// If not specified, the value is approximated from the instance type.
 	// Default: -
 	VolumeAttachLimit *int `json:"volumeAttachLimit,omitempty"`
+
+	// PodAnnotations are the annotations added to AWS EBS CSI node and controller Pods.
+	// Default: none
+	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 }
 
 // GCPPDCSIDriver is the config for the GCP PD CSI driver
@@ -949,6 +958,10 @@ type NodeTerminationHandlerConfig struct {
 
 	// EnableSQSTerminationDraining enables queue-processor mode which drains nodes when an SQS termination event is received.
 	EnableSQSTerminationDraining *bool `json:"enableSQSTerminationDraining,omitempty"`
+
+	// ExcludeFromLoadBalancers makes node termination handler will mark for exclusion from load balancers before node are cordoned.
+	// Default: true
+	ExcludeFromLoadBalancers *bool `json:"excludeFromLoadBalancers,omitempty"`
 
 	// ManagedASGTag is the tag used to determine which nodes NTH can take action on
 	ManagedASGTag *string `json:"managedASGTag,omitempty"`
@@ -1028,6 +1041,9 @@ type ClusterAutoscalerConfig struct {
 	CPURequest *resource.Quantity `json:"cpuRequest,omitempty"`
 	// MaxNodeProvisionTime determines how long CAS will wait for a node to join the cluster.
 	MaxNodeProvisionTime string `json:"maxNodeProvisionTime,omitempty"`
+	// PodAnnotations are the annotations added to cluster autoscaler pod when they are created.
+	// Default: none
+	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 }
 
 // MetricsServerConfig determines the metrics server configuration.
@@ -1060,6 +1076,10 @@ type CertManagerConfig struct {
 	// defaultIssuer sets a default clusterIssuer
 	// Default: none
 	DefaultIssuer *string `json:"defaultIssuer,omitempty"`
+
+	// nameservers is a list of nameserver IP addresses to use instead of the pod defaults.
+	// Default: none
+	Nameservers []string `json:"nameservers,omitempty"`
 }
 
 // AWSLoadBalancerControllerConfig determines the AWS LB controller configuration.
@@ -1069,6 +1089,12 @@ type AWSLoadBalancerControllerConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 	// Version is the container image tag used.
 	Version *string `json:"version,omitempty"`
+	// EnableWAF specifies whether the controller can use WAFs (Classic Regional).
+	// Default: false
+	EnableWAF bool `json:"enableWAF,omitempty"`
+	// EnableWAFv2 specifies whether the controller can use WAFs (V2).
+	// Default: false
+	EnableWAFv2 bool `json:"enableWAFv2,omitempty"`
 }
 
 // HasAdmissionController checks if a specific admission controller is enabled

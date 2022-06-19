@@ -351,6 +351,25 @@ spec:
     zone: us-east-1a
 ```
 
+### additionalRoutes
+
+{{ kops_feature_table(kops_added_default='1.24') }}
+
+Add routes in the route tables of the subnet. Targets of routes can be an instance, a peering connection, a NAT gateway, a transit gateway, an internet gateway or an egress-only internet gateway.
+Currently, only AWS is supported.
+
+```yaml
+spec:
+  subnets:
+  - cidr: 10.20.64.0/21
+    name: us-east-1a
+    type: Private
+    zone: us-east-1a
+    additionalRoutes:
+    - cidr: 10.21.0.0/16
+      target: vpc-abcdef
+```
+
 ## kubeAPIServer
 
 This block contains configuration for the `kube-apiserver`.
@@ -370,7 +389,7 @@ spec:
     oidcGroupsPrefix: "oidc:"
     oidcCAFile: /etc/kubernetes/ssl/kc-ca.pem
     oidcRequiredClaim:
-    	- "key=value"
+    - "key=value"
 ```
 
 ### Audit Logging
@@ -1071,19 +1090,38 @@ spec:
 
 ## fileAssets
 
-FileAssets permits you to place inline file content into the cluster and instanceGroup specification. This is useful for deploying additional configuration files that kubernetes components requires, such as auditlogs or admission controller configurations.
+FileAssets permit you to place inline file content into the Cluster and [Instance Group](instance_groups.md) specifications. This is useful for deploying additional files that Kubernetes components require, such as audit logging or admission controller configurations.
 
 ```yaml
 spec:
   fileAssets:
   - name: iptable-restore
-    # Note if not path is specified the default path it /srv/kubernetes/assets/<name>
+    # Note if path is not specified, the default is /srv/kubernetes/assets/<name>
     path: /var/lib/iptables/rules-save
-    roles: [Master,Node,Bastion] # a list of roles to apply the asset to, zero defaults to all
+    # Note if roles are not specified, the default is all roles
+    roles: [Master,Node,Bastion] # a list of roles to apply the asset to
     content: |
       some file content
 ```
 
+### mode
+
+{{ kops_feature_table(kops_added_default='1.24') }}
+
+Optionally, `mode` allows you to specify a file's mode and permission bits.
+
+**NOTE**: If not specified, the default is `"0440"`, which matches the behaviour of older versions of kOps.
+
+```yaml
+spec:
+  fileAssets:
+  - name: my-script
+    path: /usr/local/bin/my-script
+    mode: "0550"
+    content: |
+      #! /usr/bin/env bash
+      ...
+```
 
 ## cloudConfig
 
@@ -1107,6 +1145,20 @@ This can be useful to avoid AWS limits: 500 security groups per region and 50 ru
 spec:
   cloudConfig:
     elbSecurityGroup: sg-123445678
+```
+
+### manageStorageClasses
+{{ kops_feature_table(kops_added_default='1.20') }}
+
+
+By default kops will create `StorageClass` resources with some opinionated settings specific to cloud provider on which the cluster is installed. One of those storage classes will be defined as default applying the annotation `storageclass.kubernetes.io/is-default-class: "true"`. This may not always be a desirable behaviour and some cluster admins rather prefer to have more control of storage classes and manage them outside of kops. When set to `false`, kOps will no longer create any `StorageClass` objects. Any such objects that kOps created in the past are left as is, and kOps will no longer reconcile them against future changes.
+
+The existing `spec.cloudConfig.openstack.blockStorage.createStorageClass` field remains in place. However, if both that and the new `spec.cloudConfig.manageStorageClasses` field are populated, they must agree: It is invalid both to disable management of `StorageClass` objects globally but to enable them for OpenStack and, conversely, to enable management globally but disable it for OpenStack.
+
+```yaml
+spec:
+  cloudConfig:
+    manageStorageClasses: false
 ```
 
 ## containerRuntime

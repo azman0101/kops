@@ -274,6 +274,10 @@ spec:
         app.kubernetes.io/name: aws-ebs-csi-driver
         app.kubernetes.io/instance: aws-ebs-csi-driver
         app.kubernetes.io/version: {{ .Version }}
+      annotations:
+        {{- range $key, $value := .PodAnnotations }}
+        {{ $key }}: "{{ $value }}"
+        {{- end }}
     spec:
       nodeSelector:
         kubernetes.io/os: linux
@@ -395,7 +399,33 @@ spec:
         app.kubernetes.io/name: aws-ebs-csi-driver
         app.kubernetes.io/instance: aws-ebs-csi-driver
         app.kubernetes.io/version: {{ .Version }}
+      annotations:
+        {{- range $key, $value := .PodAnnotations }}
+        {{ $key }}: "{{ $value }}"
+        {{- end }}
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              {{ if not UseServiceAccountExternalPermissions }}
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
+              {{ end }}
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+            - matchExpressions:
+              {{ if not UseServiceAccountExternalPermissions }}
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+              {{ end }}
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
       topologySpreadConstraints:
       - maxSkew: 1
         topologyKey: "topology.kubernetes.io/zone"
@@ -413,13 +443,9 @@ spec:
             app: ebs-csi-controller
             app.kubernetes.io/name: aws-ebs-csi-driver
             app.kubernetes.io/instance: aws-ebs-csi-driver
-      nodeSelector:
-        kubernetes.io/os: linux
-        {{ if not UseServiceAccountExternalPermissions }}
-        node-role.kubernetes.io/master: ""
-        {{ end }}
       serviceAccountName: ebs-csi-controller-sa
       priorityClassName: system-cluster-critical
+      nodeSelector: null
       {{ if not UseServiceAccountExternalPermissions }}
       tolerations:
         - operator: Exists
@@ -501,6 +527,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
+        {{ if HasSnapshotController }}
         - name: csi-snapshotter
           image: registry.k8s.io/sig-storage/csi-snapshotter:v4.0.0
           args:
@@ -512,6 +539,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
+        {{ end }}
         - name: csi-resizer
           image: registry.k8s.io/sig-storage/csi-resizer:v1.1.0
           imagePullPolicy: Always
@@ -525,7 +553,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: liveness-probe
-          image: registry.k8s.io/sig-storage/livenessprobe:v2.2.0
+          image: registry.k8s.io/sig-storage/livenessprobe:v2.4.0
           args:
             - --csi-address=/csi/csi.sock
           volumeMounts:
@@ -548,7 +576,11 @@ spec:
   attachRequired: true
   podInfoOnMount: false
 ---
+{{ if IsKubernetesGTE "1.23" }}
+apiVersion: policy/v1
+{{ else }}
 apiVersion: policy/v1beta1
+{{ end }}
 kind: PodDisruptionBudget
 metadata:
   name: ebs-csi-controller

@@ -138,11 +138,6 @@ resource "aws_autoscaling_group" "bastion-privatecilium-example-com" {
     value               = "bastion.privatecilium.example.com"
   }
   tag {
-    key                 = "k8s.io/cluster-autoscaler/node-template/label/kubernetes.io/role"
-    propagate_at_launch = true
-    value               = "node"
-  }
-  tag {
     key                 = "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/node"
     propagate_at_launch = true
     value               = ""
@@ -193,17 +188,7 @@ resource "aws_autoscaling_group" "master-us-test-1a-masters-privatecilium-exampl
     value               = ""
   }
   tag {
-    key                 = "k8s.io/cluster-autoscaler/node-template/label/kubernetes.io/role"
-    propagate_at_launch = true
-    value               = "master"
-  }
-  tag {
     key                 = "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/control-plane"
-    propagate_at_launch = true
-    value               = ""
-  }
-  tag {
-    key                 = "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/master"
     propagate_at_launch = true
     value               = ""
   }
@@ -250,11 +235,6 @@ resource "aws_autoscaling_group" "nodes-privatecilium-example-com" {
     key                 = "Name"
     propagate_at_launch = true
     value               = "nodes.privatecilium.example.com"
-  }
-  tag {
-    key                 = "k8s.io/cluster-autoscaler/node-template/label/kubernetes.io/role"
-    propagate_at_launch = true
-    value               = "node"
   }
   tag {
     key                 = "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/node"
@@ -512,7 +492,6 @@ resource "aws_launch_template" "bastion-privatecilium-example-com" {
     tags = {
       "KubernetesCluster"                                                          = "privatecilium.example.com"
       "Name"                                                                       = "bastion.privatecilium.example.com"
-      "k8s.io/cluster-autoscaler/node-template/label/kubernetes.io/role"           = "node"
       "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/node" = ""
       "k8s.io/role/bastion"                                                        = "1"
       "kops.k8s.io/instancegroup"                                                  = "bastion"
@@ -524,7 +503,6 @@ resource "aws_launch_template" "bastion-privatecilium-example-com" {
     tags = {
       "KubernetesCluster"                                                          = "privatecilium.example.com"
       "Name"                                                                       = "bastion.privatecilium.example.com"
-      "k8s.io/cluster-autoscaler/node-template/label/kubernetes.io/role"           = "node"
       "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/node" = ""
       "k8s.io/role/bastion"                                                        = "1"
       "kops.k8s.io/instancegroup"                                                  = "bastion"
@@ -534,7 +512,6 @@ resource "aws_launch_template" "bastion-privatecilium-example-com" {
   tags = {
     "KubernetesCluster"                                                          = "privatecilium.example.com"
     "Name"                                                                       = "bastion.privatecilium.example.com"
-    "k8s.io/cluster-autoscaler/node-template/label/kubernetes.io/role"           = "node"
     "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/node" = ""
     "k8s.io/role/bastion"                                                        = "1"
     "kops.k8s.io/instancegroup"                                                  = "bastion"
@@ -589,9 +566,7 @@ resource "aws_launch_template" "master-us-test-1a-masters-privatecilium-example-
       "KubernetesCluster"                                                                                     = "privatecilium.example.com"
       "Name"                                                                                                  = "master-us-test-1a.masters.privatecilium.example.com"
       "k8s.io/cluster-autoscaler/node-template/label/kops.k8s.io/kops-controller-pki"                         = ""
-      "k8s.io/cluster-autoscaler/node-template/label/kubernetes.io/role"                                      = "master"
       "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/control-plane"                   = ""
-      "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/master"                          = ""
       "k8s.io/cluster-autoscaler/node-template/label/node.kubernetes.io/exclude-from-external-load-balancers" = ""
       "k8s.io/role/master"                                                                                    = "1"
       "kops.k8s.io/instancegroup"                                                                             = "master-us-test-1a"
@@ -604,9 +579,7 @@ resource "aws_launch_template" "master-us-test-1a-masters-privatecilium-example-
       "KubernetesCluster"                                                                                     = "privatecilium.example.com"
       "Name"                                                                                                  = "master-us-test-1a.masters.privatecilium.example.com"
       "k8s.io/cluster-autoscaler/node-template/label/kops.k8s.io/kops-controller-pki"                         = ""
-      "k8s.io/cluster-autoscaler/node-template/label/kubernetes.io/role"                                      = "master"
       "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/control-plane"                   = ""
-      "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/master"                          = ""
       "k8s.io/cluster-autoscaler/node-template/label/node.kubernetes.io/exclude-from-external-load-balancers" = ""
       "k8s.io/role/master"                                                                                    = "1"
       "kops.k8s.io/instancegroup"                                                                             = "master-us-test-1a"
@@ -617,9 +590,7 @@ resource "aws_launch_template" "master-us-test-1a-masters-privatecilium-example-
     "KubernetesCluster"                                                                                     = "privatecilium.example.com"
     "Name"                                                                                                  = "master-us-test-1a.masters.privatecilium.example.com"
     "k8s.io/cluster-autoscaler/node-template/label/kops.k8s.io/kops-controller-pki"                         = ""
-    "k8s.io/cluster-autoscaler/node-template/label/kubernetes.io/role"                                      = "master"
     "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/control-plane"                   = ""
-    "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/master"                          = ""
     "k8s.io/cluster-autoscaler/node-template/label/node.kubernetes.io/exclude-from-external-load-balancers" = ""
     "k8s.io/role/master"                                                                                    = "1"
     "kops.k8s.io/instancegroup"                                                                             = "master-us-test-1a"
@@ -670,7 +641,6 @@ resource "aws_launch_template" "nodes-privatecilium-example-com" {
     tags = {
       "KubernetesCluster"                                                          = "privatecilium.example.com"
       "Name"                                                                       = "nodes.privatecilium.example.com"
-      "k8s.io/cluster-autoscaler/node-template/label/kubernetes.io/role"           = "node"
       "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/node" = ""
       "k8s.io/role/node"                                                           = "1"
       "kops.k8s.io/instancegroup"                                                  = "nodes"
@@ -682,7 +652,6 @@ resource "aws_launch_template" "nodes-privatecilium-example-com" {
     tags = {
       "KubernetesCluster"                                                          = "privatecilium.example.com"
       "Name"                                                                       = "nodes.privatecilium.example.com"
-      "k8s.io/cluster-autoscaler/node-template/label/kubernetes.io/role"           = "node"
       "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/node" = ""
       "k8s.io/role/node"                                                           = "1"
       "kops.k8s.io/instancegroup"                                                  = "nodes"
@@ -692,7 +661,6 @@ resource "aws_launch_template" "nodes-privatecilium-example-com" {
   tags = {
     "KubernetesCluster"                                                          = "privatecilium.example.com"
     "Name"                                                                       = "nodes.privatecilium.example.com"
-    "k8s.io/cluster-autoscaler/node-template/label/kubernetes.io/role"           = "node"
     "k8s.io/cluster-autoscaler/node-template/label/node-role.kubernetes.io/node" = ""
     "k8s.io/role/node"                                                           = "1"
     "kops.k8s.io/instancegroup"                                                  = "nodes"
@@ -770,145 +738,169 @@ resource "aws_route_table_association" "utility-us-test-1a-privatecilium-example
   subnet_id      = aws_subnet.utility-us-test-1a-privatecilium-example-com.id
 }
 
-resource "aws_s3_bucket_object" "cluster-completed-spec" {
+resource "aws_s3_object" "cluster-completed-spec" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_cluster-completed.spec_content")
+  content                = file("${path.module}/data/aws_s3_object_cluster-completed.spec_content")
   key                    = "clusters.example.com/privatecilium.example.com/cluster-completed.spec"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "etcd-cluster-spec-events" {
+resource "aws_s3_object" "etcd-cluster-spec-events" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_etcd-cluster-spec-events_content")
+  content                = file("${path.module}/data/aws_s3_object_etcd-cluster-spec-events_content")
   key                    = "clusters.example.com/privatecilium.example.com/backups/etcd/events/control/etcd-cluster-spec"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "etcd-cluster-spec-main" {
+resource "aws_s3_object" "etcd-cluster-spec-main" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_etcd-cluster-spec-main_content")
+  content                = file("${path.module}/data/aws_s3_object_etcd-cluster-spec-main_content")
   key                    = "clusters.example.com/privatecilium.example.com/backups/etcd/main/control/etcd-cluster-spec"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "kops-version-txt" {
+resource "aws_s3_object" "kops-version-txt" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_kops-version.txt_content")
+  content                = file("${path.module}/data/aws_s3_object_kops-version.txt_content")
   key                    = "clusters.example.com/privatecilium.example.com/kops-version.txt"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "manifests-etcdmanager-events" {
+resource "aws_s3_object" "manifests-etcdmanager-events" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_manifests-etcdmanager-events_content")
+  content                = file("${path.module}/data/aws_s3_object_manifests-etcdmanager-events_content")
   key                    = "clusters.example.com/privatecilium.example.com/manifests/etcd/events.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "manifests-etcdmanager-main" {
+resource "aws_s3_object" "manifests-etcdmanager-main" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_manifests-etcdmanager-main_content")
+  content                = file("${path.module}/data/aws_s3_object_manifests-etcdmanager-main_content")
   key                    = "clusters.example.com/privatecilium.example.com/manifests/etcd/main.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "manifests-static-kube-apiserver-healthcheck" {
+resource "aws_s3_object" "manifests-static-kube-apiserver-healthcheck" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_manifests-static-kube-apiserver-healthcheck_content")
+  content                = file("${path.module}/data/aws_s3_object_manifests-static-kube-apiserver-healthcheck_content")
   key                    = "clusters.example.com/privatecilium.example.com/manifests/static/kube-apiserver-healthcheck.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "nodeupconfig-master-us-test-1a" {
+resource "aws_s3_object" "nodeupconfig-master-us-test-1a" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_nodeupconfig-master-us-test-1a_content")
+  content                = file("${path.module}/data/aws_s3_object_nodeupconfig-master-us-test-1a_content")
   key                    = "clusters.example.com/privatecilium.example.com/igconfig/master/master-us-test-1a/nodeupconfig.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "nodeupconfig-nodes" {
+resource "aws_s3_object" "nodeupconfig-nodes" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_nodeupconfig-nodes_content")
+  content                = file("${path.module}/data/aws_s3_object_nodeupconfig-nodes_content")
   key                    = "clusters.example.com/privatecilium.example.com/igconfig/node/nodes/nodeupconfig.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "privatecilium-example-com-addons-bootstrap" {
+resource "aws_s3_object" "privatecilium-example-com-addons-aws-cloud-controller-addons-k8s-io-k8s-1-18" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_privatecilium.example.com-addons-bootstrap_content")
+  content                = file("${path.module}/data/aws_s3_object_privatecilium.example.com-addons-aws-cloud-controller.addons.k8s.io-k8s-1.18_content")
+  key                    = "clusters.example.com/privatecilium.example.com/addons/aws-cloud-controller.addons.k8s.io/k8s-1.18.yaml"
+  provider               = aws.files
+  server_side_encryption = "AES256"
+}
+
+resource "aws_s3_object" "privatecilium-example-com-addons-aws-ebs-csi-driver-addons-k8s-io-k8s-1-17" {
+  bucket                 = "testingBucket"
+  content                = file("${path.module}/data/aws_s3_object_privatecilium.example.com-addons-aws-ebs-csi-driver.addons.k8s.io-k8s-1.17_content")
+  key                    = "clusters.example.com/privatecilium.example.com/addons/aws-ebs-csi-driver.addons.k8s.io/k8s-1.17.yaml"
+  provider               = aws.files
+  server_side_encryption = "AES256"
+}
+
+resource "aws_s3_object" "privatecilium-example-com-addons-bootstrap" {
+  bucket                 = "testingBucket"
+  content                = file("${path.module}/data/aws_s3_object_privatecilium.example.com-addons-bootstrap_content")
   key                    = "clusters.example.com/privatecilium.example.com/addons/bootstrap-channel.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "privatecilium-example-com-addons-core-addons-k8s-io" {
+resource "aws_s3_object" "privatecilium-example-com-addons-certmanager-io-k8s-1-16" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_privatecilium.example.com-addons-core.addons.k8s.io_content")
-  key                    = "clusters.example.com/privatecilium.example.com/addons/core.addons.k8s.io/v1.4.0.yaml"
+  content                = file("${path.module}/data/aws_s3_object_privatecilium.example.com-addons-certmanager.io-k8s-1.16_content")
+  key                    = "clusters.example.com/privatecilium.example.com/addons/certmanager.io/k8s-1.16.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "privatecilium-example-com-addons-dns-controller-addons-k8s-io-k8s-1-12" {
+resource "aws_s3_object" "privatecilium-example-com-addons-coredns-addons-k8s-io-k8s-1-12" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_privatecilium.example.com-addons-dns-controller.addons.k8s.io-k8s-1.12_content")
+  content                = file("${path.module}/data/aws_s3_object_privatecilium.example.com-addons-coredns.addons.k8s.io-k8s-1.12_content")
+  key                    = "clusters.example.com/privatecilium.example.com/addons/coredns.addons.k8s.io/k8s-1.12.yaml"
+  provider               = aws.files
+  server_side_encryption = "AES256"
+}
+
+resource "aws_s3_object" "privatecilium-example-com-addons-dns-controller-addons-k8s-io-k8s-1-12" {
+  bucket                 = "testingBucket"
+  content                = file("${path.module}/data/aws_s3_object_privatecilium.example.com-addons-dns-controller.addons.k8s.io-k8s-1.12_content")
   key                    = "clusters.example.com/privatecilium.example.com/addons/dns-controller.addons.k8s.io/k8s-1.12.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "privatecilium-example-com-addons-kops-controller-addons-k8s-io-k8s-1-16" {
+resource "aws_s3_object" "privatecilium-example-com-addons-kops-controller-addons-k8s-io-k8s-1-16" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_privatecilium.example.com-addons-kops-controller.addons.k8s.io-k8s-1.16_content")
+  content                = file("${path.module}/data/aws_s3_object_privatecilium.example.com-addons-kops-controller.addons.k8s.io-k8s-1.16_content")
   key                    = "clusters.example.com/privatecilium.example.com/addons/kops-controller.addons.k8s.io/k8s-1.16.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "privatecilium-example-com-addons-kube-dns-addons-k8s-io-k8s-1-12" {
+resource "aws_s3_object" "privatecilium-example-com-addons-kubelet-api-rbac-addons-k8s-io-k8s-1-9" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_privatecilium.example.com-addons-kube-dns.addons.k8s.io-k8s-1.12_content")
-  key                    = "clusters.example.com/privatecilium.example.com/addons/kube-dns.addons.k8s.io/k8s-1.12.yaml"
-  provider               = aws.files
-  server_side_encryption = "AES256"
-}
-
-resource "aws_s3_bucket_object" "privatecilium-example-com-addons-kubelet-api-rbac-addons-k8s-io-k8s-1-9" {
-  bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_privatecilium.example.com-addons-kubelet-api.rbac.addons.k8s.io-k8s-1.9_content")
+  content                = file("${path.module}/data/aws_s3_object_privatecilium.example.com-addons-kubelet-api.rbac.addons.k8s.io-k8s-1.9_content")
   key                    = "clusters.example.com/privatecilium.example.com/addons/kubelet-api.rbac.addons.k8s.io/k8s-1.9.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "privatecilium-example-com-addons-limit-range-addons-k8s-io" {
+resource "aws_s3_object" "privatecilium-example-com-addons-leader-migration-rbac-addons-k8s-io-k8s-1-23" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_privatecilium.example.com-addons-limit-range.addons.k8s.io_content")
+  content                = file("${path.module}/data/aws_s3_object_privatecilium.example.com-addons-leader-migration.rbac.addons.k8s.io-k8s-1.23_content")
+  key                    = "clusters.example.com/privatecilium.example.com/addons/leader-migration.rbac.addons.k8s.io/k8s-1.23.yaml"
+  provider               = aws.files
+  server_side_encryption = "AES256"
+}
+
+resource "aws_s3_object" "privatecilium-example-com-addons-limit-range-addons-k8s-io" {
+  bucket                 = "testingBucket"
+  content                = file("${path.module}/data/aws_s3_object_privatecilium.example.com-addons-limit-range.addons.k8s.io_content")
   key                    = "clusters.example.com/privatecilium.example.com/addons/limit-range.addons.k8s.io/v1.5.0.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "privatecilium-example-com-addons-networking-cilium-io-k8s-1-12" {
+resource "aws_s3_object" "privatecilium-example-com-addons-networking-cilium-io-k8s-1-16" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_privatecilium.example.com-addons-networking.cilium.io-k8s-1.12_content")
-  key                    = "clusters.example.com/privatecilium.example.com/addons/networking.cilium.io/k8s-1.12-v1.8.yaml"
+  content                = file("${path.module}/data/aws_s3_object_privatecilium.example.com-addons-networking.cilium.io-k8s-1.16_content")
+  key                    = "clusters.example.com/privatecilium.example.com/addons/networking.cilium.io/k8s-1.16-v1.11.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_bucket_object" "privatecilium-example-com-addons-storage-aws-addons-k8s-io-v1-15-0" {
+resource "aws_s3_object" "privatecilium-example-com-addons-storage-aws-addons-k8s-io-v1-15-0" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_bucket_object_privatecilium.example.com-addons-storage-aws.addons.k8s.io-v1.15.0_content")
+  content                = file("${path.module}/data/aws_s3_object_privatecilium.example.com-addons-storage-aws.addons.k8s.io-v1.15.0_content")
   key                    = "clusters.example.com/privatecilium.example.com/addons/storage-aws.addons.k8s.io/v1.15.0.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
@@ -1186,8 +1178,10 @@ resource "aws_security_group_rule" "icmp-pmtu-api-elb-0-0-0-0--0" {
 }
 
 resource "aws_subnet" "us-test-1a-privatecilium-example-com" {
-  availability_zone = "us-test-1a"
-  cidr_block        = "172.20.32.0/19"
+  availability_zone                           = "us-test-1a"
+  cidr_block                                  = "172.20.32.0/19"
+  enable_resource_name_dns_a_record_on_launch = true
+  private_dns_hostname_type_on_launch         = "resource-name"
   tags = {
     "KubernetesCluster"                               = "privatecilium.example.com"
     "Name"                                            = "us-test-1a.privatecilium.example.com"
@@ -1199,8 +1193,10 @@ resource "aws_subnet" "us-test-1a-privatecilium-example-com" {
 }
 
 resource "aws_subnet" "utility-us-test-1a-privatecilium-example-com" {
-  availability_zone = "us-test-1a"
-  cidr_block        = "172.20.4.0/22"
+  availability_zone                           = "us-test-1a"
+  cidr_block                                  = "172.20.4.0/22"
+  enable_resource_name_dns_a_record_on_launch = true
+  private_dns_hostname_type_on_launch         = "resource-name"
   tags = {
     "KubernetesCluster"                               = "privatecilium.example.com"
     "Name"                                            = "utility-us-test-1a.privatecilium.example.com"
@@ -1244,7 +1240,7 @@ terraform {
     aws = {
       "configuration_aliases" = [aws.files]
       "source"                = "hashicorp/aws"
-      "version"               = ">= 3.71.0"
+      "version"               = ">= 4.0.0"
     }
   }
 }

@@ -19,7 +19,7 @@ metadata:
   labels:
     k8s-addon: kops-controller.addons.k8s.io
     k8s-app: kops-controller
-    version: v1.24.0-alpha.3
+    version: v1.24.0-beta.1
 spec:
   selector:
     matchLabels:
@@ -31,13 +31,28 @@ spec:
       labels:
         k8s-addon: kops-controller.addons.k8s.io
         k8s-app: kops-controller
-        version: v1.24.0-alpha.3
+        version: v1.24.0-beta.1
 {{ if UseKopsControllerForNodeBootstrap }}
       annotations:
         dns.alpha.kubernetes.io/internal: kops-controller.internal.{{ ClusterName }}
 {{ end }}
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
+              - key: kops.k8s.io/kops-controller-pki
+                operator: Exists
+            - matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+              - key: kops.k8s.io/kops-controller-pki
+                operator: Exists
       priorityClassName: system-cluster-critical
+      nodeSelector: null
       tolerations:
       - key: node.cloudprovider.kubernetes.io/uninitialized
         operator: Exists
@@ -45,15 +60,14 @@ spec:
         operator: Exists
       - key: node-role.kubernetes.io/master
         operator: Exists
-      nodeSelector:
-        node-role.kubernetes.io/master: ""
-        kops.k8s.io/kops-controller-pki: ""
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
       dnsPolicy: Default  # Don't use cluster DNS (we are likely running before kube-dns)
       hostNetwork: true
       serviceAccount: kops-controller
       containers:
       - name: kops-controller
-        image: registry.k8s.io/kops/kops-controller:1.24.0-alpha.3
+        image: registry.k8s.io/kops/kops-controller:1.24.0-beta.1
         volumeMounts:
 {{ if .UseHostCertificates }}
         - mountPath: /etc/ssl/certs
@@ -68,6 +82,7 @@ spec:
 {{ range $arg := KopsControllerArgv }}
         - "{{ $arg }}"
 {{ end }}
+        command: null
         env:
         - name: KUBERNETES_SERVICE_HOST
           value: "127.0.0.1"

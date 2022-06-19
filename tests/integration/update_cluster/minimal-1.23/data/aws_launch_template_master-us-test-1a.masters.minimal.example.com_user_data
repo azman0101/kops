@@ -126,12 +126,12 @@ cat > conf/cluster_spec.yaml << '__EOF_CLUSTER_SPEC'
 cloudConfig:
   awsEBSCSIDriver:
     enabled: true
-    version: v1.5.0
+    version: v1.6.2
   manageStorageClasses: true
 containerRuntime: containerd
 containerd:
   logLevel: info
-  version: 1.6.1
+  version: 1.6.6
 docker:
   skipInstall: true
 encryptionConfig: null
@@ -139,11 +139,11 @@ etcdClusters:
   events:
     cpuRequest: 100m
     memoryRequest: 100Mi
-    version: 3.5.1
+    version: 3.5.4
   main:
     cpuRequest: 200m
     memoryRequest: 100Mi
-    version: 3.5.1
+    version: 3.5.4
 kubeAPIServer:
   allowPrivileged: true
   anonymousAuth: false
@@ -267,7 +267,7 @@ CloudProvider: aws
 ConfigBase: memfs://tests/minimal.example.com
 InstanceGroupName: master-us-test-1a
 InstanceGroupRole: Master
-NodeupConfigHash: nJXPW5AXOYWQY42owArWoSfvtbF8zmnq/7/a/MdV2I4=
+NodeupConfigHash: w7kM7xBCVcgwbmwjaKnrW0QAvT2itPlEdJ0W5jY2g5c=
 
 __EOF_KUBE_ENV
 

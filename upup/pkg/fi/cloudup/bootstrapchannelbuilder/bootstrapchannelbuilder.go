@@ -37,6 +37,7 @@ import (
 	"k8s.io/kops/pkg/model/components/addonmanifests/dnscontroller"
 	"k8s.io/kops/pkg/model/components/addonmanifests/externaldns"
 	"k8s.io/kops/pkg/model/components/addonmanifests/karpenter"
+	"k8s.io/kops/pkg/model/components/addonmanifests/kuberouter"
 	"k8s.io/kops/pkg/model/components/addonmanifests/nodeterminationhandler"
 	"k8s.io/kops/pkg/model/iam"
 	"k8s.io/kops/pkg/templates"
@@ -324,18 +325,6 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 		}
 	}
 
-	{
-		key := "core.addons.k8s.io"
-		version := "1.4.0"
-		location := key + "/v" + version + ".yaml"
-
-		addons.Add(&channelsapi.AddonSpec{
-			Name:     fi.String(key),
-			Selector: map[string]string{"k8s-addon": key},
-			Manifest: fi.String(location),
-		})
-	}
-
 	// @check if podsecuritypolicies are enabled and if so, push the default kube-system policy
 	if b.Cluster.Spec.KubeAPIServer != nil && b.Cluster.Spec.KubeAPIServer.HasAdmissionController("PodSecurityPolicy") {
 		key := "podsecuritypolicy.addons.k8s.io"
@@ -355,14 +344,8 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 
 	kubeDNS := b.Cluster.Spec.KubeDNS
 
-	// This checks if the Kubernetes version is greater than or equal to 1.20
-	// and makes the default DNS server as CoreDNS if the DNS provider is not specified
-	// and the Kubernetes version is >=1.19
 	if kubeDNS.Provider == "" {
-		kubeDNS.Provider = "KubeDNS"
-		if b.Cluster.IsKubernetesGTE("1.20") {
-			kubeDNS.Provider = "CoreDNS"
-		}
+		kubeDNS.Provider = "CoreDNS"
 	}
 
 	if kubeDNS.Provider == "KubeDNS" {
@@ -457,21 +440,9 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 		// AWS and GCE KCM-to-CCM leader migration
 		key := "leader-migration.rbac.addons.k8s.io"
 
-		if b.IsKubernetesLT("1.25") {
+		{
 			location := key + "/k8s-1.23.yaml"
 			id := "k8s-1.23"
-
-			addons.Add(&channelsapi.AddonSpec{
-				Name:     fi.String(key),
-				Selector: map[string]string{"k8s-addon": key},
-				Manifest: fi.String(location),
-				Id:       id,
-			})
-		}
-
-		if b.IsKubernetesGTE("1.25") {
-			location := key + "/k8s-1.25.yaml"
-			id := "k8s-1.25"
 
 			addons.Add(&channelsapi.AddonSpec{
 				Name:     fi.String(key),
@@ -687,29 +658,16 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 
 		key := "aws-load-balancer-controller.addons.k8s.io"
 
-		if b.IsKubernetesLT("1.19") {
-			location := key + "/k8s-1.9.yaml"
-			id := "k8s-1.9"
+		location := key + "/k8s-1.19.yaml"
+		id := "k8s-1.19"
 
-			addons.Add(&channelsapi.AddonSpec{
-				Name:     fi.String(key),
-				Selector: map[string]string{"k8s-addon": key},
-				Manifest: fi.String(location),
-				Id:       id,
-				NeedsPKI: true,
-			})
-		} else {
-			location := key + "/k8s-1.19.yaml"
-			id := "k8s-1.19"
-
-			addons.Add(&channelsapi.AddonSpec{
-				Name:     fi.String(key),
-				Selector: map[string]string{"k8s-addon": key},
-				Manifest: fi.String(location),
-				Id:       id,
-				NeedsPKI: true,
-			})
-		}
+		addons.Add(&channelsapi.AddonSpec{
+			Name:     fi.String(key),
+			Selector: map[string]string{"k8s-addon": key},
+			Manifest: fi.String(location),
+			Id:       id,
+			NeedsPKI: true,
+		})
 
 		// Generate aws-load-balancer-controller ServiceAccount IAM permissions
 		if b.UseServiceAccountExternalPermissions() {
@@ -758,6 +716,47 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 
 		{
 			id := "k8s-1.8"
+			location := key + "/" + id + ".yaml"
+
+			addons.Add(&channelsapi.AddonSpec{
+				Name:     fi.String(key),
+				Selector: map[string]string{"k8s-addon": key},
+				Manifest: fi.String(location),
+				Id:       id,
+			})
+		}
+
+		key = "digitalocean-csi-driver.addons.k8s.io"
+
+		{
+			id := "k8s-1.22"
+			location := key + "/" + id + ".yaml"
+
+			addons.Add(&channelsapi.AddonSpec{
+				Name:     fi.String(key),
+				Selector: map[string]string{"k8s-addon": key},
+				Manifest: fi.String(location),
+				Id:       id,
+			})
+		}
+	}
+
+	if b.Cluster.Spec.GetCloudProvider() == kops.CloudProviderHetzner {
+		{
+			key := "hcloud-cloud-controller.addons.k8s.io"
+			id := "k8s-1.22"
+			location := key + "/" + id + ".yaml"
+
+			addons.Add(&channelsapi.AddonSpec{
+				Name:     fi.String(key),
+				Selector: map[string]string{"k8s-addon": key},
+				Manifest: fi.String(location),
+				Id:       id,
+			})
+		}
+		{
+			key := "hcloud-csi-driver.addons.k8s.io"
+			id := "k8s-1.22"
 			location := key + "/" + id + ".yaml"
 
 			addons.Add(&channelsapi.AddonSpec{
@@ -903,7 +902,17 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 	if b.Cluster.Spec.Networking.Calico != nil {
 		key := "networking.projectcalico.org"
 
-		{
+		if b.IsKubernetesGTE("v1.23.0") {
+			id := "k8s-1.23"
+			location := key + "/" + id + ".yaml"
+
+			addons.Add(&channelsapi.AddonSpec{
+				Name:     fi.String(key),
+				Selector: networkingSelector(),
+				Manifest: fi.String(location),
+				Id:       id,
+			})
+		} else {
 			id := "k8s-1.16"
 			location := key + "/" + id + ".yaml"
 
@@ -955,6 +964,11 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 				Manifest: fi.String(location),
 				Id:       id,
 			})
+		}
+
+		// Generate kube-router ServiceAccount IAM permissions
+		if b.UseServiceAccountExternalPermissions() {
+			serviceAccountRoles = append(serviceAccountRoles, &kuberouter.ServiceAccount{})
 		}
 	}
 
@@ -1022,12 +1036,13 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 			id := "k8s-1.16"
 			location := key + "/" + id + ".yaml"
 
-			addons.Add(&channelsapi.AddonSpec{
+			addon := addons.Add(&channelsapi.AddonSpec{
 				Name:     fi.String(key),
 				Manifest: fi.String(location),
 				Selector: map[string]string{"k8s-addon": key},
 				Id:       id,
 			})
+			addon.BuildPrune = true
 		}
 
 		if b.Cluster.Spec.ExternalCloudControllerManager != nil {
@@ -1042,20 +1057,6 @@ func (b *BootstrapChannelBuilder) buildAddons(c *fi.ModelBuilderContext) (*Addon
 					Name:     fi.String(key),
 					Manifest: fi.String(location),
 					Selector: map[string]string{"k8s-addon": key},
-					Id:       id,
-				})
-			}
-		} else {
-			{
-				key := "core.addons.k8s.io"
-
-				location := key + "/k8s-1.12.yaml"
-				id := "k8s-1.12-ccm"
-
-				addons.Add(&channelsapi.AddonSpec{
-					Name:     fi.String(key),
-					Selector: map[string]string{"k8s-addon": key},
-					Manifest: fi.String(location),
 					Id:       id,
 				})
 			}

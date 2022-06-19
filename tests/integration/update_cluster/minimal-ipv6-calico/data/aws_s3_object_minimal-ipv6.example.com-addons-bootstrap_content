@@ -1,0 +1,76 @@
+kind: Addons
+metadata:
+  creationTimestamp: null
+  name: bootstrap
+spec:
+  addons:
+  - id: k8s-1.16
+    manifest: kops-controller.addons.k8s.io/k8s-1.16.yaml
+    manifestHash: 75d041971a225f62a27f1fd76c6ab068805ce789afc9ef415c998819836345b1
+    name: kops-controller.addons.k8s.io
+    needsRollingUpdate: control-plane
+    selector:
+      k8s-addon: kops-controller.addons.k8s.io
+    version: 9.99.0
+  - id: k8s-1.12
+    manifest: coredns.addons.k8s.io/k8s-1.12.yaml
+    manifestHash: e8afce39d0ee5828c53389d09c8ed3b6c0c47ccd582b43a580665e07416fe598
+    name: coredns.addons.k8s.io
+    selector:
+      k8s-addon: coredns.addons.k8s.io
+    version: 9.99.0
+  - id: k8s-1.9
+    manifest: kubelet-api.rbac.addons.k8s.io/k8s-1.9.yaml
+    manifestHash: 01c120e887bd98d82ef57983ad58a0b22bc85efb48108092a24c4b82e4c9ea81
+    name: kubelet-api.rbac.addons.k8s.io
+    selector:
+      k8s-addon: kubelet-api.rbac.addons.k8s.io
+    version: 9.99.0
+  - id: k8s-1.23
+    manifest: leader-migration.rbac.addons.k8s.io/k8s-1.23.yaml
+    manifestHash: b9c91e09c0f28c9b74ff140b8395d611834c627d698846d625c10975a74a48c4
+    name: leader-migration.rbac.addons.k8s.io
+    selector:
+      k8s-addon: leader-migration.rbac.addons.k8s.io
+    version: 9.99.0
+  - manifest: limit-range.addons.k8s.io/v1.5.0.yaml
+    manifestHash: 2d55c3bc5e354e84a3730a65b42f39aba630a59dc8d32b30859fcce3d3178bc2
+    name: limit-range.addons.k8s.io
+    selector:
+      k8s-addon: limit-range.addons.k8s.io
+    version: 9.99.0
+  - id: k8s-1.12
+    manifest: dns-controller.addons.k8s.io/k8s-1.12.yaml
+    manifestHash: 8b36096d939c9a1532ff9b991dc8199c5f647b8f2ed1fcf852a14d72389a2e58
+    name: dns-controller.addons.k8s.io
+    selector:
+      k8s-addon: dns-controller.addons.k8s.io
+    version: 9.99.0
+  - id: v1.15.0
+    manifest: storage-aws.addons.k8s.io/v1.15.0.yaml
+    manifestHash: 4e2cda50cd5048133aad1b5e28becb60f4629d3f9e09c514a2757c27998b4200
+    name: storage-aws.addons.k8s.io
+    selector:
+      k8s-addon: storage-aws.addons.k8s.io
+    version: 9.99.0
+  - id: k8s-1.23
+    manifest: networking.projectcalico.org/k8s-1.23.yaml
+    manifestHash: 881a7a81b9197ad49624cc3894c497a812d5f629c9ec31cd69b6ddae0fafe5c1
+    name: networking.projectcalico.org
+    selector:
+      role.kubernetes.io/networking: "1"
+    version: 9.99.0
+  - id: k8s-1.18
+    manifest: aws-cloud-controller.addons.k8s.io/k8s-1.18.yaml
+    manifestHash: f0de0a1dc002589f04dfd37c587f2ab60c37389ad8377cc4bd00ccfa178a00a6
+    name: aws-cloud-controller.addons.k8s.io
+    selector:
+      k8s-addon: aws-cloud-controller.addons.k8s.io
+    version: 9.99.0
+  - id: k8s-1.17
+    manifest: aws-ebs-csi-driver.addons.k8s.io/k8s-1.17.yaml
+    manifestHash: 169ef2274e24cafa0ebd26fd9161a48059b549a9f4395381026592bb243f29bb
+    name: aws-ebs-csi-driver.addons.k8s.io
+    selector:
+      k8s-addon: aws-ebs-csi-driver.addons.k8s.io
+    version: 9.99.0

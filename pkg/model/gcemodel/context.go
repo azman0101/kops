@@ -32,13 +32,20 @@ type GCEModelContext struct {
 }
 
 // LinkToNetwork returns the GCE Network object the cluster is located in
-func (c *GCEModelContext) LinkToNetwork() *gcetasks.Network {
-	name := c.Cluster.Spec.NetworkID
-	if name == "" {
-		name = c.SafeClusterName()
+func (c *GCEModelContext) LinkToNetwork() (*gcetasks.Network, error) {
+	if c.Cluster.Spec.NetworkID == "" {
+		return &gcetasks.Network{Name: s(c.SafeClusterName())}, nil
+	}
+	name, project, err := gce.ParseNameAndProjectFromNetworkID(c.Cluster.Spec.NetworkID)
+	if err != nil {
+		return nil, err
 	}
 
-	return &gcetasks.Network{Name: s(name)}
+	network := &gcetasks.Network{Name: s(name)}
+	if project != "" {
+		network.Project = &project
+	}
+	return network, nil
 }
 
 // NameForIPAliasRange returns the name for the secondary IP range attached to a subnet
@@ -54,7 +61,11 @@ func (c *GCEModelContext) NameForIPAliasRange(key string) string {
 func (c *GCEModelContext) LinkToSubnet(subnet *kops.ClusterSubnetSpec) *gcetasks.Subnet {
 	name := subnet.ProviderID
 	if name == "" {
-		name = c.SafeObjectName(subnet.Name)
+		var err error
+		name, err = gce.ClusterSuffixedName(subnet.Name, c.Cluster.ObjectMeta.Name, 63)
+		if err != nil {
+			klog.Fatalf("failed to construct subnet name: %w", err)
+		}
 	}
 
 	return &gcetasks.Subnet{Name: s(name)}
@@ -83,6 +94,14 @@ func (c *GCEModelContext) NameForTargetPool(id string) string {
 	return c.SafeObjectName(id)
 }
 
+func (c *GCEModelContext) NameForHealthCheck(id string) string {
+	return c.SafeObjectName(id)
+}
+
+func (c *GCEModelContext) NameForBackendService(id string) string {
+	return c.SafeObjectName(id)
+}
+
 func (c *GCEModelContext) NameForForwardingRule(id string) string {
 	return c.SafeObjectName(id)
 }
@@ -100,7 +119,11 @@ func (c *GCEModelContext) NameForHealthcheck(id string) string {
 }
 
 func (c *GCEModelContext) NameForFirewallRule(id string) string {
-	return c.SafeObjectName(id)
+	name, err := gce.ClusterSuffixedName(id, c.Cluster.ObjectMeta.Name, 63)
+	if err != nil {
+		klog.Fatalf("failed to construct firewallrule name: %w", err)
+	}
+	return name
 }
 
 func (c *GCEModelContext) NetworkingIsIPAlias() bool {

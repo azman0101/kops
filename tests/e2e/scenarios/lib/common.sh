@@ -42,18 +42,13 @@ fi
 
 export KOPS_BASE_URL
 export KOPS
+export CHANNELS
 
 export KOPS_FEATURE_FLAGS="SpecOverrideFlag"
 export KOPS_RUN_TOO_NEW_VERSION=1
 
 if [[ -z "${DISCOVERY_STORE-}" ]]; then 
     DISCOVERY_STORE="${KOPS_STATE_STORE-}"
-fi
-
-if [[ ${KOPS_IRSA-} = true ]]; then
-    OVERRIDES="${OVERRIDES-} --override=cluster.spec.serviceAccountIssuerDiscovery.discoveryStore=${DISCOVERY_STORE}/${CLUSTER_NAME}/discovery"
-    OVERRIDES="${OVERRIDES} --override=cluster.spec.serviceAccountIssuerDiscovery.enableAWSOIDCProvider=true"
-    OVERRIDES="${OVERRIDES} --override=cluster.spec.iam.useServiceAccountExternalPermissions=true"
 fi
 
 export GO111MODULE=on
@@ -97,6 +92,14 @@ function kops-download-from-base() {
     echo "${kops}"
 }
 
+function kops-channels-download-from-base() {
+    local channels
+    channels=$(mktemp -t channels.XXXXXXXXX)
+    wget -qO "${channels}" "$KOPS_BASE_URL/$(go env GOOS)/$(go env GOARCH)/channels"
+    chmod +x "${channels}"
+    echo "${channels}"
+}
+
 function kops-base-from-marker() {
     if [[ "${1}" =~ ^https: ]]; then
         echo "${1}"
@@ -112,12 +115,14 @@ function kops-acquire-latest() {
     if [[ "${JOB_TYPE-}" == "periodic" ]]; then
         KOPS_BASE_URL="$(curl -s https://storage.googleapis.com/kops-ci/bin/latest-ci-updown-green.txt)"
         KOPS=$(kops-download-from-base)
+        CHANNELS=$(kops-channels-download-from-base)
     else
          if [[ -n "${KOPS_BASE_URL-}" ]]; then
             KOPS_BASE_URL=""
          fi
          $KUBETEST2 --build
-         KOPS="${REPO_ROOT}/.bazelbuild/dist/linux/amd64/kops"
+         KOPS="${REPO_ROOT}/.build/dist/linux/amd64/kops"
+         CHANNELS="${REPO_ROOT}/.build/dist/linux/amd64/channels"
          KOPS_BASE_URL=$(cat "${REPO_ROOT}/.kubetest2/kops-base-url")
          export KOPS_BASE_URL
          echo "KOPS_BASE_URL=$KOPS_BASE_URL"
@@ -131,7 +136,11 @@ function kops-up() {
         create_args="${create_args} --zones=${ZONES}"
     fi
     if [[ -z "${K8S_VERSION-}" ]]; then
-        K8S_VERSION="v1.22.1"
+        K8S_VERSION="$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)"
+    fi
+
+    if [[ ${KOPS_IRSA-} = true ]]; then
+        create_args="${create_args} --discovery-store=${DISCOVERY_STORE}/${CLUSTER_NAME}/discovery"
     fi
 
     ${KUBETEST2} \

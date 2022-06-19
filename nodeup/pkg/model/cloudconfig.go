@@ -119,7 +119,7 @@ func (b *CloudConfigBuilder) build(c *fi.ModelBuilderContext, inTree bool) error
 			}
 		}
 	case "openstack":
-		osc := cloudConfig.Openstack
+		osc := b.Cluster.Spec.CloudProvider.Openstack
 		if osc == nil {
 			break
 		}
@@ -209,7 +209,7 @@ func (b *CloudConfigBuilder) build(c *fi.ModelBuilderContext, inTree bool) error
 			vnetName = b.Cluster.Name
 		}
 
-		az := b.Cluster.Spec.CloudConfig.Azure
+		az := b.Cluster.Spec.CloudProvider.Azure
 		c := &azureCloudConfig{
 			CloudConfigType:             "file",
 			SubscriptionID:              az.SubscriptionID,

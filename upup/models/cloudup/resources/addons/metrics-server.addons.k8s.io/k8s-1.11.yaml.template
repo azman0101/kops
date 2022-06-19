@@ -142,7 +142,7 @@ spec:
 {{ if or (not UseKopsControllerForNodeBootstrap) (WithDefaultBool .MetricsServer.Insecure true) }}
           - --kubelet-insecure-tls
 {{ end }}
-        image: {{ or .MetricsServer.Image "registry.k8s.io/metrics-server/metrics-server:v0.6.0" }}
+        image: {{ or .MetricsServer.Image "registry.k8s.io/metrics-server/metrics-server:v0.6.1" }}
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
@@ -153,6 +153,9 @@ spec:
           periodSeconds: 10
         name: metrics-server
         ports:
+        - containerPort: 443 # We need to rename this port to keep the name unique due to SSA
+          name: oldhttps
+          protocol: TCP
         - containerPort: 4443
           name: https
           protocol: TCP
@@ -227,7 +230,11 @@ spec:
   version: v1beta1
   versionPriority: 100
 ---
+{{ if IsKubernetesGTE "1.23" }}
+apiVersion: policy/v1
+{{ else }}
 apiVersion: policy/v1beta1
+{{ end }}
 kind: PodDisruptionBudget
 metadata:
   name: metrics-server

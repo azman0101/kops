@@ -19,10 +19,11 @@ linters:
   # https://github.com/golangci/golangci-lint/issues/1841
   # - deadcode
   # - structcheck
-  # - varcheck
     - ineffassign
     - staticcheck
+    - tenv
     - unused
+    - varcheck
 
 linters-settings: # please keep this alphabetized
   staticcheck:

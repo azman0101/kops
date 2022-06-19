@@ -52,6 +52,7 @@ import (
 	"k8s.io/kops/pkg/model/components/kubeapiserver"
 	"k8s.io/kops/pkg/model/domodel"
 	"k8s.io/kops/pkg/model/gcemodel"
+	"k8s.io/kops/pkg/model/hetznermodel"
 	"k8s.io/kops/pkg/model/iam"
 	"k8s.io/kops/pkg/model/openstackmodel"
 	"k8s.io/kops/pkg/templates"
@@ -64,6 +65,7 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/cloudformation"
 	"k8s.io/kops/upup/pkg/fi/cloudup/do"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
+	"k8s.io/kops/upup/pkg/fi/cloudup/hetzner"
 	"k8s.io/kops/upup/pkg/fi/cloudup/openstack"
 	"k8s.io/kops/upup/pkg/fi/cloudup/terraform"
 	"k8s.io/kops/upup/pkg/fi/cloudup/terraformWriter"
@@ -78,9 +80,9 @@ const (
 	starline = "*********************************************************************************"
 
 	// OldestSupportedKubernetesVersion is the oldest kubernetes version that is supported in kOps.
-	OldestSupportedKubernetesVersion = "1.19.0"
+	OldestSupportedKubernetesVersion = "1.20.0"
 	// OldestRecommendedKubernetesVersion is the oldest kubernetes version that is not deprecated in kOps.
-	OldestRecommendedKubernetesVersion = "1.21.0"
+	OldestRecommendedKubernetesVersion = "1.22.0"
 )
 
 // TerraformCloudProviders is the list of cloud providers with terraform target support
@@ -406,6 +408,13 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 
 		}
 
+	case kops.CloudProviderHetzner:
+		{
+			if !featureflag.Hetzner.Enabled() {
+				return fmt.Errorf("Hetzner Cloud support is currently alpha, and is feature-gated.  export KOPS_FEATURE_FLAGS=Hetzner")
+			}
+		}
+
 	case kops.CloudProviderDO:
 		{
 			if len(sshPublicKeys) == 0 && (c.Cluster.Spec.SSHKeyName == nil || *c.Cluster.Spec.SSHKeyName == "") {
@@ -588,6 +597,17 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 				&domodel.DropletBuilder{DOModelContext: doModelContext, BootstrapScriptBuilder: bootstrapScriptBuilder, Lifecycle: clusterLifecycle},
 				&domodel.NetworkModelBuilder{DOModelContext: doModelContext, Lifecycle: networkLifecycle},
 			)
+		case kops.CloudProviderHetzner:
+			hetznerModelContext := &hetznermodel.HetznerModelContext{
+				KopsModelContext: modelContext,
+			}
+			l.Builders = append(l.Builders,
+				&hetznermodel.SSHKeyModelBuilder{HetznerModelContext: hetznerModelContext, Lifecycle: securityLifecycle},
+				&hetznermodel.NetworkModelBuilder{HetznerModelContext: hetznerModelContext, Lifecycle: networkLifecycle},
+				&hetznermodel.ExternalAccessModelBuilder{HetznerModelContext: hetznerModelContext, Lifecycle: networkLifecycle},
+				&hetznermodel.LoadBalancerModelBuilder{HetznerModelContext: hetznerModelContext, Lifecycle: networkLifecycle},
+				&hetznermodel.ServerModelBuilder{HetznerModelContext: hetznerModelContext, BootstrapScriptBuilder: bootstrapScriptBuilder, Lifecycle: clusterLifecycle},
+			)
 		case kops.CloudProviderGCE:
 			gceModelContext := &gcemodel.GCEModelContext{
 				ProjectID:        project,
@@ -654,6 +674,8 @@ func (c *ApplyClusterCmd) Run(ctx context.Context) error {
 			target = awsup.NewAWSAPITarget(cloud.(awsup.AWSCloud))
 		case kops.CloudProviderDO:
 			target = do.NewDOAPITarget(cloud.(do.DOCloud))
+		case kops.CloudProviderHetzner:
+			target = hetzner.NewHetznerAPITarget(cloud.(hetzner.HetznerCloud))
 		case kops.CloudProviderOpenstack:
 			target = openstack.NewOpenstackAPITarget(cloud.(openstack.OpenstackCloud))
 		case kops.CloudProviderAzure:
@@ -1320,9 +1342,7 @@ func (n *nodeUpConfigBuilder) BuildConfig(ig *kops.InstanceGroup, apiserverAddit
 					return nil, nil, err
 				}
 			}
-			if cluster.Spec.KubeAPIServer != nil && fi.StringValue(cluster.Spec.KubeAPIServer.ServiceAccountIssuer) != "" {
-				config.KeypairIDs["service-account"] = keysets["service-account"].Primary.Id
-			}
+			config.KeypairIDs["service-account"] = keysets["service-account"].Primary.Id
 
 			config.APIServerConfig.EncryptionConfigSecretHash = n.encryptionConfigSecretHash
 			serviceAccountPublicKeys, err := keysets["service-account"].ToPublicKeys()
@@ -1408,6 +1428,10 @@ func (n *nodeUpConfigBuilder) BuildConfig(ig *kops.InstanceGroup, apiserverAddit
 
 	if ig.Spec.WarmPool != nil || cluster.Spec.WarmPool != nil {
 		config.WarmPoolImages = n.buildWarmPoolImages(ig)
+	}
+
+	if ig.Spec.Packages != nil {
+		config.Packages = ig.Spec.Packages
 	}
 
 	return config, bootConfig, nil

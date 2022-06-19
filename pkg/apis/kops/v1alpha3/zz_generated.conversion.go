@@ -174,16 +174,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.AddGeneratedConversionFunc((*AzureConfiguration)(nil), (*kops.AzureConfiguration)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha3_AzureConfiguration_To_kops_AzureConfiguration(a.(*AzureConfiguration), b.(*kops.AzureConfiguration), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*kops.AzureConfiguration)(nil), (*AzureConfiguration)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_kops_AzureConfiguration_To_v1alpha3_AzureConfiguration(a.(*kops.AzureConfiguration), b.(*AzureConfiguration), scope)
-	}); err != nil {
-		return err
-	}
 	if err := s.AddGeneratedConversionFunc((*AzureSpec)(nil), (*kops.AzureSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha3_AzureSpec_To_kops_AzureSpec(a.(*AzureSpec), b.(*kops.AzureSpec), scope)
 	}); err != nil {
@@ -584,6 +574,16 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
+	if err := s.AddGeneratedConversionFunc((*HetznerSpec)(nil), (*kops.HetznerSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha3_HetznerSpec_To_kops_HetznerSpec(a.(*HetznerSpec), b.(*kops.HetznerSpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*kops.HetznerSpec)(nil), (*HetznerSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_kops_HetznerSpec_To_v1alpha3_HetznerSpec(a.(*kops.HetznerSpec), b.(*HetznerSpec), scope)
+	}); err != nil {
+		return err
+	}
 	if err := s.AddGeneratedConversionFunc((*HookSpec)(nil), (*kops.HookSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha3_HookSpec_To_kops_HookSpec(a.(*HookSpec), b.(*kops.HookSpec), scope)
 	}); err != nil {
@@ -964,16 +964,6 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.AddGeneratedConversionFunc((*OpenstackConfiguration)(nil), (*kops.OpenstackConfiguration)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_v1alpha3_OpenstackConfiguration_To_kops_OpenstackConfiguration(a.(*OpenstackConfiguration), b.(*kops.OpenstackConfiguration), scope)
-	}); err != nil {
-		return err
-	}
-	if err := s.AddGeneratedConversionFunc((*kops.OpenstackConfiguration)(nil), (*OpenstackConfiguration)(nil), func(a, b interface{}, scope conversion.Scope) error {
-		return Convert_kops_OpenstackConfiguration_To_v1alpha3_OpenstackConfiguration(a.(*kops.OpenstackConfiguration), b.(*OpenstackConfiguration), scope)
-	}); err != nil {
-		return err
-	}
 	if err := s.AddGeneratedConversionFunc((*OpenstackLoadbalancerConfig)(nil), (*kops.OpenstackLoadbalancerConfig)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_v1alpha3_OpenstackLoadbalancerConfig_To_kops_OpenstackLoadbalancerConfig(a.(*OpenstackLoadbalancerConfig), b.(*kops.OpenstackLoadbalancerConfig), scope)
 	}); err != nil {
@@ -1071,6 +1061,16 @@ func RegisterConversions(s *runtime.Scheme) error {
 	}
 	if err := s.AddGeneratedConversionFunc((*kops.RollingUpdate)(nil), (*RollingUpdate)(nil), func(a, b interface{}, scope conversion.Scope) error {
 		return Convert_kops_RollingUpdate_To_v1alpha3_RollingUpdate(a.(*kops.RollingUpdate), b.(*RollingUpdate), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*RouteSpec)(nil), (*kops.RouteSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_v1alpha3_RouteSpec_To_kops_RouteSpec(a.(*RouteSpec), b.(*kops.RouteSpec), scope)
+	}); err != nil {
+		return err
+	}
+	if err := s.AddGeneratedConversionFunc((*kops.RouteSpec)(nil), (*RouteSpec)(nil), func(a, b interface{}, scope conversion.Scope) error {
+		return Convert_kops_RouteSpec_To_v1alpha3_RouteSpec(a.(*kops.RouteSpec), b.(*RouteSpec), scope)
 	}); err != nil {
 		return err
 	}
@@ -1299,6 +1299,7 @@ func autoConvert_v1alpha3_AWSEBSCSIDriver_To_kops_AWSEBSCSIDriver(in *AWSEBSCSID
 	out.Enabled = in.Enabled
 	out.Version = in.Version
 	out.VolumeAttachLimit = in.VolumeAttachLimit
+	out.PodAnnotations = in.PodAnnotations
 	return nil
 }
 
@@ -1311,6 +1312,7 @@ func autoConvert_kops_AWSEBSCSIDriver_To_v1alpha3_AWSEBSCSIDriver(in *kops.AWSEB
 	out.Enabled = in.Enabled
 	out.Version = in.Version
 	out.VolumeAttachLimit = in.VolumeAttachLimit
+	out.PodAnnotations = in.PodAnnotations
 	return nil
 }
 
@@ -1322,6 +1324,8 @@ func Convert_kops_AWSEBSCSIDriver_To_v1alpha3_AWSEBSCSIDriver(in *kops.AWSEBSCSI
 func autoConvert_v1alpha3_AWSLoadBalancerControllerConfig_To_kops_AWSLoadBalancerControllerConfig(in *AWSLoadBalancerControllerConfig, out *kops.AWSLoadBalancerControllerConfig, s conversion.Scope) error {
 	out.Enabled = in.Enabled
 	out.Version = in.Version
+	out.EnableWAF = in.EnableWAF
+	out.EnableWAFv2 = in.EnableWAFv2
 	return nil
 }
 
@@ -1333,6 +1337,8 @@ func Convert_v1alpha3_AWSLoadBalancerControllerConfig_To_kops_AWSLoadBalancerCon
 func autoConvert_kops_AWSLoadBalancerControllerConfig_To_v1alpha3_AWSLoadBalancerControllerConfig(in *kops.AWSLoadBalancerControllerConfig, out *AWSLoadBalancerControllerConfig, s conversion.Scope) error {
 	out.Enabled = in.Enabled
 	out.Version = in.Version
+	out.EnableWAF = in.EnableWAF
+	out.EnableWAFv2 = in.EnableWAFv2
 	return nil
 }
 
@@ -1673,35 +1679,12 @@ func Convert_kops_AuthorizationSpec_To_v1alpha3_AuthorizationSpec(in *kops.Autho
 	return autoConvert_kops_AuthorizationSpec_To_v1alpha3_AuthorizationSpec(in, out, s)
 }
 
-func autoConvert_v1alpha3_AzureConfiguration_To_kops_AzureConfiguration(in *AzureConfiguration, out *kops.AzureConfiguration, s conversion.Scope) error {
-	out.SubscriptionID = in.SubscriptionID
-	out.TenantID = in.TenantID
-	out.ResourceGroupName = in.ResourceGroupName
-	out.RouteTableName = in.RouteTableName
-	out.AdminUser = in.AdminUser
-	return nil
-}
-
-// Convert_v1alpha3_AzureConfiguration_To_kops_AzureConfiguration is an autogenerated conversion function.
-func Convert_v1alpha3_AzureConfiguration_To_kops_AzureConfiguration(in *AzureConfiguration, out *kops.AzureConfiguration, s conversion.Scope) error {
-	return autoConvert_v1alpha3_AzureConfiguration_To_kops_AzureConfiguration(in, out, s)
-}
-
-func autoConvert_kops_AzureConfiguration_To_v1alpha3_AzureConfiguration(in *kops.AzureConfiguration, out *AzureConfiguration, s conversion.Scope) error {
-	out.SubscriptionID = in.SubscriptionID
-	out.TenantID = in.TenantID
-	out.ResourceGroupName = in.ResourceGroupName
-	out.RouteTableName = in.RouteTableName
-	out.AdminUser = in.AdminUser
-	return nil
-}
-
-// Convert_kops_AzureConfiguration_To_v1alpha3_AzureConfiguration is an autogenerated conversion function.
-func Convert_kops_AzureConfiguration_To_v1alpha3_AzureConfiguration(in *kops.AzureConfiguration, out *AzureConfiguration, s conversion.Scope) error {
-	return autoConvert_kops_AzureConfiguration_To_v1alpha3_AzureConfiguration(in, out, s)
-}
-
 func autoConvert_v1alpha3_AzureSpec_To_kops_AzureSpec(in *AzureSpec, out *kops.AzureSpec, s conversion.Scope) error {
+	out.SubscriptionID = in.SubscriptionID
+	out.TenantID = in.TenantID
+	out.ResourceGroupName = in.ResourceGroupName
+	out.RouteTableName = in.RouteTableName
+	out.AdminUser = in.AdminUser
 	return nil
 }
 
@@ -1711,6 +1694,11 @@ func Convert_v1alpha3_AzureSpec_To_kops_AzureSpec(in *AzureSpec, out *kops.Azure
 }
 
 func autoConvert_kops_AzureSpec_To_v1alpha3_AzureSpec(in *kops.AzureSpec, out *AzureSpec, s conversion.Scope) error {
+	out.SubscriptionID = in.SubscriptionID
+	out.TenantID = in.TenantID
+	out.ResourceGroupName = in.ResourceGroupName
+	out.RouteTableName = in.RouteTableName
+	out.AdminUser = in.AdminUser
 	return nil
 }
 
@@ -1924,6 +1912,7 @@ func autoConvert_v1alpha3_CertManagerConfig_To_kops_CertManagerConfig(in *CertMa
 	out.Managed = in.Managed
 	out.Image = in.Image
 	out.DefaultIssuer = in.DefaultIssuer
+	out.Nameservers = in.Nameservers
 	return nil
 }
 
@@ -1937,6 +1926,7 @@ func autoConvert_kops_CertManagerConfig_To_v1alpha3_CertManagerConfig(in *kops.C
 	out.Managed = in.Managed
 	out.Image = in.Image
 	out.DefaultIssuer = in.DefaultIssuer
+	out.Nameservers = in.Nameservers
 	return nil
 }
 
@@ -1950,6 +1940,7 @@ func autoConvert_v1alpha3_CiliumNetworkingSpec_To_kops_CiliumNetworkingSpec(in *
 	out.MemoryRequest = in.MemoryRequest
 	out.CPURequest = in.CPURequest
 	out.AgentPrometheusPort = in.AgentPrometheusPort
+	out.Metrics = in.Metrics
 	out.ChainingMode = in.ChainingMode
 	out.Debug = in.Debug
 	out.DisableEndpointCRD = in.DisableEndpointCRD
@@ -2011,6 +2002,7 @@ func autoConvert_kops_CiliumNetworkingSpec_To_v1alpha3_CiliumNetworkingSpec(in *
 	out.MemoryRequest = in.MemoryRequest
 	out.CPURequest = in.CPURequest
 	out.AgentPrometheusPort = in.AgentPrometheusPort
+	out.Metrics = in.Metrics
 	out.ChainingMode = in.ChainingMode
 	out.Debug = in.Debug
 	out.DisableEndpointCRD = in.DisableEndpointCRD
@@ -2078,24 +2070,6 @@ func autoConvert_v1alpha3_CloudConfiguration_To_kops_CloudConfiguration(in *Clou
 	out.ElbSecurityGroup = in.ElbSecurityGroup
 	out.SpotinstProduct = in.SpotinstProduct
 	out.SpotinstOrientation = in.SpotinstOrientation
-	if in.Openstack != nil {
-		in, out := &in.Openstack, &out.Openstack
-		*out = new(kops.OpenstackConfiguration)
-		if err := Convert_v1alpha3_OpenstackConfiguration_To_kops_OpenstackConfiguration(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Openstack = nil
-	}
-	if in.Azure != nil {
-		in, out := &in.Azure, &out.Azure
-		*out = new(kops.AzureConfiguration)
-		if err := Convert_v1alpha3_AzureConfiguration_To_kops_AzureConfiguration(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Azure = nil
-	}
 	if in.AWSEBSCSIDriver != nil {
 		in, out := &in.AWSEBSCSIDriver, &out.AWSEBSCSIDriver
 		*out = new(kops.AWSEBSCSIDriver)
@@ -2133,24 +2107,6 @@ func autoConvert_kops_CloudConfiguration_To_v1alpha3_CloudConfiguration(in *kops
 	out.ElbSecurityGroup = in.ElbSecurityGroup
 	out.SpotinstProduct = in.SpotinstProduct
 	out.SpotinstOrientation = in.SpotinstOrientation
-	if in.Openstack != nil {
-		in, out := &in.Openstack, &out.Openstack
-		*out = new(OpenstackConfiguration)
-		if err := Convert_kops_OpenstackConfiguration_To_v1alpha3_OpenstackConfiguration(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Openstack = nil
-	}
-	if in.Azure != nil {
-		in, out := &in.Azure, &out.Azure
-		*out = new(AzureConfiguration)
-		if err := Convert_kops_AzureConfiguration_To_v1alpha3_AzureConfiguration(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Azure = nil
-	}
 	if in.AWSEBSCSIDriver != nil {
 		in, out := &in.AWSEBSCSIDriver, &out.AWSEBSCSIDriver
 		*out = new(AWSEBSCSIDriver)
@@ -2199,6 +2155,7 @@ func autoConvert_v1alpha3_CloudControllerManagerConfig_To_kops_CloudControllerMa
 	}
 	out.UseServiceAccountCredentials = in.UseServiceAccountCredentials
 	out.EnableLeaderMigration = in.EnableLeaderMigration
+	out.CPURequest = in.CPURequest
 	return nil
 }
 
@@ -2229,6 +2186,7 @@ func autoConvert_kops_CloudControllerManagerConfig_To_v1alpha3_CloudControllerMa
 	}
 	out.UseServiceAccountCredentials = in.UseServiceAccountCredentials
 	out.EnableLeaderMigration = in.EnableLeaderMigration
+	out.CPURequest = in.CPURequest
 	return nil
 }
 
@@ -2273,6 +2231,15 @@ func autoConvert_v1alpha3_CloudProviderSpec_To_kops_CloudProviderSpec(in *CloudP
 		}
 	} else {
 		out.GCE = nil
+	}
+	if in.Hetzner != nil {
+		in, out := &in.Hetzner, &out.Hetzner
+		*out = new(kops.HetznerSpec)
+		if err := Convert_v1alpha3_HetznerSpec_To_kops_HetznerSpec(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Hetzner = nil
 	}
 	if in.Openstack != nil {
 		in, out := &in.Openstack, &out.Openstack
@@ -2327,6 +2294,15 @@ func autoConvert_kops_CloudProviderSpec_To_v1alpha3_CloudProviderSpec(in *kops.C
 		}
 	} else {
 		out.GCE = nil
+	}
+	if in.Hetzner != nil {
+		in, out := &in.Hetzner, &out.Hetzner
+		*out = new(HetznerSpec)
+		if err := Convert_kops_HetznerSpec_To_v1alpha3_HetznerSpec(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Hetzner = nil
 	}
 	if in.Openstack != nil {
 		in, out := &in.Openstack, &out.Openstack
@@ -2385,6 +2361,7 @@ func autoConvert_v1alpha3_ClusterAutoscalerConfig_To_kops_ClusterAutoscalerConfi
 	out.MemoryRequest = in.MemoryRequest
 	out.CPURequest = in.CPURequest
 	out.MaxNodeProvisionTime = in.MaxNodeProvisionTime
+	out.PodAnnotations = in.PodAnnotations
 	return nil
 }
 
@@ -2407,6 +2384,7 @@ func autoConvert_kops_ClusterAutoscalerConfig_To_v1alpha3_ClusterAutoscalerConfi
 	out.MemoryRequest = in.MemoryRequest
 	out.CPURequest = in.CPURequest
 	out.MaxNodeProvisionTime = in.MaxNodeProvisionTime
+	out.PodAnnotations = in.PodAnnotations
 	return nil
 }
 
@@ -3315,6 +3293,17 @@ func autoConvert_v1alpha3_ClusterSubnetSpec_To_kops_ClusterSubnetSpec(in *Cluste
 	out.Egress = in.Egress
 	out.Type = kops.SubnetType(in.Type)
 	out.PublicIP = in.PublicIP
+	if in.AdditionalRoutes != nil {
+		in, out := &in.AdditionalRoutes, &out.AdditionalRoutes
+		*out = make([]kops.RouteSpec, len(*in))
+		for i := range *in {
+			if err := Convert_v1alpha3_RouteSpec_To_kops_RouteSpec(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.AdditionalRoutes = nil
+	}
 	return nil
 }
 
@@ -3333,6 +3322,17 @@ func autoConvert_kops_ClusterSubnetSpec_To_v1alpha3_ClusterSubnetSpec(in *kops.C
 	out.Egress = in.Egress
 	out.Type = SubnetType(in.Type)
 	out.PublicIP = in.PublicIP
+	if in.AdditionalRoutes != nil {
+		in, out := &in.AdditionalRoutes, &out.AdditionalRoutes
+		*out = make([]RouteSpec, len(*in))
+		for i := range *in {
+			if err := Convert_kops_RouteSpec_To_v1alpha3_RouteSpec(&(*in)[i], &(*out)[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.AdditionalRoutes = nil
+	}
 	return nil
 }
 
@@ -3961,6 +3961,7 @@ func autoConvert_v1alpha3_FileAssetSpec_To_kops_FileAssetSpec(in *FileAssetSpec,
 	}
 	out.Content = in.Content
 	out.IsBase64 = in.IsBase64
+	out.Mode = in.Mode
 	return nil
 }
 
@@ -3983,6 +3984,7 @@ func autoConvert_kops_FileAssetSpec_To_v1alpha3_FileAssetSpec(in *kops.FileAsset
 	}
 	out.Content = in.Content
 	out.IsBase64 = in.IsBase64
+	out.Mode = in.Mode
 	return nil
 }
 
@@ -4155,6 +4157,24 @@ func autoConvert_kops_HTTPProxy_To_v1alpha3_HTTPProxy(in *kops.HTTPProxy, out *H
 // Convert_kops_HTTPProxy_To_v1alpha3_HTTPProxy is an autogenerated conversion function.
 func Convert_kops_HTTPProxy_To_v1alpha3_HTTPProxy(in *kops.HTTPProxy, out *HTTPProxy, s conversion.Scope) error {
 	return autoConvert_kops_HTTPProxy_To_v1alpha3_HTTPProxy(in, out, s)
+}
+
+func autoConvert_v1alpha3_HetznerSpec_To_kops_HetznerSpec(in *HetznerSpec, out *kops.HetznerSpec, s conversion.Scope) error {
+	return nil
+}
+
+// Convert_v1alpha3_HetznerSpec_To_kops_HetznerSpec is an autogenerated conversion function.
+func Convert_v1alpha3_HetznerSpec_To_kops_HetznerSpec(in *HetznerSpec, out *kops.HetznerSpec, s conversion.Scope) error {
+	return autoConvert_v1alpha3_HetznerSpec_To_kops_HetznerSpec(in, out, s)
+}
+
+func autoConvert_kops_HetznerSpec_To_v1alpha3_HetznerSpec(in *kops.HetznerSpec, out *HetznerSpec, s conversion.Scope) error {
+	return nil
+}
+
+// Convert_kops_HetznerSpec_To_v1alpha3_HetznerSpec is an autogenerated conversion function.
+func Convert_kops_HetznerSpec_To_v1alpha3_HetznerSpec(in *kops.HetznerSpec, out *HetznerSpec, s conversion.Scope) error {
+	return autoConvert_kops_HetznerSpec_To_v1alpha3_HetznerSpec(in, out, s)
 }
 
 func autoConvert_v1alpha3_HookSpec_To_kops_HookSpec(in *HookSpec, out *kops.HookSpec, s conversion.Scope) error {
@@ -4544,6 +4564,7 @@ func autoConvert_v1alpha3_InstanceGroupSpec_To_kops_InstanceGroupSpec(in *Instan
 	} else {
 		out.Containerd = nil
 	}
+	out.Packages = in.Packages
 	return nil
 }
 
@@ -4715,6 +4736,7 @@ func autoConvert_kops_InstanceGroupSpec_To_v1alpha3_InstanceGroupSpec(in *kops.I
 	} else {
 		out.Containerd = nil
 	}
+	out.Packages = in.Packages
 	return nil
 }
 
@@ -6304,6 +6326,7 @@ func autoConvert_v1alpha3_NodeLocalDNSConfig_To_kops_NodeLocalDNSConfig(in *Node
 	out.ForwardToKubeDNS = in.ForwardToKubeDNS
 	out.MemoryRequest = in.MemoryRequest
 	out.CPURequest = in.CPURequest
+	out.PodAnnotations = in.PodAnnotations
 	return nil
 }
 
@@ -6319,6 +6342,7 @@ func autoConvert_kops_NodeLocalDNSConfig_To_v1alpha3_NodeLocalDNSConfig(in *kops
 	out.ForwardToKubeDNS = in.ForwardToKubeDNS
 	out.MemoryRequest = in.MemoryRequest
 	out.CPURequest = in.CPURequest
+	out.PodAnnotations = in.PodAnnotations
 	return nil
 }
 
@@ -6366,6 +6390,7 @@ func autoConvert_v1alpha3_NodeTerminationHandlerConfig_To_kops_NodeTerminationHa
 	out.EnablePrometheusMetrics = in.EnablePrometheusMetrics
 	out.EnableSQSTerminationDraining = in.EnableSQSTerminationDraining
 	out.ManagedASGTag = in.ManagedASGTag
+	out.ExcludeFromLoadBalancers = in.ExcludeFromLoadBalancers
 	out.MemoryRequest = in.MemoryRequest
 	out.CPURequest = in.CPURequest
 	out.Version = in.Version
@@ -6385,6 +6410,7 @@ func autoConvert_kops_NodeTerminationHandlerConfig_To_v1alpha3_NodeTerminationHa
 	out.EnableRebalanceDraining = in.EnableRebalanceDraining
 	out.EnablePrometheusMetrics = in.EnablePrometheusMetrics
 	out.EnableSQSTerminationDraining = in.EnableSQSTerminationDraining
+	out.ExcludeFromLoadBalancers = in.ExcludeFromLoadBalancers
 	out.ManagedASGTag = in.ManagedASGTag
 	out.MemoryRequest = in.MemoryRequest
 	out.CPURequest = in.CPURequest
@@ -6447,134 +6473,6 @@ func autoConvert_kops_OpenstackBlockStorageConfig_To_v1alpha3_OpenstackBlockStor
 // Convert_kops_OpenstackBlockStorageConfig_To_v1alpha3_OpenstackBlockStorageConfig is an autogenerated conversion function.
 func Convert_kops_OpenstackBlockStorageConfig_To_v1alpha3_OpenstackBlockStorageConfig(in *kops.OpenstackBlockStorageConfig, out *OpenstackBlockStorageConfig, s conversion.Scope) error {
 	return autoConvert_kops_OpenstackBlockStorageConfig_To_v1alpha3_OpenstackBlockStorageConfig(in, out, s)
-}
-
-func autoConvert_v1alpha3_OpenstackConfiguration_To_kops_OpenstackConfiguration(in *OpenstackConfiguration, out *kops.OpenstackConfiguration, s conversion.Scope) error {
-	if in.Loadbalancer != nil {
-		in, out := &in.Loadbalancer, &out.Loadbalancer
-		*out = new(kops.OpenstackLoadbalancerConfig)
-		if err := Convert_v1alpha3_OpenstackLoadbalancerConfig_To_kops_OpenstackLoadbalancerConfig(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Loadbalancer = nil
-	}
-	if in.Monitor != nil {
-		in, out := &in.Monitor, &out.Monitor
-		*out = new(kops.OpenstackMonitor)
-		if err := Convert_v1alpha3_OpenstackMonitor_To_kops_OpenstackMonitor(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Monitor = nil
-	}
-	if in.Router != nil {
-		in, out := &in.Router, &out.Router
-		*out = new(kops.OpenstackRouter)
-		if err := Convert_v1alpha3_OpenstackRouter_To_kops_OpenstackRouter(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Router = nil
-	}
-	if in.BlockStorage != nil {
-		in, out := &in.BlockStorage, &out.BlockStorage
-		*out = new(kops.OpenstackBlockStorageConfig)
-		if err := Convert_v1alpha3_OpenstackBlockStorageConfig_To_kops_OpenstackBlockStorageConfig(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.BlockStorage = nil
-	}
-	out.InsecureSkipVerify = in.InsecureSkipVerify
-	if in.Network != nil {
-		in, out := &in.Network, &out.Network
-		*out = new(kops.OpenstackNetwork)
-		if err := Convert_v1alpha3_OpenstackNetwork_To_kops_OpenstackNetwork(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Network = nil
-	}
-	if in.Metadata != nil {
-		in, out := &in.Metadata, &out.Metadata
-		*out = new(kops.OpenstackMetadata)
-		if err := Convert_v1alpha3_OpenstackMetadata_To_kops_OpenstackMetadata(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Metadata = nil
-	}
-	return nil
-}
-
-// Convert_v1alpha3_OpenstackConfiguration_To_kops_OpenstackConfiguration is an autogenerated conversion function.
-func Convert_v1alpha3_OpenstackConfiguration_To_kops_OpenstackConfiguration(in *OpenstackConfiguration, out *kops.OpenstackConfiguration, s conversion.Scope) error {
-	return autoConvert_v1alpha3_OpenstackConfiguration_To_kops_OpenstackConfiguration(in, out, s)
-}
-
-func autoConvert_kops_OpenstackConfiguration_To_v1alpha3_OpenstackConfiguration(in *kops.OpenstackConfiguration, out *OpenstackConfiguration, s conversion.Scope) error {
-	if in.Loadbalancer != nil {
-		in, out := &in.Loadbalancer, &out.Loadbalancer
-		*out = new(OpenstackLoadbalancerConfig)
-		if err := Convert_kops_OpenstackLoadbalancerConfig_To_v1alpha3_OpenstackLoadbalancerConfig(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Loadbalancer = nil
-	}
-	if in.Monitor != nil {
-		in, out := &in.Monitor, &out.Monitor
-		*out = new(OpenstackMonitor)
-		if err := Convert_kops_OpenstackMonitor_To_v1alpha3_OpenstackMonitor(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Monitor = nil
-	}
-	if in.Router != nil {
-		in, out := &in.Router, &out.Router
-		*out = new(OpenstackRouter)
-		if err := Convert_kops_OpenstackRouter_To_v1alpha3_OpenstackRouter(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Router = nil
-	}
-	if in.BlockStorage != nil {
-		in, out := &in.BlockStorage, &out.BlockStorage
-		*out = new(OpenstackBlockStorageConfig)
-		if err := Convert_kops_OpenstackBlockStorageConfig_To_v1alpha3_OpenstackBlockStorageConfig(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.BlockStorage = nil
-	}
-	out.InsecureSkipVerify = in.InsecureSkipVerify
-	if in.Network != nil {
-		in, out := &in.Network, &out.Network
-		*out = new(OpenstackNetwork)
-		if err := Convert_kops_OpenstackNetwork_To_v1alpha3_OpenstackNetwork(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Network = nil
-	}
-	if in.Metadata != nil {
-		in, out := &in.Metadata, &out.Metadata
-		*out = new(OpenstackMetadata)
-		if err := Convert_kops_OpenstackMetadata_To_v1alpha3_OpenstackMetadata(*in, *out, s); err != nil {
-			return err
-		}
-	} else {
-		out.Metadata = nil
-	}
-	return nil
-}
-
-// Convert_kops_OpenstackConfiguration_To_v1alpha3_OpenstackConfiguration is an autogenerated conversion function.
-func Convert_kops_OpenstackConfiguration_To_v1alpha3_OpenstackConfiguration(in *kops.OpenstackConfiguration, out *OpenstackConfiguration, s conversion.Scope) error {
-	return autoConvert_kops_OpenstackConfiguration_To_v1alpha3_OpenstackConfiguration(in, out, s)
 }
 
 func autoConvert_v1alpha3_OpenstackLoadbalancerConfig_To_kops_OpenstackLoadbalancerConfig(in *OpenstackLoadbalancerConfig, out *kops.OpenstackLoadbalancerConfig, s conversion.Scope) error {
@@ -6706,6 +6604,61 @@ func Convert_kops_OpenstackRouter_To_v1alpha3_OpenstackRouter(in *kops.Openstack
 }
 
 func autoConvert_v1alpha3_OpenstackSpec_To_kops_OpenstackSpec(in *OpenstackSpec, out *kops.OpenstackSpec, s conversion.Scope) error {
+	if in.Loadbalancer != nil {
+		in, out := &in.Loadbalancer, &out.Loadbalancer
+		*out = new(kops.OpenstackLoadbalancerConfig)
+		if err := Convert_v1alpha3_OpenstackLoadbalancerConfig_To_kops_OpenstackLoadbalancerConfig(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Loadbalancer = nil
+	}
+	if in.Monitor != nil {
+		in, out := &in.Monitor, &out.Monitor
+		*out = new(kops.OpenstackMonitor)
+		if err := Convert_v1alpha3_OpenstackMonitor_To_kops_OpenstackMonitor(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Monitor = nil
+	}
+	if in.Router != nil {
+		in, out := &in.Router, &out.Router
+		*out = new(kops.OpenstackRouter)
+		if err := Convert_v1alpha3_OpenstackRouter_To_kops_OpenstackRouter(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Router = nil
+	}
+	if in.BlockStorage != nil {
+		in, out := &in.BlockStorage, &out.BlockStorage
+		*out = new(kops.OpenstackBlockStorageConfig)
+		if err := Convert_v1alpha3_OpenstackBlockStorageConfig_To_kops_OpenstackBlockStorageConfig(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.BlockStorage = nil
+	}
+	out.InsecureSkipVerify = in.InsecureSkipVerify
+	if in.Network != nil {
+		in, out := &in.Network, &out.Network
+		*out = new(kops.OpenstackNetwork)
+		if err := Convert_v1alpha3_OpenstackNetwork_To_kops_OpenstackNetwork(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Network = nil
+	}
+	if in.Metadata != nil {
+		in, out := &in.Metadata, &out.Metadata
+		*out = new(kops.OpenstackMetadata)
+		if err := Convert_v1alpha3_OpenstackMetadata_To_kops_OpenstackMetadata(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Metadata = nil
+	}
 	return nil
 }
 
@@ -6715,6 +6668,61 @@ func Convert_v1alpha3_OpenstackSpec_To_kops_OpenstackSpec(in *OpenstackSpec, out
 }
 
 func autoConvert_kops_OpenstackSpec_To_v1alpha3_OpenstackSpec(in *kops.OpenstackSpec, out *OpenstackSpec, s conversion.Scope) error {
+	if in.Loadbalancer != nil {
+		in, out := &in.Loadbalancer, &out.Loadbalancer
+		*out = new(OpenstackLoadbalancerConfig)
+		if err := Convert_kops_OpenstackLoadbalancerConfig_To_v1alpha3_OpenstackLoadbalancerConfig(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Loadbalancer = nil
+	}
+	if in.Monitor != nil {
+		in, out := &in.Monitor, &out.Monitor
+		*out = new(OpenstackMonitor)
+		if err := Convert_kops_OpenstackMonitor_To_v1alpha3_OpenstackMonitor(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Monitor = nil
+	}
+	if in.Router != nil {
+		in, out := &in.Router, &out.Router
+		*out = new(OpenstackRouter)
+		if err := Convert_kops_OpenstackRouter_To_v1alpha3_OpenstackRouter(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Router = nil
+	}
+	if in.BlockStorage != nil {
+		in, out := &in.BlockStorage, &out.BlockStorage
+		*out = new(OpenstackBlockStorageConfig)
+		if err := Convert_kops_OpenstackBlockStorageConfig_To_v1alpha3_OpenstackBlockStorageConfig(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.BlockStorage = nil
+	}
+	out.InsecureSkipVerify = in.InsecureSkipVerify
+	if in.Network != nil {
+		in, out := &in.Network, &out.Network
+		*out = new(OpenstackNetwork)
+		if err := Convert_kops_OpenstackNetwork_To_v1alpha3_OpenstackNetwork(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Network = nil
+	}
+	if in.Metadata != nil {
+		in, out := &in.Metadata, &out.Metadata
+		*out = new(OpenstackMetadata)
+		if err := Convert_kops_OpenstackMetadata_To_v1alpha3_OpenstackMetadata(*in, *out, s); err != nil {
+			return err
+		}
+	} else {
+		out.Metadata = nil
+	}
 	return nil
 }
 
@@ -6809,6 +6817,28 @@ func autoConvert_kops_RollingUpdate_To_v1alpha3_RollingUpdate(in *kops.RollingUp
 // Convert_kops_RollingUpdate_To_v1alpha3_RollingUpdate is an autogenerated conversion function.
 func Convert_kops_RollingUpdate_To_v1alpha3_RollingUpdate(in *kops.RollingUpdate, out *RollingUpdate, s conversion.Scope) error {
 	return autoConvert_kops_RollingUpdate_To_v1alpha3_RollingUpdate(in, out, s)
+}
+
+func autoConvert_v1alpha3_RouteSpec_To_kops_RouteSpec(in *RouteSpec, out *kops.RouteSpec, s conversion.Scope) error {
+	out.CIDR = in.CIDR
+	out.Target = in.Target
+	return nil
+}
+
+// Convert_v1alpha3_RouteSpec_To_kops_RouteSpec is an autogenerated conversion function.
+func Convert_v1alpha3_RouteSpec_To_kops_RouteSpec(in *RouteSpec, out *kops.RouteSpec, s conversion.Scope) error {
+	return autoConvert_v1alpha3_RouteSpec_To_kops_RouteSpec(in, out, s)
+}
+
+func autoConvert_kops_RouteSpec_To_v1alpha3_RouteSpec(in *kops.RouteSpec, out *RouteSpec, s conversion.Scope) error {
+	out.CIDR = in.CIDR
+	out.Target = in.Target
+	return nil
+}
+
+// Convert_kops_RouteSpec_To_v1alpha3_RouteSpec is an autogenerated conversion function.
+func Convert_kops_RouteSpec_To_v1alpha3_RouteSpec(in *kops.RouteSpec, out *RouteSpec, s conversion.Scope) error {
+	return autoConvert_kops_RouteSpec_To_v1alpha3_RouteSpec(in, out, s)
 }
 
 func autoConvert_v1alpha3_SSHCredential_To_kops_SSHCredential(in *SSHCredential, out *kops.SSHCredential, s conversion.Scope) error {

@@ -244,19 +244,36 @@ func validateClusterSpec(spec *kops.ClusterSpec, c *kops.Cluster, fieldPath *fie
 		allErrs = append(allErrs, validateRollingUpdate(spec.RollingUpdate, fieldPath.Child("rollingUpdate"), false)...)
 	}
 
-	if spec.API != nil && spec.API.LoadBalancer != nil && spec.GetCloudProvider() == kops.CloudProviderAWS {
-		value := string(spec.API.LoadBalancer.Class)
-		allErrs = append(allErrs, IsValidValue(fieldPath.Child("class"), &value, kops.SupportedLoadBalancerClasses)...)
-		if spec.API.LoadBalancer.SSLCertificate != "" && spec.API.LoadBalancer.Class != kops.LoadBalancerClassNetwork {
-			allErrs = append(allErrs, field.Forbidden(fieldPath, "sslCertificate requires network loadbalancer for K8s 1.19+ see https://github.com/kubernetes/kops/blob/master/permalinks/acm_nlb.md"))
+	if spec.API != nil && spec.API.LoadBalancer != nil {
+		lbSpec := spec.API.LoadBalancer
+		lbPath := fieldPath.Child("api", "loadBalancer")
+		if spec.GetCloudProvider() == kops.CloudProviderAWS {
+			value := string(lbSpec.Class)
+			allErrs = append(allErrs, IsValidValue(lbPath.Child("class"), &value, kops.SupportedLoadBalancerClasses)...)
+			if lbSpec.SSLCertificate != "" && lbSpec.Class != kops.LoadBalancerClassNetwork {
+				allErrs = append(allErrs, field.Forbidden(lbPath, "sslCertificate requires network loadbalancer. See https://github.com/kubernetes/kops/blob/master/permalinks/acm_nlb.md"))
+			}
+			if lbSpec.Class == kops.LoadBalancerClassNetwork && lbSpec.UseForInternalAPI && lbSpec.Type == kops.LoadBalancerTypeInternal {
+				allErrs = append(allErrs, field.Forbidden(lbPath, "useForInternalApi cannot be used with internal NLB due lack of hairpinning support"))
+			}
 		}
-		if spec.API.LoadBalancer.Class == kops.LoadBalancerClassNetwork && spec.API.LoadBalancer.UseForInternalAPI && spec.API.LoadBalancer.Type == kops.LoadBalancerTypeInternal {
-			allErrs = append(allErrs, field.Forbidden(fieldPath, "useForInternalApi cannot be used with internal NLB due lack of hairpinning support"))
+
+		if lbSpec.Type == kops.LoadBalancerTypeInternal {
+			var hasPrivate bool
+			for _, subnet := range spec.Subnets {
+				if subnet.Type == kops.SubnetTypePrivate {
+					hasPrivate = true
+					break
+				}
+			}
+			if !hasPrivate {
+				allErrs = append(allErrs, field.Forbidden(lbPath.Child("type"), "Internal LoadBalancers must have at least one subnet of type Private"))
+			}
 		}
 	}
 
 	if spec.CloudConfig != nil {
-		allErrs = append(allErrs, validateCloudConfiguration(spec.CloudConfig, fieldPath.Child("cloudConfig"))...)
+		allErrs = append(allErrs, validateCloudConfiguration(spec.CloudConfig, spec, fieldPath.Child("cloudConfig"))...)
 	}
 
 	if spec.WarmPool != nil {
@@ -942,27 +959,13 @@ func validateNetworkingCilium(cluster *kops.Cluster, v *kops.CiliumNetworkingSpe
 			allErrs = append(allErrs, field.Invalid(versionFld, v.Version, "Could not parse as semantic version"))
 		}
 
-		if !(version.Minor >= 8 && version.Minor <= 11) {
-			allErrs = append(allErrs, field.Invalid(versionFld, v.Version, "Only versions 1.8 through 1.11 are supported"))
-		}
-
-		if version.Minor < 10 && c.IsIPv6Only() {
-			allErrs = append(allErrs, field.Invalid(versionFld, v.Version, "kOps only supports IPv6 on version 1.10 or later"))
+		if version.Minor != 11 && version.Patch < 5 {
+			allErrs = append(allErrs, field.Invalid(versionFld, v.Version, "Only version 1.11 with patch version 5 or higher is supported"))
 		}
 
 		if v.Hubble != nil && fi.BoolValue(v.Hubble.Enabled) {
 			if !components.IsCertManagerEnabled(cluster) {
 				allErrs = append(allErrs, field.Forbidden(fldPath.Child("hubble", "enabled"), "Hubble requires that cert manager is enabled"))
-			}
-		}
-
-		if version.Minor < 10 && v.EncryptionType == kops.CiliumEncryptionTypeWireguard {
-			allErrs = append(allErrs, field.Forbidden(fldPath.Child("encryptionType"), "Cilium EncryptionType=WireGuard is not available for Cilium version < 1.10.0."))
-		}
-
-		if version.Minor < 11 {
-			if v.EnableServiceTopology {
-				allErrs = append(allErrs, field.Forbidden(fldPath.Child("enableServiceTopology"), "Service topology requires Cilium 1.11"))
 			}
 		}
 	}
@@ -1170,7 +1173,7 @@ func validateEtcdVersion(spec kops.EtcdClusterSpec, fieldPath *field.Path, minim
 
 	version := spec.Version
 	if spec.Version == "" {
-		version = components.DefaultEtcd3Version_1_19
+		version = components.DefaultEtcd3Version_1_20
 	}
 
 	sem, err := semver.Parse(strings.TrimPrefix(version, "v"))
@@ -1636,10 +1639,10 @@ func validateAWSLoadBalancerController(cluster *kops.Cluster, spec *kops.AWSLoad
 	return allErrs
 }
 
-func validateCloudConfiguration(cloudConfig *kops.CloudConfiguration, fldPath *field.Path) (allErrs field.ErrorList) {
-	if cloudConfig.ManageStorageClasses != nil && cloudConfig.Openstack != nil &&
-		cloudConfig.Openstack.BlockStorage != nil && cloudConfig.Openstack.BlockStorage.CreateStorageClass != nil {
-		if *cloudConfig.Openstack.BlockStorage.CreateStorageClass != *cloudConfig.ManageStorageClasses {
+func validateCloudConfiguration(cloudConfig *kops.CloudConfiguration, spec *kops.ClusterSpec, fldPath *field.Path) (allErrs field.ErrorList) {
+	if cloudConfig.ManageStorageClasses != nil && spec.CloudProvider.Openstack != nil &&
+		spec.CloudProvider.Openstack.BlockStorage != nil && spec.CloudProvider.Openstack.BlockStorage.CreateStorageClass != nil {
+		if *spec.CloudProvider.Openstack.BlockStorage.CreateStorageClass != *cloudConfig.ManageStorageClasses {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Child("manageStorageClasses"),
 				"Management of storage classes and OpenStack block storage classes are both specified but disagree"))
 		}

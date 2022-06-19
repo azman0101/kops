@@ -81,16 +81,18 @@ func (b *BootstrapScript) kubeEnv(ig *kops.InstanceGroup, c *fi.Context) (string
 	var alternateNames []string
 
 	for _, hasAddress := range b.alternateNameTasks {
-		address, err := hasAddress.FindIPAddress(c)
+		addresses, err := hasAddress.FindAddresses(c)
 		if err != nil {
 			return "", fmt.Errorf("error finding address for %v: %v", hasAddress, err)
 		}
-		if address == nil {
+		if len(addresses) == 0 {
 			klog.Warningf("Task did not have an address: %v", hasAddress)
 			continue
 		}
-		klog.V(8).Infof("Resolved alternateName %q for %q", *address, hasAddress)
-		alternateNames = append(alternateNames, *address)
+		for _, address := range addresses {
+			klog.V(8).Infof("Resolved alternateName %q for %q", address, hasAddress)
+			alternateNames = append(alternateNames, address)
+		}
 	}
 
 	sort.Strings(alternateNames)
@@ -180,6 +182,13 @@ func (b *BootstrapScript) buildEnvironmentVariables(cluster *kops.Cluster) (map[
 		doToken := os.Getenv("DIGITALOCEAN_ACCESS_TOKEN")
 		if doToken != "" {
 			env["DIGITALOCEAN_ACCESS_TOKEN"] = doToken
+		}
+	}
+
+	if cluster.Spec.GetCloudProvider() == kops.CloudProviderHetzner {
+		hcloudToken := os.Getenv("HCLOUD_TOKEN")
+		if hcloudToken != "" {
+			env["HCLOUD_TOKEN"] = hcloudToken
 		}
 	}
 
@@ -387,6 +396,8 @@ func (b *BootstrapScript) Run(c *fi.Context) error {
 	// By setting some sysctls early, we avoid broken configurations that prevent nodeup download.
 	// See https://github.com/kubernetes/kops/issues/10206 for details.
 	nodeupScript.SetSysctls = setSysctls()
+
+	nodeupScript.CloudProvider = string(c.Cluster.Spec.GetCloudProvider())
 
 	nodeupScriptResource, err := nodeupScript.Build()
 	if err != nil {

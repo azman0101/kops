@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 
+	"k8s.io/klog/v2"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/apis/kops/model"
 	"k8s.io/kops/upup/pkg/fi"
@@ -34,6 +35,8 @@ import (
 	"k8s.io/kops/upup/pkg/fi/cloudup/dotasks"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gce"
 	"k8s.io/kops/upup/pkg/fi/cloudup/gcetasks"
+	"k8s.io/kops/upup/pkg/fi/cloudup/hetzner"
+	"k8s.io/kops/upup/pkg/fi/cloudup/hetznertasks"
 	"k8s.io/kops/upup/pkg/fi/cloudup/openstack"
 	"k8s.io/kops/upup/pkg/fi/cloudup/openstacktasks"
 )
@@ -59,7 +62,8 @@ func (b *MasterVolumeBuilder) Build(c *fi.ModelBuilderContext) error {
 	for _, etcd := range b.Cluster.Spec.EtcdClusters {
 		for _, m := range etcd.Members {
 			// EBS volume for each member of the each etcd cluster
-			name := m.Name + ".etcd-" + etcd.Name + "." + b.ClusterName()
+			prefix := m.Name + ".etcd-" + etcd.Name
+			name := prefix + "." + b.ClusterName()
 
 			igName := fi.StringValue(m.InstanceGroup)
 			if igName == "" {
@@ -102,7 +106,9 @@ func (b *MasterVolumeBuilder) Build(c *fi.ModelBuilderContext) error {
 			case kops.CloudProviderDO:
 				b.addDOVolume(c, name, volumeSize, zone, etcd, m, allMembers)
 			case kops.CloudProviderGCE:
-				b.addGCEVolume(c, name, volumeSize, zone, etcd, m, allMembers)
+				b.addGCEVolume(c, prefix, volumeSize, zone, etcd, m, allMembers)
+			case kops.CloudProviderHetzner:
+				b.addHetznerVolume(c, name, volumeSize, zone, etcd, m, allMembers)
 			case kops.CloudProviderOpenstack:
 				err = b.addOpenstackVolume(c, name, volumeSize, zone, etcd, m, allMembers)
 				if err != nil {
@@ -237,7 +243,7 @@ func (b *MasterVolumeBuilder) addDOVolume(c *fi.ModelBuilderContext, name string
 	c.AddTask(t)
 }
 
-func (b *MasterVolumeBuilder) addGCEVolume(c *fi.ModelBuilderContext, name string, volumeSize int32, zone string, etcd kops.EtcdClusterSpec, m kops.EtcdMemberSpec, allMembers []string) {
+func (b *MasterVolumeBuilder) addGCEVolume(c *fi.ModelBuilderContext, prefix string, volumeSize int32, zone string, etcd kops.EtcdClusterSpec, m kops.EtcdMemberSpec, allMembers []string) {
 	volumeType := fi.StringValue(m.VolumeType)
 	if volumeType == "" {
 		volumeType = DefaultGCEEtcdVolumeType
@@ -266,9 +272,13 @@ func (b *MasterVolumeBuilder) addGCEVolume(c *fi.ModelBuilderContext, name strin
 	tags[gce.GceLabelNameEtcdClusterPrefix+etcd.Name] = gce.EncodeGCELabel(clusterSpec)
 
 	// GCE disk names must match the following regular expression: '[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?'
-	name = strings.Replace(name, ".", "-", -1)
-	if strings.IndexByte("0123456789-", name[0]) != -1 {
-		name = "d" + name
+	prefix = strings.Replace(prefix, ".", "-", -1)
+	if strings.IndexByte("0123456789-", prefix[0]) != -1 {
+		prefix = "d" + prefix
+	}
+	name, err := gce.ClusterSuffixedName(prefix, b.Cluster.ObjectMeta.Name, 63)
+	if err != nil {
+		klog.Fatalf("failed to construct disk name: %w", err)
 	}
 
 	t := &gcetasks.Disk{
@@ -282,6 +292,24 @@ func (b *MasterVolumeBuilder) addGCEVolume(c *fi.ModelBuilderContext, name strin
 	}
 
 	c.AddTask(t)
+}
+
+func (b *MasterVolumeBuilder) addHetznerVolume(c *fi.ModelBuilderContext, name string, volumeSize int32, zone string, etcd kops.EtcdClusterSpec, m kops.EtcdMemberSpec, allMembers []string) {
+	tags := make(map[string]string)
+	tags[hetzner.TagKubernetesClusterName] = b.Cluster.ObjectMeta.Name
+	tags[hetzner.TagKubernetesInstanceGroup] = fi.StringValue(m.InstanceGroup)
+	tags[hetzner.TagKubernetesVolumeRole] = etcd.Name
+
+	t := &hetznertasks.Volume{
+		Name:      fi.String(name),
+		Lifecycle: b.Lifecycle,
+		Size:      int(volumeSize),
+		Location:  zone,
+		Labels:    tags,
+	}
+	c.AddTask(t)
+
+	return
 }
 
 func (b *MasterVolumeBuilder) addOpenstackVolume(c *fi.ModelBuilderContext, name string, volumeSize int32, zone string, etcd kops.EtcdClusterSpec, m kops.EtcdMemberSpec, allMembers []string) error {
@@ -299,8 +327,8 @@ func (b *MasterVolumeBuilder) addOpenstackVolume(c *fi.ModelBuilderContext, name
 	tags[openstack.TagNameRolePrefix+"master"] = "1"
 
 	// override zone
-	if b.Cluster.Spec.CloudConfig.Openstack.BlockStorage != nil && b.Cluster.Spec.CloudConfig.Openstack.BlockStorage.OverrideAZ != nil {
-		zone = fi.StringValue(b.Cluster.Spec.CloudConfig.Openstack.BlockStorage.OverrideAZ)
+	if b.Cluster.Spec.CloudProvider.Openstack.BlockStorage != nil && b.Cluster.Spec.CloudProvider.Openstack.BlockStorage.OverrideAZ != nil {
+		zone = fi.StringValue(b.Cluster.Spec.CloudProvider.Openstack.BlockStorage.OverrideAZ)
 	}
 	t := &openstacktasks.Volume{
 		Name:             fi.String(name),

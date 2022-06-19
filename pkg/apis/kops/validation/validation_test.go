@@ -252,7 +252,7 @@ func TestValidateKubeAPIServer(t *testing.T) {
 					Authorization: &kops.AuthorizationSpec{
 						RBAC: &kops.RBACAuthorizationSpec{},
 					},
-					KubernetesVersion: "1.19.0",
+					KubernetesVersion: "1.25.0",
 					CloudProvider: kops.CloudProviderSpec{
 						AWS: &kops.AWSSpec{},
 					},
@@ -271,7 +271,7 @@ func TestValidateKubeAPIServer(t *testing.T) {
 					Authorization: &kops.AuthorizationSpec{
 						RBAC: &kops.RBACAuthorizationSpec{},
 					},
-					KubernetesVersion: "1.19.0",
+					KubernetesVersion: "1.25.0",
 					CloudProvider: kops.CloudProviderSpec{
 						AWS: &kops.AWSSpec{},
 					},
@@ -287,7 +287,7 @@ func TestValidateKubeAPIServer(t *testing.T) {
 					Authorization: &kops.AuthorizationSpec{
 						RBAC: &kops.RBACAuthorizationSpec{},
 					},
-					KubernetesVersion: "1.19.0",
+					KubernetesVersion: "1.25.0",
 					CloudProvider: kops.CloudProviderSpec{
 						AWS: &kops.AWSSpec{},
 					},
@@ -921,7 +921,7 @@ func Test_Validate_Cilium(t *testing.T) {
 		},
 		{
 			Cilium: kops.CiliumNetworkingSpec{
-				Version: "v1.8.0",
+				Version: "v1.11.5",
 				Hubble: &kops.HubbleSpec{
 					Enabled: fi.Bool(true),
 				},
@@ -1177,6 +1177,7 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 	grid := []struct {
 		Description    string
 		Input          kops.CloudConfiguration
+		CloudProvider  kops.CloudProviderSpec
 		ExpectedErrors []string
 	}{
 		{
@@ -1197,8 +1198,9 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 		},
 		{
 			Description: "os false",
-			Input: kops.CloudConfiguration{
-				Openstack: &kops.OpenstackConfiguration{
+			Input:       kops.CloudConfiguration{},
+			CloudProvider: kops.CloudProviderSpec{
+				Openstack: &kops.OpenstackSpec{
 					BlockStorage: &kops.OpenstackBlockStorageConfig{
 						CreateStorageClass: fi.Bool(false),
 					},
@@ -1207,8 +1209,9 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 		},
 		{
 			Description: "os true",
-			Input: kops.CloudConfiguration{
-				Openstack: &kops.OpenstackConfiguration{
+			Input:       kops.CloudConfiguration{},
+			CloudProvider: kops.CloudProviderSpec{
+				Openstack: &kops.OpenstackSpec{
 					BlockStorage: &kops.OpenstackBlockStorageConfig{
 						CreateStorageClass: fi.Bool(true),
 					},
@@ -1219,7 +1222,9 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 			Description: "all false, os false",
 			Input: kops.CloudConfiguration{
 				ManageStorageClasses: fi.Bool(false),
-				Openstack: &kops.OpenstackConfiguration{
+			},
+			CloudProvider: kops.CloudProviderSpec{
+				Openstack: &kops.OpenstackSpec{
 					BlockStorage: &kops.OpenstackBlockStorageConfig{
 						CreateStorageClass: fi.Bool(false),
 					},
@@ -1230,7 +1235,9 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 			Description: "all false, os true",
 			Input: kops.CloudConfiguration{
 				ManageStorageClasses: fi.Bool(false),
-				Openstack: &kops.OpenstackConfiguration{
+			},
+			CloudProvider: kops.CloudProviderSpec{
+				Openstack: &kops.OpenstackSpec{
 					BlockStorage: &kops.OpenstackBlockStorageConfig{
 						CreateStorageClass: fi.Bool(true),
 					},
@@ -1242,7 +1249,9 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 			Description: "all true, os false",
 			Input: kops.CloudConfiguration{
 				ManageStorageClasses: fi.Bool(true),
-				Openstack: &kops.OpenstackConfiguration{
+			},
+			CloudProvider: kops.CloudProviderSpec{
+				Openstack: &kops.OpenstackSpec{
 					BlockStorage: &kops.OpenstackBlockStorageConfig{
 						CreateStorageClass: fi.Bool(false),
 					},
@@ -1254,7 +1263,9 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 			Description: "all true, os true",
 			Input: kops.CloudConfiguration{
 				ManageStorageClasses: fi.Bool(true),
-				Openstack: &kops.OpenstackConfiguration{
+			},
+			CloudProvider: kops.CloudProviderSpec{
+				Openstack: &kops.OpenstackSpec{
 					BlockStorage: &kops.OpenstackBlockStorageConfig{
 						CreateStorageClass: fi.Bool(true),
 					},
@@ -1266,7 +1277,10 @@ func Test_Validate_CloudConfiguration(t *testing.T) {
 	for _, g := range grid {
 		fldPath := field.NewPath("cloudConfig")
 		t.Run(g.Description, func(t *testing.T) {
-			errs := validateCloudConfiguration(&g.Input, fldPath)
+			spec := &kops.ClusterSpec{
+				CloudProvider: g.CloudProvider,
+			}
+			errs := validateCloudConfiguration(&g.Input, spec, fldPath)
 			testErrors(t, g.Input, errs, g.ExpectedErrors)
 		})
 	}

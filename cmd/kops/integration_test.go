@@ -29,6 +29,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -143,7 +144,7 @@ func (i *integrationTest) withDedicatedAPIServer() *integrationTest {
 		"aws_iam_role_apiservers."+i.clusterName+"_policy",
 		"aws_iam_role_policy_apiservers."+i.clusterName+"_policy",
 		"aws_launch_template_apiserver.apiservers."+i.clusterName+"_user_data",
-		"aws_s3_bucket_object_nodeupconfig-apiserver_content",
+		"aws_s3_object_nodeupconfig-apiserver_content",
 	)
 	return i
 }
@@ -166,7 +167,7 @@ func (i *integrationTest) withOIDCDiscovery() *integrationTest {
 func (i *integrationTest) withManagedFiles(files ...string) *integrationTest {
 	for _, file := range files {
 		i.expectTerraformFilenames = append(i.expectTerraformFilenames,
-			"aws_s3_bucket_object_"+file+"_content")
+			"aws_s3_object_"+file+"_content")
 	}
 	return i
 }
@@ -174,17 +175,35 @@ func (i *integrationTest) withManagedFiles(files ...string) *integrationTest {
 func (i *integrationTest) withAddons(addons ...string) *integrationTest {
 	for _, addon := range addons {
 		i.expectTerraformFilenames = append(i.expectTerraformFilenames,
-			"aws_s3_bucket_object_"+i.clusterName+"-addons-"+addon+"_content")
+			"aws_s3_object_"+i.clusterName+"-addons-"+addon+"_content")
 	}
 	return i
 }
 
+func (i integrationTest) withDefaultServiceAccountRoles24() *integrationTest {
+	return i.withServiceAccountRole("dns-controller.kube-system", true).
+		withServiceAccountRole("aws-cloud-controller-manager.kube-system", true).
+		withServiceAccountRole("ebs-csi-controller-sa.kube-system", true)
+}
+
+// withDefaultAddons24 adds the default addons for an AWS cluster running k8s 1.24
+func (i integrationTest) withDefaultAddons24() *integrationTest {
+	return i.withAddons(
+		awsCCMAddon,
+		awsEBSCSIAddon,
+		dnsControllerAddon,
+		leaderElectionAddon,
+	)
+}
+
 const (
-	dnsControllerAddon  = "dns-controller.addons.k8s.io-k8s-1.12"
 	awsCCMAddon         = "aws-cloud-controller.addons.k8s.io-k8s-1.18"
 	awsEBSCSIAddon      = "aws-ebs-csi-driver.addons.k8s.io-k8s-1.17"
-	leaderElectionAddon = "leader-migration.rbac.addons.k8s.io-k8s-1.23"
+	calicoAddon         = "networking.projectcalico.org-k8s-1.23"
 	certManagerAddon    = "certmanager.io-k8s-1.16"
+	ciliumAddon         = "networking.cilium.io-k8s-1.16"
+	dnsControllerAddon  = "dns-controller.addons.k8s.io-k8s-1.12"
+	leaderElectionAddon = "leader-migration.rbac.addons.k8s.io-k8s-1.23"
 )
 
 // TestMinimal runs the test on a minimum configuration, similar to kops create cluster minimal.example.com --zones us-west-1a
@@ -259,6 +278,13 @@ func TestMinimalGCEPrivate(t *testing.T) {
 		runTestTerraformGCE(t)
 }
 
+// TestMinimalGCE runs tests on a minimal GCE configuration with an internal load balancer.
+func TestMinimalGCEInternalLoadBalancer(t *testing.T) {
+	newIntegrationTest("minimal-gce-ilb.example.com", "minimal_gce_ilb").
+		withAddons(dnsControllerAddon, "rbac.addons.k8s.io-k8s-1.8").
+		runTestTerraformGCE(t)
+}
+
 // TestHA runs the test on a simple HA configuration, similar to kops create cluster minimal.example.com --zones us-west-1a,us-west-1b,us-west-1c --master-count=3
 func TestHA(t *testing.T) {
 	newIntegrationTest("ha.example.com", "ha").withZones(3).
@@ -317,7 +343,7 @@ func TestMinimalIPv6Private(t *testing.T) {
 // TestMinimalIPv6Calico runs the test on a minimum IPv6 configuration with Calico
 func TestMinimalIPv6Calico(t *testing.T) {
 	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6-calico").
-		withAddons(awsCCMAddon, awsEBSCSIAddon, calicoAddon, dnsControllerAddon).
+		withAddons(calicoAddon, awsCCMAddon, awsEBSCSIAddon, dnsControllerAddon, leaderElectionAddon).
 		runTestTerraformAWS(t)
 	newIntegrationTest("minimal-ipv6.example.com", "minimal-ipv6-calico").runTestCloudformation(t)
 }
@@ -397,20 +423,16 @@ func TestPrivateFlannel(t *testing.T) {
 		runTestTerraformAWS(t)
 }
 
-const calicoAddon = "networking.projectcalico.org-k8s-1.16"
-
 // TestPrivateCalico runs the test on a configuration with private topology, calico networking
 func TestPrivateCalico(t *testing.T) {
 	newIntegrationTest("privatecalico.example.com", "privatecalico").
 		withPrivate().
-		withAddons(calicoAddon, dnsControllerAddon).
+		withAddons(calicoAddon, awsCCMAddon, awsEBSCSIAddon, dnsControllerAddon, leaderElectionAddon).
 		runTestTerraformAWS(t)
 	newIntegrationTest("privatecalico.example.com", "privatecalico").
 		withPrivate().
 		runTestCloudformation(t)
 }
-
-const ciliumAddon = "networking.cilium.io-k8s-1.16"
 
 func TestPrivateCilium(t *testing.T) {
 	newIntegrationTest("privatecilium.example.com", "privatecilium").
@@ -425,8 +447,9 @@ func TestPrivateCilium(t *testing.T) {
 func TestPrivateCilium2(t *testing.T) {
 	newIntegrationTest("privatecilium.example.com", "privatecilium2").
 		withPrivate().
-		withAddons("networking.cilium.io-k8s-1.12", dnsControllerAddon).
-		withKubeDNS().
+		withDefaultAddons24().
+		withAddons("networking.cilium.io-k8s-1.16").
+		withAddons(certManagerAddon).
 		runTestTerraformAWS(t)
 	newIntegrationTest("privatecilium.example.com", "privatecilium2").
 		withPrivate().
@@ -510,10 +533,9 @@ func TestPrivateDns2(t *testing.T) {
 // TestDiscoveryFeatureGate runs a simple configuration, but with UseServiceAccountExternalPermissions and the ServiceAccountIssuerDiscovery feature gate enabled
 func TestDiscoveryFeatureGate(t *testing.T) {
 	newIntegrationTest("minimal.example.com", "public-jwks-apiserver").
-		withServiceAccountRole("dns-controller.kube-system", true).
-		withAddons(dnsControllerAddon).
+		withDefaultServiceAccountRoles24().
+		withDefaultAddons24().
 		withOIDCDiscovery().
-		withKubeDNS().
 		runTestTerraformAWS(t)
 }
 
@@ -596,6 +618,30 @@ func TestManyAddonsCCMIRSA23(t *testing.T) {
 		runTestTerraformAWS(t)
 }
 
+func TestManyAddonsCCMIRSA24(t *testing.T) {
+	newIntegrationTest("minimal.example.com", "many-addons-ccm-irsa24").
+		withOIDCDiscovery().
+		withServiceAccountRole("aws-load-balancer-controller.kube-system", true).
+		withServiceAccountRole("dns-controller.kube-system", true).
+		withServiceAccountRole("aws-cloud-controller-manager.kube-system", true).
+		withServiceAccountRole("cluster-autoscaler.kube-system", true).
+		withServiceAccountRole("ebs-csi-controller-sa.kube-system", true).
+		withServiceAccountRole("aws-node-termination-handler.kube-system", true).
+		withAddons(
+			"aws-load-balancer-controller.addons.k8s.io-k8s-1.19",
+			"aws-ebs-csi-driver.addons.k8s.io-k8s-1.17",
+			"certmanager.io-k8s-1.16",
+			"cluster-autoscaler.addons.k8s.io-k8s-1.15",
+			"networking.amazon-vpc-routed-eni-k8s-1.16",
+			"node-termination-handler.aws-k8s-1.11",
+			"snapshot-controller.addons.k8s.io-k8s-1.20",
+			"aws-cloud-controller.addons.k8s.io-k8s-1.18",
+			leaderElectionAddon,
+			dnsControllerAddon,
+		).
+		runTestTerraformAWS(t)
+}
+
 func TestCCM(t *testing.T) {
 	newIntegrationTest("minimal.example.com", "many-addons-ccm").
 		withAddons(
@@ -643,8 +689,8 @@ func TestKarpenter(t *testing.T) {
 	test.expectTerraformFilenames = append(test.expectTerraformFilenames,
 		"aws_launch_template_karpenter-nodes-single-machinetype.minimal.example.com_user_data",
 		"aws_launch_template_karpenter-nodes-default.minimal.example.com_user_data",
-		"aws_s3_bucket_object_nodeupconfig-karpenter-nodes-single-machinetype_content",
-		"aws_s3_bucket_object_nodeupconfig-karpenter-nodes-default_content",
+		"aws_s3_object_nodeupconfig-karpenter-nodes-single-machinetype_content",
+		"aws_s3_object_nodeupconfig-karpenter-nodes-default_content",
 	)
 	test.runTestTerraformAWS(t)
 }
@@ -782,18 +828,6 @@ func TestCustomIRSA(t *testing.T) {
 		runTestTerraformAWS(t)
 }
 
-// TestCustomIRSA119 runs a simple k8s 1.19 configuration, but with some additional IAM roles for ServiceAccounts
-func TestCustomIRSA119(t *testing.T) {
-	newIntegrationTest("minimal.example.com", "irsa119").
-		withOIDCDiscovery().
-		withServiceAccountRole("myserviceaccount.default", false).
-		withServiceAccountRole("myserviceaccount.test-wildcard", false).
-		withServiceAccountRole("myotherserviceaccount.myapp", true).
-		withKubeDNS().
-		withAddons(dnsControllerAddon).
-		runTestTerraformAWS(t)
-}
-
 // TestClusterNameDigit runs a configuration with a cluster name beginning with a digit
 func TestClusterNameDigit(t *testing.T) {
 	newIntegrationTest("123.example.com", "digit").
@@ -879,15 +913,40 @@ func (i *integrationTest) runTest(t *testing.T, h *testutils.IntegrationTestHarn
 
 	// Compare data files if they are provided
 	if len(expectedDataFilenames) > 0 {
-		actualDataPath := path.Join(h.TempDir, "out", "data")
-		files, err := os.ReadDir(actualDataPath)
+		actualDataDir := filepath.Join(h.TempDir, "out", "data")
+
+		expectedDataDir := filepath.Join(i.srcDir, "data")
+		for _, filename := range expectedDataFilenames {
+			expectedPath := filepath.Join(expectedDataDir, filename)
+			actualPath := filepath.Join(actualDataDir, filename)
+			actualDataContent, err := os.ReadFile(actualPath)
+			if err != nil {
+				t.Errorf("failed to read actual data file %q: %v", actualPath, err)
+				continue
+			}
+			golden.AssertMatchesFile(t, string(actualDataContent), expectedPath)
+		}
+
+		actualFiles, err := os.ReadDir(actualDataDir)
 		if err != nil {
-			t.Fatalf("failed to read data dir: %v", err)
+			t.Fatalf("failed to read data dir %q: %v", actualDataDir, err)
 		}
 
 		var actualDataFilenames []string
-		for _, f := range files {
+		for _, f := range actualFiles {
 			actualDataFilenames = append(actualDataFilenames, f.Name())
+
+			if golden.UpdateExpectedOutput() {
+				filename := f.Name()
+				expectedPath := filepath.Join(expectedDataDir, filename)
+				actualPath := filepath.Join(actualDataDir, filename)
+				actualDataContent, err := os.ReadFile(actualPath)
+				if err != nil {
+					t.Errorf("failed to read actual data file %q: %v", actualPath, err)
+					continue
+				}
+				golden.AssertMatchesFile(t, string(actualDataContent), expectedPath)
+			}
 		}
 
 		sort.Strings(expectedDataFilenames)
@@ -902,26 +961,12 @@ func (i *integrationTest) runTest(t *testing.T, h *testutils.IntegrationTestHarn
 			expected := strings.Join(expectedDataFilenames, "\n")
 			diff := diff.FormatDiff(actual, expected)
 			t.Log(diff)
-			t.Fatal("unexpected data files.")
+			t.Error("unexpected data files.")
 		}
 
-		// Some tests might provide _some_ tf data files (not necessarily all that
-		// are actually produced), validate that the provided expected data file
-		// contents match actual data file content
-		expectedDataPath := path.Join(i.srcDir, "data")
-		{
-			for _, dataFileName := range expectedDataFilenames {
-				actualDataContent, err := os.ReadFile(path.Join(actualDataPath, dataFileName))
-				if err != nil {
-					t.Fatalf("failed to read actual data file: %v", err)
-				}
-				golden.AssertMatchesFile(t, string(actualDataContent), path.Join(expectedDataPath, dataFileName))
-			}
-		}
-
-		existingExpectedFiles, err := os.ReadDir(expectedDataPath)
+		existingExpectedFiles, err := os.ReadDir(expectedDataDir)
 		if err != nil {
-			t.Fatalf("failed to read data dir: %v", err)
+			t.Fatalf("failed to read data dir %q: %v", expectedDataDir, err)
 		}
 		existingExpectedFilenames := make([]string, len(existingExpectedFiles))
 		for i, f := range existingExpectedFiles {
@@ -1119,31 +1164,30 @@ func (i *integrationTest) runTestTerraformAWS(t *testing.T) {
 	expectedFilenames := i.expectTerraformFilenames
 	expectedFilenames = append(expectedFilenames,
 		"aws_launch_template_nodes."+i.clusterName+"_user_data",
-		"aws_s3_bucket_object_cluster-completed.spec_content",
-		"aws_s3_bucket_object_etcd-cluster-spec-events_content",
-		"aws_s3_bucket_object_etcd-cluster-spec-main_content",
-		"aws_s3_bucket_object_kops-version.txt_content",
-		"aws_s3_bucket_object_manifests-etcdmanager-events_content",
-		"aws_s3_bucket_object_manifests-etcdmanager-main_content",
-		"aws_s3_bucket_object_manifests-static-kube-apiserver-healthcheck_content",
-		"aws_s3_bucket_object_nodeupconfig-nodes_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-bootstrap_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-core.addons.k8s.io_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-kops-controller.addons.k8s.io-k8s-1.16_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-kubelet-api.rbac.addons.k8s.io-k8s-1.9_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-limit-range.addons.k8s.io_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-storage-aws.addons.k8s.io-v1.15.0_content")
+		"aws_s3_object_cluster-completed.spec_content",
+		"aws_s3_object_etcd-cluster-spec-events_content",
+		"aws_s3_object_etcd-cluster-spec-main_content",
+		"aws_s3_object_kops-version.txt_content",
+		"aws_s3_object_manifests-etcdmanager-events_content",
+		"aws_s3_object_manifests-etcdmanager-main_content",
+		"aws_s3_object_manifests-static-kube-apiserver-healthcheck_content",
+		"aws_s3_object_nodeupconfig-nodes_content",
+		"aws_s3_object_"+i.clusterName+"-addons-bootstrap_content",
+		"aws_s3_object_"+i.clusterName+"-addons-kops-controller.addons.k8s.io-k8s-1.16_content",
+		"aws_s3_object_"+i.clusterName+"-addons-kubelet-api.rbac.addons.k8s.io-k8s-1.9_content",
+		"aws_s3_object_"+i.clusterName+"-addons-limit-range.addons.k8s.io_content",
+		"aws_s3_object_"+i.clusterName+"-addons-storage-aws.addons.k8s.io-v1.15.0_content")
 
 	if i.kubeDNS {
-		expectedFilenames = append(expectedFilenames, "aws_s3_bucket_object_"+i.clusterName+"-addons-kube-dns.addons.k8s.io-k8s-1.12_content")
+		expectedFilenames = append(expectedFilenames, "aws_s3_object_"+i.clusterName+"-addons-kube-dns.addons.k8s.io-k8s-1.12_content")
 	} else {
-		expectedFilenames = append(expectedFilenames, "aws_s3_bucket_object_"+i.clusterName+"-addons-coredns.addons.k8s.io-k8s-1.12_content")
+		expectedFilenames = append(expectedFilenames, "aws_s3_object_"+i.clusterName+"-addons-coredns.addons.k8s.io-k8s-1.12_content")
 	}
 
 	if i.discovery {
 		expectedFilenames = append(expectedFilenames,
-			"aws_s3_bucket_object_discovery.json_content",
-			"aws_s3_bucket_object_keys.json_content")
+			"aws_s3_object_discovery.json_content",
+			"aws_s3_object_keys.json_content")
 	}
 
 	if i.sshKey {
@@ -1156,7 +1200,7 @@ func (i *integrationTest) runTestTerraformAWS(t *testing.T) {
 	for j := 0; j < i.zones; j++ {
 		zone := "us-test-1" + string([]byte{byte('a') + byte(j)})
 		expectedFilenames = append(expectedFilenames,
-			"aws_s3_bucket_object_nodeupconfig-master-"+zone+"_content",
+			"aws_s3_object_nodeupconfig-master-"+zone+"_content",
 			"aws_launch_template_master-"+zone+".masters."+i.clusterName+"_user_data")
 	}
 
@@ -1174,17 +1218,18 @@ func (i *integrationTest) runTestTerraformAWS(t *testing.T) {
 			}...)
 			if i.bastionUserData {
 				expectedFilenames = append(expectedFilenames,
-					"aws_s3_bucket_object_nodeupconfig-bastion_content",
+					"aws_s3_object_nodeupconfig-bastion_content",
 					"aws_launch_template_bastion."+i.clusterName+"_user_data")
 			}
 		}
 		if i.nth {
 			expectedFilenames = append(expectedFilenames, []string{
-				"aws_s3_bucket_object_" + i.clusterName + "-addons-node-termination-handler.aws-k8s-1.11_content",
+				"aws_s3_object_" + i.clusterName + "-addons-node-termination-handler.aws-k8s-1.11_content",
 				"aws_cloudwatch_event_rule_" + awsup.GetClusterName40(i.clusterName) + "-ASGLifecycle_event_pattern",
 				"aws_cloudwatch_event_rule_" + awsup.GetClusterName40(i.clusterName) + "-RebalanceRecommendation_event_pattern",
 				"aws_cloudwatch_event_rule_" + awsup.GetClusterName40(i.clusterName) + "-SpotInterruption_event_pattern",
 				"aws_cloudwatch_event_rule_" + awsup.GetClusterName40(i.clusterName) + "-InstanceStateChange_event_pattern",
+				"aws_cloudwatch_event_rule_" + awsup.GetClusterName40(i.clusterName) + "-InstanceScheduledChange_event_pattern",
 				"aws_sqs_queue_" + strings.Replace(i.clusterName, ".", "-", -1) + "-nth_policy",
 			}...)
 		}
@@ -1252,28 +1297,27 @@ func (i *integrationTest) runTestTerraformGCE(t *testing.T) {
 	expectedFilenames = append(expectedFilenames,
 		"google_compute_instance_template_nodes-"+gce.SafeClusterName(i.clusterName)+"_metadata_startup-script",
 		"google_compute_instance_template_nodes-"+gce.SafeClusterName(i.clusterName)+"_metadata_ssh-keys",
-		"aws_s3_bucket_object_cluster-completed.spec_content",
-		"aws_s3_bucket_object_etcd-cluster-spec-events_content",
-		"aws_s3_bucket_object_etcd-cluster-spec-main_content",
-		"aws_s3_bucket_object_kops-version.txt_content",
-		"aws_s3_bucket_object_manifests-etcdmanager-events_content",
-		"aws_s3_bucket_object_manifests-etcdmanager-main_content",
-		"aws_s3_bucket_object_manifests-static-kube-apiserver-healthcheck_content",
-		"aws_s3_bucket_object_nodeupconfig-nodes_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-bootstrap_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-core.addons.k8s.io_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-coredns.addons.k8s.io-k8s-1.12_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-kops-controller.addons.k8s.io-k8s-1.16_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-kubelet-api.rbac.addons.k8s.io-k8s-1.9_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-limit-range.addons.k8s.io_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-metadata-proxy.addons.k8s.io-v0.1.12_content",
-		"aws_s3_bucket_object_"+i.clusterName+"-addons-storage-gce.addons.k8s.io-v1.7.0_content")
+		"aws_s3_object_cluster-completed.spec_content",
+		"aws_s3_object_etcd-cluster-spec-events_content",
+		"aws_s3_object_etcd-cluster-spec-main_content",
+		"aws_s3_object_kops-version.txt_content",
+		"aws_s3_object_manifests-etcdmanager-events_content",
+		"aws_s3_object_manifests-etcdmanager-main_content",
+		"aws_s3_object_manifests-static-kube-apiserver-healthcheck_content",
+		"aws_s3_object_nodeupconfig-nodes_content",
+		"aws_s3_object_"+i.clusterName+"-addons-bootstrap_content",
+		"aws_s3_object_"+i.clusterName+"-addons-coredns.addons.k8s.io-k8s-1.12_content",
+		"aws_s3_object_"+i.clusterName+"-addons-kops-controller.addons.k8s.io-k8s-1.16_content",
+		"aws_s3_object_"+i.clusterName+"-addons-kubelet-api.rbac.addons.k8s.io-k8s-1.9_content",
+		"aws_s3_object_"+i.clusterName+"-addons-limit-range.addons.k8s.io_content",
+		"aws_s3_object_"+i.clusterName+"-addons-metadata-proxy.addons.k8s.io-v0.1.12_content",
+		"aws_s3_object_"+i.clusterName+"-addons-storage-gce.addons.k8s.io-v1.7.0_content")
 
 	for j := 0; j < i.zones; j++ {
 		zone := "us-test1-" + string([]byte{byte('a') + byte(j)})
 		prefix := "google_compute_instance_template_master-" + zone + "-" + gce.SafeClusterName(i.clusterName) + "_metadata_"
 
-		expectedFilenames = append(expectedFilenames, "aws_s3_bucket_object_nodeupconfig-master-"+zone+"_content")
+		expectedFilenames = append(expectedFilenames, "aws_s3_object_nodeupconfig-master-"+zone+"_content")
 		expectedFilenames = append(expectedFilenames, prefix+"startup-script")
 		expectedFilenames = append(expectedFilenames, prefix+"ssh-keys")
 	}
