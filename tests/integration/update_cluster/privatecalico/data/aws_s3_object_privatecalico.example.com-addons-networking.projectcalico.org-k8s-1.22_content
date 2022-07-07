@@ -1,6 +1,6 @@
 apiVersion: v1
 data:
-  calico_backend: none
+  calico_backend: bird
   cni_network_config: |-
     {
       "name": "k8s-pod-network",
@@ -14,10 +14,9 @@ data:
           "nodename": "__KUBERNETES_NODE_NAME__",
           "mtu": __CNI_MTU__,
           "ipam": {
-              "assign_ipv4": "false",
-              "assign_ipv6": "true",
-              "type": "host-local",
-              "ranges": [[{ "subnet": "usePodCidrIPv6" }]]
+              "assign_ipv4": "true",
+              "assign_ipv6": "false",
+              "type": "calico-ipam"
           },
           "policy": {
               "type": "k8s"
@@ -4251,6 +4250,14 @@ rules:
   verbs:
   - patch
 - apiGroups:
+  - ""
+  resourceNames:
+  - calico-node
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+- apiGroups:
   - crd.projectcalico.org
   resources:
   - globalfelixconfigs
@@ -4383,8 +4390,6 @@ spec:
       - env:
         - name: DATASTORE_TYPE
           value: kubernetes
-        - name: USE_POD_CIDR
-          value: "true"
         - name: WAIT_FOR_DATASTORE
           value: "true"
         - name: NODENAME
@@ -4399,15 +4404,15 @@ spec:
         - name: CLUSTER_TYPE
           value: kops,bgp
         - name: IP
-          value: none
-        - name: IP6
           value: autodetect
-        - name: IP_AUTODETECTION_METHOD
+        - name: IP6
           value: none
-        - name: IP6_AUTODETECTION_METHOD
+        - name: IP_AUTODETECTION_METHOD
           value: first-found
+        - name: IP6_AUTODETECTION_METHOD
+          value: none
         - name: CALICO_IPV4POOL_IPIP
-          value: Never
+          value: CrossSubnet
         - name: CALICO_IPV4POOL_VXLAN
           value: Never
         - name: FELIX_IPINIPMTU
@@ -4425,16 +4430,14 @@ spec:
             configMapKeyRef:
               key: veth_mtu
               name: calico-config
-        - name: CALICO_ROUTER_ID
-          value: hash
-        - name: NO_DEFAULT_POOLS
-          value: "true"
+        - name: CALICO_IPV4POOL_CIDR
+          value: 100.96.0.0/11
         - name: CALICO_DISABLE_FILE_LOGGING
           value: "true"
         - name: FELIX_DEFAULTENDPOINTTOHOSTACTION
           value: ACCEPT
         - name: FELIX_IPV6SUPPORT
-          value: "true"
+          value: "false"
         - name: FELIX_HEALTHENABLED
           value: "true"
         - name: FELIX_AWSSRCDSTCHECK
@@ -4467,7 +4470,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/node:v3.23.1
+        image: docker.io/calico/node:v3.23.2
         lifecycle:
           preStop:
             exec:
@@ -4479,6 +4482,7 @@ spec:
             command:
             - /bin/calico-node
             - -felix-live
+            - -bird-live
           failureThreshold: 6
           initialDelaySeconds: 10
           periodSeconds: 10
@@ -4489,6 +4493,7 @@ spec:
             command:
             - /bin/calico-node
             - -felix-ready
+            - -bird-ready
           periodSeconds: 10
           timeoutSeconds: 10
         resources:
@@ -4539,7 +4544,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/cni:v3.23.1
+        image: docker.io/calico/cni:v3.23.2
         name: upgrade-ipam
         securityContext:
           privileged: true
@@ -4573,7 +4578,7 @@ spec:
         - configMapRef:
             name: kubernetes-services-endpoint
             optional: true
-        image: docker.io/calico/cni:v3.23.1
+        image: docker.io/calico/cni:v3.23.2
         name: install-cni
         securityContext:
           privileged: true
@@ -4687,7 +4692,7 @@ spec:
           value: node
         - name: DATASTORE_TYPE
           value: kubernetes
-        image: docker.io/calico/kube-controllers:v3.23.1
+        image: docker.io/calico/kube-controllers:v3.23.2
         livenessProbe:
           exec:
             command:

@@ -80,7 +80,7 @@ data:
           fallthrough in-addr.arpa ip6.arpa
           ttl 30
         }
-        hosts /etc/coredns/hosts k8s.local {
+        hosts /rootfs/etc/hosts k8s.local {
           ttl 30
           fallthrough
         }
@@ -139,7 +139,7 @@ spec:
       - args:
         - -conf
         - /etc/coredns/Corefile
-        image: registry.k8s.io/coredns/coredns:v1.8.6
+        image: registry.k8s.io/coredns/coredns:v1.9.3
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 5
@@ -184,6 +184,9 @@ spec:
         - mountPath: /etc/coredns
           name: config-volume
           readOnly: true
+        - mountPath: /rootfs/etc/hosts
+          name: etc-hosts
+          readOnly: true
       dnsPolicy: Default
       nodeSelector:
         kubernetes.io/os: linux
@@ -209,6 +212,10 @@ spec:
       - configMap:
           name: coredns
         name: config-volume
+      - hostPath:
+          path: /etc/hosts
+          type: File
+        name: etc-hosts
 
 ---
 
@@ -374,7 +381,7 @@ spec:
         - --default-params={"linear":{"coresPerReplica":256,"nodesPerReplica":16,"preventSinglePointFailure":true}}
         - --logtostderr=true
         - --v=2
-        image: registry.k8s.io/cpa/cluster-proportional-autoscaler:1.8.4
+        image: registry.k8s.io/cpa/cluster-proportional-autoscaler:1.8.5
         name: autoscaler
         resources:
           requests:

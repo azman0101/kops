@@ -222,6 +222,18 @@ spec:
                       type: array
                   type: object
                 type: array
+              guestAccelerators:
+                description: GuestAccelerators configures additional accelerators
+                items:
+                  description: AcceleratorConfig defines an accelerator config
+                  properties:
+                    acceleratorCount:
+                      format: int64
+                      type: integer
+                    acceleratorType:
+                      type: string
+                  type: object
+                type: array
               hooks:
                 description: 'Hooks is a list of hooks for this instanceGroup, note:
                   these can override the cluster wide ones if required'
@@ -741,6 +753,11 @@ spec:
                 type: string
               manager:
                 description: Manager determines what is managing the node lifecycle
+                type: string
+              maxInstanceLifetime:
+                description: MaxInstanceLifetime to the maximum amount of time, in
+                  seconds, that an instance can be in service. Value expected must
+                  be in form of duration ("ms", "s", "m", "h")
                 type: string
               maxPrice:
                 description: MaxPrice indicates this is a spot-pricing group, with

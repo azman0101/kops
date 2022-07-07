@@ -96,6 +96,7 @@ resource "aws_autoscaling_group" "master-us-test-1a-masters-minimal-ipv6-example
     id      = aws_launch_template.master-us-test-1a-masters-minimal-ipv6-example-com.id
     version = aws_launch_template.master-us-test-1a-masters-minimal-ipv6-example-com.latest_version
   }
+  max_instance_lifetime = 0
   max_size              = 1
   metrics_granularity   = "1Minute"
   min_size              = 1
@@ -156,6 +157,7 @@ resource "aws_autoscaling_group" "nodes-minimal-ipv6-example-com" {
     id      = aws_launch_template.nodes-minimal-ipv6-example-com.id
     version = aws_launch_template.nodes-minimal-ipv6-example-com.latest_version
   }
+  max_instance_lifetime = 0
   max_size              = 1
   metrics_granularity   = "1Minute"
   min_size              = 1
@@ -720,10 +722,10 @@ resource "aws_s3_object" "minimal-ipv6-example-com-addons-limit-range-addons-k8s
   server_side_encryption = "AES256"
 }
 
-resource "aws_s3_object" "minimal-ipv6-example-com-addons-networking-projectcalico-org-k8s-1-23" {
+resource "aws_s3_object" "minimal-ipv6-example-com-addons-networking-projectcalico-org-k8s-1-22" {
   bucket                 = "testingBucket"
-  content                = file("${path.module}/data/aws_s3_object_minimal-ipv6.example.com-addons-networking.projectcalico.org-k8s-1.23_content")
-  key                    = "clusters.example.com/minimal-ipv6.example.com/addons/networking.projectcalico.org/k8s-1.23.yaml"
+  content                = file("${path.module}/data/aws_s3_object_minimal-ipv6.example.com-addons-networking.projectcalico.org-k8s-1.22_content")
+  key                    = "clusters.example.com/minimal-ipv6.example.com/addons/networking.projectcalico.org/k8s-1.22.yaml"
   provider               = aws.files
   server_side_encryption = "AES256"
 }

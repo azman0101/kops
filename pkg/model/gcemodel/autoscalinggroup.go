@@ -146,7 +146,7 @@ func (b *AutoscalingGroupModelBuilder) buildInstanceTemplate(c *fi.ModelBuilderC
 			t.Labels = map[string]string{
 				gce.GceLabelNameKubernetesCluster: gce.SafeClusterName(b.ClusterName()),
 				roleLabel:                         "",
-				gce.GceLabelNameInstanceGroup:     name,
+				gce.GceLabelNameInstanceGroup:     ig.ObjectMeta.Name,
 			}
 
 			if gce.UsesIPAliases(b.Cluster) {
@@ -167,6 +167,14 @@ func (b *AutoscalingGroupModelBuilder) buildInstanceTemplate(c *fi.ModelBuilderC
 			//	return fmt.Errorf("error building cloud tags: %v", err)
 			//}
 			//t.Labels = labels
+
+			t.GuestAccelerators = []gcetasks.AcceleratorConfig{}
+			for _, accelerator := range ig.Spec.GuestAccelerators {
+				t.GuestAccelerators = append(t.GuestAccelerators, gcetasks.AcceleratorConfig{
+					AcceleratorCount: accelerator.AcceleratorCount,
+					AcceleratorType:  accelerator.AcceleratorType,
+				})
+			}
 
 			return t, nil
 		}

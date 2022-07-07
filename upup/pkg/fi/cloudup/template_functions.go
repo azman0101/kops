@@ -102,6 +102,7 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 	dest["contains"] = sprigTxtFuncMap["contains"]
 	dest["trimPrefix"] = sprigTxtFuncMap["trimPrefix"]
 	dest["semverCompare"] = sprigTxtFuncMap["semverCompare"]
+	dest["ternary"] = sprigTxtFuncMap["ternary"]
 
 	dest["ClusterName"] = tf.ClusterName
 	dest["WithDefaultBool"] = func(v *bool, defaultValue bool) bool {
@@ -335,6 +336,7 @@ func (tf *TemplateFunctions) AddTo(dest template.FuncMap, secretStore fi.SecretS
 	}
 
 	dest["IsKubernetesGTE"] = tf.IsKubernetesGTE
+	dest["IsKubernetesLT"] = tf.IsKubernetesLT
 
 	return nil
 }

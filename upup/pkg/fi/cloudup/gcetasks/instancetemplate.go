@@ -75,6 +75,8 @@ type InstanceTemplate struct {
 
 	// ID is the actual name
 	ID *string
+
+	GuestAccelerators []AcceleratorConfig
 }
 
 var (
@@ -211,6 +213,14 @@ func (e *InstanceTemplate) Find(c *fi.Context) (*InstanceTemplate, error) {
 		// System fields
 		actual.Lifecycle = e.Lifecycle
 
+		actual.GuestAccelerators = []AcceleratorConfig{}
+		for _, accelerator := range p.GuestAccelerators {
+			actual.GuestAccelerators = append(actual.GuestAccelerators, AcceleratorConfig{
+				AcceleratorCount: accelerator.AcceleratorCount,
+				AcceleratorType:  accelerator.AcceleratorType,
+			})
+		}
+
 		return actual, nil
 	}
 
@@ -239,6 +249,7 @@ func (e *InstanceTemplate) mapToGCE(project string, region string) (*compute.Ins
 		scheduling = &compute.Scheduling{
 			AutomaticRestart:  fi.Bool(false),
 			OnHostMaintenance: "TERMINATE",
+			ProvisioningModel: "STANDARD", // TODO: Support Spot?
 			Preemptible:       true,
 		}
 	} else {
@@ -246,8 +257,14 @@ func (e *InstanceTemplate) mapToGCE(project string, region string) (*compute.Ins
 			AutomaticRestart: fi.Bool(true),
 			// TODO: Migrate or terminate?
 			OnHostMaintenance: "MIGRATE",
+			ProvisioningModel: "STANDARD",
 			Preemptible:       false,
 		}
+	}
+
+	if len(e.GuestAccelerators) > 0 {
+		// Instances with accelerators cannot be migrated.
+		scheduling.OnHostMaintenance = "TERMINATE"
 	}
 
 	var disks []*compute.AttachedDisk
@@ -335,12 +352,25 @@ func (e *InstanceTemplate) mapToGCE(project string, region string) (*compute.Ins
 		})
 	}
 
+	var accelerators []*compute.AcceleratorConfig
+	if len(e.GuestAccelerators) > 0 {
+		accelerators = []*compute.AcceleratorConfig{}
+		for _, accelerator := range e.GuestAccelerators {
+			accelerators = append(accelerators, &compute.AcceleratorConfig{
+				AcceleratorCount: accelerator.AcceleratorCount,
+				AcceleratorType:  accelerator.AcceleratorType,
+			})
+		}
+	}
+
 	i := &compute.InstanceTemplate{
 		Kind: "compute#instanceTemplate",
 		Properties: &compute.InstanceProperties{
 			CanIpForward: *e.CanIPForward,
 
 			Disks: disks,
+
+			GuestAccelerators: accelerators,
 
 			MachineType: *e.MachineType,
 
@@ -459,6 +489,7 @@ type terraformInstanceTemplate struct {
 	Metadata              map[string]*terraformWriter.Literal      `cty:"metadata"`
 	MetadataStartupScript *terraformWriter.Literal                 `cty:"metadata_startup_script"`
 	Tags                  []string                                 `cty:"tags"`
+	GuestAccelerator      []*terraformGuestAccelerator             `cty:"guest_accelerator"`
 }
 
 type terraformTemplateServiceAccount struct {
@@ -496,6 +527,11 @@ type terraformNetworkInterface struct {
 
 type terraformAccessConfig struct {
 	NatIP *terraformWriter.Literal `cty:"nat_ip"`
+}
+
+type terraformGuestAccelerator struct {
+	Type  string `cty:"type"`
+	Count int64  `cty:"count"`
 }
 
 func addNetworks(network *Network, subnet *Subnet, networkInterfaces []*compute.NetworkInterface) []*terraformNetworkInterface {
@@ -613,6 +649,16 @@ func (_ *InstanceTemplate) RenderTerraform(t *terraform.TerraformTarget, a, e, c
 			AutomaticRestart:  fi.BoolValue(i.Properties.Scheduling.AutomaticRestart),
 			OnHostMaintenance: i.Properties.Scheduling.OnHostMaintenance,
 			Preemptible:       i.Properties.Scheduling.Preemptible,
+		}
+	}
+
+	if len(i.Properties.GuestAccelerators) > 0 {
+		tf.GuestAccelerator = []*terraformGuestAccelerator{}
+		for _, accelerator := range i.Properties.GuestAccelerators {
+			tf.GuestAccelerator = append(tf.GuestAccelerator, &terraformGuestAccelerator{
+				Count: accelerator.AcceleratorCount,
+				Type:  accelerator.AcceleratorType,
+			})
 		}
 	}
 

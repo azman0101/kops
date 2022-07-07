@@ -6,7 +6,7 @@ spec:
   addons:
   - id: k8s-1.16
     manifest: kops-controller.addons.k8s.io/k8s-1.16.yaml
-    manifestHash: 6247b65477eef4c6177ba71cf86d2f321f5ba3fbd2bcf35491dde6395ef785fe
+    manifestHash: 35321bd0c6a5198b618f3bc43c24c0b4ac920412b21ce8030e2e7f0c492e36f0
     name: kops-controller.addons.k8s.io
     needsRollingUpdate: control-plane
     selector:
@@ -14,7 +14,7 @@ spec:
     version: 9.99.0
   - id: k8s-1.12
     manifest: coredns.addons.k8s.io/k8s-1.12.yaml
-    manifestHash: def0d8ab0724d90ee90f5fd488c485aa4ac9fe91b3b64b06939dd0bf9124609e
+    manifestHash: 36dc915b1233981f10e02284dc34088aaa3fadff6592bc5edc84e9269b32be57
     name: coredns.addons.k8s.io
     selector:
       k8s-addon: coredns.addons.k8s.io
@@ -41,7 +41,7 @@ spec:
     version: 9.99.0
   - id: k8s-1.12
     manifest: dns-controller.addons.k8s.io/k8s-1.12.yaml
-    manifestHash: 7055214e9b561c76dfa6cd0c19f7e9ce69bbfb9601e99e129ce387e1349825de
+    manifestHash: 2ef250dc5c666a826bcc4fe8ad5f142c8893185fc654af4e9d8761f0ada18b37
     name: dns-controller.addons.k8s.io
     selector:
       k8s-addon: dns-controller.addons.k8s.io
@@ -53,9 +53,9 @@ spec:
     selector:
       k8s-addon: storage-aws.addons.k8s.io
     version: 9.99.0
-  - id: k8s-1.23
-    manifest: networking.projectcalico.org/k8s-1.23.yaml
-    manifestHash: a8944d4c2d1651f30eeaced654ccbf6179cbf26c2bb42aaf44849d360837c4af
+  - id: k8s-1.22
+    manifest: networking.projectcalico.org/k8s-1.22.yaml
+    manifestHash: 9e337fe40420c5145cd25224a03c69838f945237096820cbe9abfaaa09c8b55a
     name: networking.projectcalico.org
     selector:
       role.kubernetes.io/networking: "1"
@@ -69,7 +69,7 @@ spec:
     version: 9.99.0
   - id: k8s-1.17
     manifest: aws-ebs-csi-driver.addons.k8s.io/k8s-1.17.yaml
-    manifestHash: d49c1a55ed531a22f93cad8335e0afa0650ea6565f8b116652def70ab6b88c15
+    manifestHash: 97b59907e1d2a06001bb591d976ae86c97da2ae50eadd510f3911c9aebd7fc1a
     name: aws-ebs-csi-driver.addons.k8s.io
     selector:
       k8s-addon: aws-ebs-csi-driver.addons.k8s.io

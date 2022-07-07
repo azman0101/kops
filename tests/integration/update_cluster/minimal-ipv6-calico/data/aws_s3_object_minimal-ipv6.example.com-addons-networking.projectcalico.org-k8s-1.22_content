@@ -1,40 +1,6 @@
-# Pulled and modified from: https://docs.projectcalico.org/v3.23/manifests/calico-typha.yaml
-
-{{- if .Networking.Calico.BPFEnabled }}
----
-# Set these to the IP and port of your API server; In BPF mode, we need to connect directly to the
-# API server because we take over kube-proxy's role.
-kind: ConfigMap
 apiVersion: v1
-metadata:
-  name: kubernetes-services-endpoint
-  namespace: kube-system
 data:
-  KUBERNETES_SERVICE_HOST: "{{ .MasterInternalName }}"
-  KUBERNETES_SERVICE_PORT: "443"
-{{- end }}
-
----
-# Source: calico/templates/calico-config.yaml
-# This ConfigMap is used to configure a self-hosted Calico installation.
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: calico-config
-  namespace: kube-system
-data:
-  # You must set a non-zero value for Typha replicas below.
-  typha_service_name: "{{- if .Networking.Calico.TyphaReplicas -}}calico-typha{{- else -}}none{{- end -}}"
-  # Configure the backend to use.
-  calico_backend: "{{- if eq .Networking.Calico.EncapsulationMode "ipip" -}}bird{{- else -}}{{ .Networking.Calico.EncapsulationMode }}{{- end -}}"
-
-  # Configure the MTU to use for workload interfaces and tunnels.
-  # By default, MTU is auto-detected, and explicitly setting this field should not be required.
-  # You can override auto-detection by providing a non-zero value.
-  veth_mtu: "{{ or .Networking.Calico.MTU 0 }}"
-
-  # The CNI network configuration to install on each node. The special
-  # values in this config will be automatically populated.
+  calico_backend: none
   cni_network_config: |-
     {
       "name": "k8s-pod-network",
@@ -48,20 +14,11 @@ data:
           "nodename": "__KUBERNETES_NODE_NAME__",
           "mtu": __CNI_MTU__,
           "ipam": {
-              "assign_ipv4": "{{ not IsIPv6Only }}",
-              "assign_ipv6": "{{ IsIPv6Only }}",
-              {{- if IsIPv6Only }}
+              "assign_ipv4": "false",
+              "assign_ipv6": "true",
               "type": "host-local",
               "ranges": [[{ "subnet": "usePodCidrIPv6" }]]
-              {{- else }}
-              "type": "calico-ipam"
-              {{- end }}
           },
-          {{- if .Networking.Calico.AllowIPForwarding }}
-          "container_settings": {
-              "allow_ip_forwarding": true
-          },
-          {{- end }}
           "policy": {
               "type": "k8s"
           },
@@ -80,13 +37,28 @@ data:
         }
       ]
     }
+  typha_service_name: none
+  veth_mtu: "0"
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
+  name: calico-config
+  namespace: kube-system
 
 ---
-# Source: calico/templates/kdd-crds.yaml
 
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: bgpconfigurations.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -264,9 +236,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: bgppeers.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -383,9 +361,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: blockaffinities.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -445,13 +429,16 @@ status:
 
 ---
 
----
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: (devel)
   creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: caliconodestatuses.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -709,9 +696,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: clusterinformations.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -773,9 +766,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: felixconfigurations.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -1464,9 +1463,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: globalnetworkpolicies.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -2319,9 +2324,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: globalnetworksets.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -2372,9 +2383,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: hostendpoints.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -2480,9 +2497,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: ipamblocks.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -2525,10 +2548,8 @@ spec:
                   value is the index of the associated attributes in the Attributes
                   array.
                 items:
-                  type: integer
-                  # TODO: This nullable is manually added in. We should update controller-gen
-                  # to handle []*int properly itself.
                   nullable: true
+                  type: integer
                 type: array
               attributes:
                 description: Attributes is an array of arbitrary metadata associated
@@ -2599,9 +2620,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: ipamconfigs.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -2655,9 +2682,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: ipamhandles.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -2711,9 +2744,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: ippools.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -2820,12 +2859,17 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: (devel)
   creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: ipreservations.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -2874,9 +2918,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: kubecontrollersconfigurations.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -3127,9 +3177,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: networkpolicies.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -3963,9 +4019,15 @@ status:
   storedVersions: []
 
 ---
+
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: networksets.crd.projectcalico.org
 spec:
   group: crd.projectcalico.org
@@ -4014,831 +4076,604 @@ status:
   storedVersions: []
 
 ---
----
-# Source: calico/templates/calico-kube-controllers-rbac.yaml
 
-# Include a clusterrole for the kube-controllers component,
-# and bind it to the calico-kube-controllers serviceaccount.
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: calico-kube-controllers
-rules:
-  # Nodes are watched to monitor for deletions.
-  - apiGroups: [""]
-    resources:
-      - nodes
-    verbs:
-      - watch
-      - list
-      - get
-  # Pods are watched to check for existence as part of IPAM controller.
-  - apiGroups: [""]
-    resources:
-      - pods
-    verbs:
-      - get
-      - list
-      - watch
-  # IPAM resources are manipulated in response to node and block updates, as well as periodic triggers.
-  - apiGroups: ["crd.projectcalico.org"]
-    resources:
-      - ipreservations
-    verbs:
-      - list
-  - apiGroups: ["crd.projectcalico.org"]
-    resources:
-      - blockaffinities
-      - ipamblocks
-      - ipamhandles
-    verbs:
-      - get
-      - list
-      - create
-      - update
-      - delete
-      - watch
-  # Pools are watched to maintain a mapping of blocks to IP pools.
-  - apiGroups: ["crd.projectcalico.org"]
-    resources:
-      - ippools
-    verbs:
-      - list
-      - watch
-  # kube-controllers manages hostendpoints.
-  - apiGroups: ["crd.projectcalico.org"]
-    resources:
-      - hostendpoints
-    verbs:
-      - get
-      - list
-      - create
-      - update
-      - delete
-  # Needs access to update clusterinformations.
-  - apiGroups: ["crd.projectcalico.org"]
-    resources:
-      - clusterinformations
-    verbs:
-      - get
-      - list
-      - create
-      - update
-      - watch
-  # KubeControllersConfiguration is where it gets its config
-  - apiGroups: ["crd.projectcalico.org"]
-    resources:
-      - kubecontrollersconfigurations
-    verbs:
-      # read its own config
-      - get
-      # create a default if none exists
-      - create
-      # update status
-      - update
-      # watch for changes
-      - watch
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: calico-kube-controllers
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: calico-kube-controllers
-subjects:
-- kind: ServiceAccount
-  name: calico-kube-controllers
-  namespace: kube-system
----
-
----
-# Source: calico/templates/calico-node-rbac.yaml
-# Include a clusterrole for the calico-node DaemonSet,
-# and bind it to the calico-node serviceaccount.
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: calico-node
-rules:
-  # The CNI plugin needs to get pods, nodes, and namespaces.
-  - apiGroups: [""]
-    resources:
-      - pods
-      - nodes
-      - namespaces
-    verbs:
-      - get
-  # EndpointSlices are used for Service-based network policy rule
-  # enforcement.
-  - apiGroups: ["discovery.k8s.io"]
-    resources:
-      - endpointslices
-    verbs:
-      - watch
-      - list
-  - apiGroups: [""]
-    resources:
-      - endpoints
-      - services
-    verbs:
-      # Used to discover service IPs for advertisement.
-      - watch
-      - list
-      # Used to discover Typhas.
-      - get
-  # Pod CIDR auto-detection on kubeadm needs access to config maps.
-  - apiGroups: [""]
-    resources:
-      - configmaps
-    verbs:
-      - get
-  - apiGroups: [""]
-    resources:
-      - nodes/status
-    verbs:
-      # Needed for clearing NodeNetworkUnavailable flag.
-      - patch
-      # Calico stores some configuration information in node annotations.
-      - update
-  # Watch for changes to Kubernetes NetworkPolicies.
-  - apiGroups: ["networking.k8s.io"]
-    resources:
-      - networkpolicies
-    verbs:
-      - watch
-      - list
-  # Used by Calico for policy information.
-  - apiGroups: [""]
-    resources:
-      - pods
-      - namespaces
-      - serviceaccounts
-    verbs:
-      - list
-      - watch
-  # The CNI plugin patches pods/status.
-  - apiGroups: [""]
-    resources:
-      - pods/status
-    verbs:
-      - patch
-  # Calico monitors various CRDs for config.
-  - apiGroups: ["crd.projectcalico.org"]
-    resources:
-      - globalfelixconfigs
-      - felixconfigurations
-      - bgppeers
-      - globalbgpconfigs
-      - bgpconfigurations
-      - ippools
-      - ipreservations
-      - ipamblocks
-      - globalnetworkpolicies
-      - globalnetworksets
-      - networkpolicies
-      - networksets
-      - clusterinformations
-      - hostendpoints
-      - blockaffinities
-      - caliconodestatuses
-    verbs:
-      - get
-      - list
-      - watch
-  # Calico must create and update some CRDs on startup.
-  - apiGroups: ["crd.projectcalico.org"]
-    resources:
-      - ippools
-      - felixconfigurations
-      - clusterinformations
-    verbs:
-      - create
-      - update
-  # Calico must update some CRDs.
-  - apiGroups: [ "crd.projectcalico.org" ]
-    resources:
-      - caliconodestatuses
-    verbs:
-      - update
-  # Calico stores some configuration information on the node.
-  - apiGroups: [""]
-    resources:
-      - nodes
-    verbs:
-      - get
-      - list
-      - watch
-  # These permissions are only required for upgrade from v2.6, and can
-  # be removed after upgrade or on fresh installations.
-  - apiGroups: ["crd.projectcalico.org"]
-    resources:
-      - bgpconfigurations
-      - bgppeers
-    verbs:
-      - create
-      - update
-  # These permissions are required for Calico CNI to perform IPAM allocations.
-  - apiGroups: ["crd.projectcalico.org"]
-    resources:
-      - blockaffinities
-      - ipamblocks
-      - ipamhandles
-    verbs:
-      - get
-      - list
-      - create
-      - update
-      - delete
-  - apiGroups: ["crd.projectcalico.org"]
-    resources:
-      - ipamconfigs
-    verbs:
-      - get
-  # Block affinities must also be watchable by confd for route aggregation.
-  - apiGroups: ["crd.projectcalico.org"]
-    resources:
-      - blockaffinities
-    verbs:
-      - watch
-  # The Calico IPAM migration needs to get daemonsets. These permissions can be
-  # removed if not upgrading from an installation using host-local IPAM.
-  - apiGroups: ["apps"]
-    resources:
-      - daemonsets
-    verbs:
-      - get
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: calico-node
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: calico-node
-subjects:
-- kind: ServiceAccount
-  name: calico-node
-  namespace: kube-system
-
-{{ if .Networking.Calico.TyphaReplicas -}}
----
-# Source: calico/templates/calico-typha.yaml
-# This manifest creates a Service, which will be backed by Calico's Typha daemon.
-# Typha sits in between Felix and the API server, reducing Calico's load on the API server.
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: calico-typha
-  namespace: kube-system
+  creationTimestamp: null
   labels:
-    k8s-app: calico-typha
-spec:
-  ports:
-    - port: 5473
-      protocol: TCP
-      targetPort: calico-typha
-      name: calico-typha
-  selector:
-    k8s-app: calico-typha
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
+  name: calico-kube-controllers
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - watch
+  - list
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - ipreservations
+  verbs:
+  - list
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - blockaffinities
+  - ipamblocks
+  - ipamhandles
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - delete
+  - watch
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - ippools
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - hostendpoints
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - delete
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - clusterinformations
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - watch
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - kubecontrollersconfigurations
+  verbs:
+  - get
+  - create
+  - update
+  - watch
 
 ---
 
-# This manifest creates a Deployment of Typha to back the above service.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
+  name: calico-kube-controllers
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: calico-kube-controllers
+subjects:
+- kind: ServiceAccount
+  name: calico-kube-controllers
+  namespace: kube-system
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
+  name: calico-node
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - namespaces
+  verbs:
+  - get
+- apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - watch
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  - services
+  verbs:
+  - watch
+  - list
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - nodes/status
+  verbs:
+  - patch
+  - update
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - watch
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - namespaces
+  - serviceaccounts
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/status
+  verbs:
+  - patch
+- apiGroups:
+  - ""
+  resourceNames:
+  - calico-node
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - globalfelixconfigs
+  - felixconfigurations
+  - bgppeers
+  - globalbgpconfigs
+  - bgpconfigurations
+  - ippools
+  - ipreservations
+  - ipamblocks
+  - globalnetworkpolicies
+  - globalnetworksets
+  - networkpolicies
+  - networksets
+  - clusterinformations
+  - hostendpoints
+  - blockaffinities
+  - caliconodestatuses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - ippools
+  - felixconfigurations
+  - clusterinformations
+  verbs:
+  - create
+  - update
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - caliconodestatuses
+  verbs:
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - bgpconfigurations
+  - bgppeers
+  verbs:
+  - create
+  - update
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - blockaffinities
+  - ipamblocks
+  - ipamhandles
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - delete
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - ipamconfigs
+  verbs:
+  - get
+- apiGroups:
+  - crd.projectcalico.org
+  resources:
+  - blockaffinities
+  verbs:
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+  - get
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
+  name: calico-node
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: calico-node
+subjects:
+- kind: ServiceAccount
+  name: calico-node
+  namespace: kube-system
+
+---
 
 apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: calico-typha
-  namespace: kube-system
-  labels:
-    k8s-app: calico-typha
-spec:
-  # Number of Typha replicas. To enable Typha, set this to a non-zero value *and* set the
-  # typha_service_name variable in the calico-config ConfigMap above.
-  #
-  # We recommend using Typha if you have more than 50 nodes. Above 100 nodes it is essential
-  # (when using the Kubernetes datastore). Use one replica for every 100-200 nodes. In
-  # production, we recommend running at least 3 replicas to reduce the impact of rolling upgrade.
-  replicas: {{ or .Networking.Calico.TyphaReplicas "0" }}
-  revisionHistoryLimit: 2
-  selector:
-    matchLabels:
-      k8s-app: calico-typha
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 1
-  template:
-    metadata:
-      labels:
-        k8s-app: calico-typha
-      annotations:
-        cluster-autoscaler.kubernetes.io/safe-to-evict: 'true'
-    spec:
-      nodeSelector:
-        kubernetes.io/os: linux
-      hostNetwork: true
-      tolerations:
-        # Mark the pod as a critical add-on for rescheduling.
-        - key: CriticalAddonsOnly
-          operator: Exists
-        - key: node-role.kubernetes.io/master
-          effect: NoSchedule
-        - key: node-role.kubernetes.io/control-plane
-          effect: NoSchedule
-      # Since Calico can't network a pod until Typha is up, we need to run Typha itself
-      # as a host-networked pod.
-      serviceAccountName: calico-node
-      priorityClassName: system-cluster-critical
-      # fsGroup allows using projected serviceaccount tokens as described here kubernetes/kubernetes#82573
-      securityContext:
-        fsGroup: 65534
-      containers:
-      - image: {{ or .Networking.Calico.Registry "docker.io" }}/calico/typha:{{ or .Networking.Calico.Version "v3.23.1" }}
-        name: calico-typha
-        ports:
-        - containerPort: 5473
-          name: calico-typha
-          protocol: TCP
-        {{- if .Networking.Calico.TyphaPrometheusMetricsEnabled }}
-        - containerPort: {{ or .Networking.Calico.TyphaPrometheusMetricsPort "9093" }}
-          name: metrics
-          protocol: TCP
-        {{- end }}
-        envFrom:
-        - configMapRef:
-            # Allow KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT to be overridden for eBPF mode.
-            name: kubernetes-services-endpoint
-            optional: true
-        env:
-          # Enable "info" logging by default. Can be set to "debug" to increase verbosity.
-          - name: TYPHA_LOGSEVERITYSCREEN
-            value: "info"
-          # Disable logging to file and syslog since those don't make sense in Kubernetes.
-          - name: TYPHA_LOGFILEPATH
-            value: "none"
-          - name: TYPHA_LOGSEVERITYSYS
-            value: "none"
-          # Monitor the Kubernetes API to find the number of running instances and rebalance
-          # connections.
-          - name: TYPHA_CONNECTIONREBALANCINGMODE
-            value: "kubernetes"
-          - name: TYPHA_DATASTORETYPE
-            value: "kubernetes"
-          - name: TYPHA_HEALTHENABLED
-            value: "true"
-          - name: TYPHA_PROMETHEUSMETRICSENABLED
-            value: "{{- .Networking.Calico.TyphaPrometheusMetricsEnabled }}"
-          - name: TYPHA_PROMETHEUSMETRICSPORT
-            value: "{{- or .Networking.Calico.TyphaPrometheusMetricsPort "9093" }}"
-        livenessProbe:
-          httpGet:
-            path: /liveness
-            port: 9098
-            host: localhost
-          periodSeconds: 30
-          initialDelaySeconds: 30
-          timeoutSeconds: 10
-        securityContext:
-          runAsNonRoot: true
-          allowPrivilegeEscalation: false
-        readinessProbe:
-          httpGet:
-            path: /readiness
-            port: 9098
-            host: localhost
-          periodSeconds: 10
-          timeoutSeconds: 10
-
----
-
-# This manifest creates a Pod Disruption Budget for Typha to allow K8s Cluster Autoscaler to evict
-
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: calico-typha
-  namespace: kube-system
-  labels:
-    k8s-app: calico-typha
-spec:
-  maxUnavailable: 1
-  selector:
-    matchLabels:
-      k8s-app: calico-typha
-{{- end }}
-
----
-# Source: calico/templates/calico-node.yaml
-# This manifest installs the calico-node container, as well
-# as the CNI plugins and network config on
-# each master and worker node in a Kubernetes cluster.
 kind: DaemonSet
-apiVersion: apps/v1
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    k8s-app: calico-node
+    role.kubernetes.io/networking: "1"
   name: calico-node
   namespace: kube-system
-  labels:
-    k8s-app: calico-node
 spec:
   selector:
     matchLabels:
       k8s-app: calico-node
-  updateStrategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 1
   template:
     metadata:
+      creationTimestamp: null
       labels:
         k8s-app: calico-node
+        kops.k8s.io/managed-by: kops
     spec:
+      containers:
+      - env:
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        - name: USE_POD_CIDR
+          value: "true"
+        - name: WAIT_FOR_DATASTORE
+          value: "true"
+        - name: NODENAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CALICO_NETWORKING_BACKEND
+          valueFrom:
+            configMapKeyRef:
+              key: calico_backend
+              name: calico-config
+        - name: CLUSTER_TYPE
+          value: kops,bgp
+        - name: IP
+          value: none
+        - name: IP6
+          value: autodetect
+        - name: IP_AUTODETECTION_METHOD
+          value: none
+        - name: IP6_AUTODETECTION_METHOD
+          value: first-found
+        - name: CALICO_IPV4POOL_IPIP
+          value: Never
+        - name: CALICO_IPV4POOL_VXLAN
+          value: Never
+        - name: FELIX_IPINIPMTU
+          valueFrom:
+            configMapKeyRef:
+              key: veth_mtu
+              name: calico-config
+        - name: FELIX_VXLANMTU
+          valueFrom:
+            configMapKeyRef:
+              key: veth_mtu
+              name: calico-config
+        - name: FELIX_WIREGUARDMTU
+          valueFrom:
+            configMapKeyRef:
+              key: veth_mtu
+              name: calico-config
+        - name: CALICO_ROUTER_ID
+          value: hash
+        - name: NO_DEFAULT_POOLS
+          value: "true"
+        - name: CALICO_DISABLE_FILE_LOGGING
+          value: "true"
+        - name: FELIX_DEFAULTENDPOINTTOHOSTACTION
+          value: ACCEPT
+        - name: FELIX_IPV6SUPPORT
+          value: "true"
+        - name: FELIX_HEALTHENABLED
+          value: "true"
+        - name: FELIX_AWSSRCDSTCHECK
+          value: Disable
+        - name: FELIX_BPFENABLED
+          value: "false"
+        - name: FELIX_BPFEXTERNALSERVICEMODE
+          value: Tunnel
+        - name: FELIX_BPFKUBEPROXYIPTABLESCLEANUPENABLED
+          value: "false"
+        - name: FELIX_BPFLOGLEVEL
+          value: "Off"
+        - name: FELIX_CHAININSERTMODE
+          value: insert
+        - name: FELIX_IPTABLESBACKEND
+          value: Auto
+        - name: FELIX_LOGSEVERITYSCREEN
+          value: info
+        - name: FELIX_PROMETHEUSMETRICSENABLED
+          value: "false"
+        - name: FELIX_PROMETHEUSMETRICSPORT
+          value: "9091"
+        - name: FELIX_PROMETHEUSGOMETRICSENABLED
+          value: "false"
+        - name: FELIX_PROMETHEUSPROCESSMETRICSENABLED
+          value: "false"
+        - name: FELIX_WIREGUARDENABLED
+          value: "false"
+        envFrom:
+        - configMapRef:
+            name: kubernetes-services-endpoint
+            optional: true
+        image: docker.io/calico/node:v3.23.2
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/calico-node
+              - -shutdown
+        livenessProbe:
+          exec:
+            command:
+            - /bin/calico-node
+            - -felix-live
+          failureThreshold: 6
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 10
+        name: calico-node
+        readinessProbe:
+          exec:
+            command:
+            - /bin/calico-node
+            - -felix-ready
+          periodSeconds: 10
+          timeoutSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /host/etc/cni/net.d
+          name: cni-net-dir
+          readOnly: false
+        - mountPath: /lib/modules
+          name: lib-modules
+          readOnly: true
+        - mountPath: /run/xtables.lock
+          name: xtables-lock
+          readOnly: false
+        - mountPath: /var/run/calico
+          name: var-run-calico
+          readOnly: false
+        - mountPath: /var/lib/calico
+          name: var-lib-calico
+          readOnly: false
+        - mountPath: /var/run/nodeagent
+          name: policysync
+        - mountPath: /sys/fs/
+          mountPropagation: Bidirectional
+          name: sysfs
+        - mountPath: /var/log/calico/cni
+          name: cni-log-dir
+          readOnly: true
+      hostNetwork: true
+      initContainers:
+      - command:
+        - /opt/cni/bin/calico-ipam
+        - -upgrade
+        env:
+        - name: KUBERNETES_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CALICO_NETWORKING_BACKEND
+          valueFrom:
+            configMapKeyRef:
+              key: calico_backend
+              name: calico-config
+        envFrom:
+        - configMapRef:
+            name: kubernetes-services-endpoint
+            optional: true
+        image: docker.io/calico/cni:v3.23.2
+        name: upgrade-ipam
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /var/lib/cni/networks
+          name: host-local-net-dir
+        - mountPath: /host/opt/cni/bin
+          name: cni-bin-dir
+      - command:
+        - /opt/cni/bin/install
+        env:
+        - name: CNI_CONF_NAME
+          value: 10-calico.conflist
+        - name: CNI_NETWORK_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: cni_network_config
+              name: calico-config
+        - name: KUBERNETES_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CNI_MTU
+          valueFrom:
+            configMapKeyRef:
+              key: veth_mtu
+              name: calico-config
+        - name: SLEEP
+          value: "false"
+        envFrom:
+        - configMapRef:
+            name: kubernetes-services-endpoint
+            optional: true
+        image: docker.io/calico/cni:v3.23.2
+        name: install-cni
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /host/opt/cni/bin
+          name: cni-bin-dir
+        - mountPath: /host/etc/cni/net.d
+          name: cni-net-dir
+      - command:
+        - sh
+        - -c
+        - echo Temporary fix to avoid server side apply issues
+        image: busybox
+        name: flexvol-driver
       nodeSelector:
         kubernetes.io/os: linux
-      hostNetwork: true
-      tolerations:
-        # Make sure calico-node gets scheduled on all nodes.
-        - effect: NoSchedule
-          operator: Exists
-        # Mark the pod as a critical add-on for rescheduling.
-        - key: CriticalAddonsOnly
-          operator: Exists
-        - effect: NoExecute
-          operator: Exists
-      serviceAccountName: calico-node
-      # Minimize downtime during a rolling upgrade or deletion; tell Kubernetes to do a "force
-      # deletion": https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods.
-      terminationGracePeriodSeconds: 0
       priorityClassName: system-node-critical
-      initContainers:
-        # This container performs upgrade from host-local IPAM to calico-ipam.
-        # It can be deleted if this is a fresh installation, or if you have already
-        # upgraded to use calico-ipam.
-        - name: upgrade-ipam
-          image: {{ or .Networking.Calico.Registry "docker.io" }}/calico/cni:{{ or .Networking.Calico.Version "v3.23.1" }}
-          command: ["/opt/cni/bin/calico-ipam", "-upgrade"]
-          envFrom:
-          - configMapRef:
-              # Allow KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT to be overridden for eBPF mode.
-              name: kubernetes-services-endpoint
-              optional: true
-          env:
-            - name: KUBERNETES_NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
-            - name: CALICO_NETWORKING_BACKEND
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: calico_backend
-          volumeMounts:
-            - mountPath: /var/lib/cni/networks
-              name: host-local-net-dir
-            - mountPath: /host/opt/cni/bin
-              name: cni-bin-dir
-          securityContext:
-            privileged: true
-        # This container installs the CNI binaries
-        # and CNI network config file on each node.
-        - name: install-cni
-          image: {{ or .Networking.Calico.Registry "docker.io" }}/calico/cni:{{ or .Networking.Calico.Version "v3.23.1" }}
-          command: ["/opt/cni/bin/install"]
-          envFrom:
-          - configMapRef:
-              # Allow KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT to be overridden for eBPF mode.
-              name: kubernetes-services-endpoint
-              optional: true
-          env:
-            # Name of the CNI config file to create.
-            - name: CNI_CONF_NAME
-              value: "10-calico.conflist"
-            # The CNI network config to install on each node.
-            - name: CNI_NETWORK_CONFIG
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: cni_network_config
-            # Set the hostname based on the k8s node name.
-            - name: KUBERNETES_NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
-            # CNI MTU Config variable
-            - name: CNI_MTU
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: veth_mtu
-            # Prevents the container from sleeping forever.
-            - name: SLEEP
-              value: "false"
-          volumeMounts:
-            - mountPath: /host/opt/cni/bin
-              name: cni-bin-dir
-            - mountPath: /host/etc/cni/net.d
-              name: cni-net-dir
-          securityContext:
-            privileged: true
-        - name: flexvol-driver
-          image: busybox
-          command: ['sh', '-c', 'echo Temporary fix to avoid server side apply issues']
-      containers:
-        # Runs calico-node container on each Kubernetes node. This
-        # container programs network policy and routes on each
-        # host.
-        - name: calico-node
-          image: {{ or .Networking.Calico.Registry "docker.io" }}/calico/node:{{ or .Networking.Calico.Version "v3.23.1" }}
-          envFrom:
-          - configMapRef:
-              # Allow KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT to be overridden for eBPF mode.
-              name: kubernetes-services-endpoint
-              optional: true
-          env:
-            # Use Kubernetes API as the backing datastore.
-            - name: DATASTORE_TYPE
-              value: "kubernetes"
-            {{- if IsIPv6Only }}
-            # Configure route aggregation based on pod CIDR.
-            - name: USE_POD_CIDR
-              value: "true"
-            {{- end }}
-            {{- if .Networking.Calico.TyphaReplicas }}
-            # Typha support: controlled by the ConfigMap.
-            - name: FELIX_TYPHAK8SSERVICENAME
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: typha_service_name
-            {{- end }}
-            # Wait for the datastore.
-            - name: WAIT_FOR_DATASTORE
-              value: "true"
-            # Set based on the k8s node name.
-            - name: NODENAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
-            # Choose the backend to use.
-            - name: CALICO_NETWORKING_BACKEND
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: calico_backend
-            # Cluster type to identify the deployment type
-            - name: CLUSTER_TYPE
-              value: "kops,bgp"
-            # Auto-detect the BGP IP address.
-            - name: IP
-              value: "{{- if not IsIPv6Only -}}autodetect{{- else -}}none{{- end -}}"
-            - name: IP6
-              value: "{{- if IsIPv6Only -}}autodetect{{- else -}}none{{- end -}}"
-            {{- if IsIPv6Only }}
-            - name: IP_AUTODETECTION_METHOD
-              value: "{{- or .Networking.Calico.IPv4AutoDetectionMethod "none" }}"
-            - name: IP6_AUTODETECTION_METHOD
-              value: "{{- or .Networking.Calico.IPv6AutoDetectionMethod "first-found" }}"
-            {{- else }}
-            - name: IP_AUTODETECTION_METHOD
-              value: "{{- or .Networking.Calico.IPv4AutoDetectionMethod "first-found" }}"
-            - name: IP6_AUTODETECTION_METHOD
-              value: "{{- or .Networking.Calico.IPv6AutoDetectionMethod "none" }}"
-            {{- end }}
-            # Enable IPIP
-            - name: CALICO_IPV4POOL_IPIP
-              value: "{{ CalicoIPv4PoolIPIPMode }}"
-            # Enable or Disable VXLAN on the default IP pool.
-            - name: CALICO_IPV4POOL_VXLAN
-              value: "{{ CalicoIPv4PoolVXLANMode }}"
-            # Set MTU for tunnel device used if ipip is enabled
-            - name: FELIX_IPINIPMTU
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: veth_mtu
-            # Set MTU for the VXLAN tunnel device.
-            - name: FELIX_VXLANMTU
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: veth_mtu
-            # Set MTU for the Wireguard tunnel device.
-            - name: FELIX_WIREGUARDMTU
-              valueFrom:
-                configMapKeyRef:
-                  name: calico-config
-                  key: veth_mtu
-            # The default IPv4 pool to create on startup if none exists. Pod IPs will be
-            # chosen from this range. Changing this value after installation will have
-            # no effect. This should fall within `--cluster-cidr`.
-            {{- if IsIPv6Only }}
-            - name: CALICO_ROUTER_ID
-              value: "hash"
-            - name: NO_DEFAULT_POOLS
-              value: "true"
-            {{- else }}
-            - name: CALICO_IPV4POOL_CIDR
-              value: "{{ .KubeControllerManager.ClusterCIDR }}"
-            {{- end }}
-            # Disable file logging so `kubectl logs` works.
-            - name: CALICO_DISABLE_FILE_LOGGING
-              value: "true"
-            # Set Felix endpoint to host default action to ACCEPT.
-            - name: FELIX_DEFAULTENDPOINTTOHOSTACTION
-              value: "ACCEPT"
-            # Set IPv6 on Kubernetes.
-            - name: FELIX_IPV6SUPPORT
-              value: "{{ IsIPv6Only }}"
-            - name: FELIX_HEALTHENABLED
-              value: "true"
-
-            # kops additions
-            # Enable source/destination checks for AWS
-            - name: FELIX_AWSSRCDSTCHECK
-              value: "{{- if eq GetCloudProvider "aws" -}}{{- or .Networking.Calico.AWSSrcDstCheck "Disable" -}}{{- else -}}DoNothing{{- end -}}"
-            # Enable eBPF dataplane mode
-            - name: FELIX_BPFENABLED
-              value: "{{ .Networking.Calico.BPFEnabled }}"
-            # Controls how traffic from outside the cluster to NodePorts and ClusterIPs is handled
-            - name: FELIX_BPFEXTERNALSERVICEMODE
-              value: "{{- or .Networking.Calico.BPFExternalServiceMode "Tunnel" }}"
-            # Controls whether Felix will clean up the iptables rules created by the Kubernetes kube-proxy
-            - name: FELIX_BPFKUBEPROXYIPTABLESCLEANUPENABLED
-              value: "{{- .Networking.Calico.BPFKubeProxyIptablesCleanupEnabled }}"
-            # Controls the log level used by the BPF programs
-            - name: FELIX_BPFLOGLEVEL
-              value: "{{- or .Networking.Calico.BPFLogLevel "Off" }}"
-            # Controls whether Felix inserts rules to the top of iptables chains, or appends to the bottom
-            - name: FELIX_CHAININSERTMODE
-              value: "{{- or .Networking.Calico.ChainInsertMode "insert" }}"
-            # Set Felix iptables binary variant, Legacy or NFT
-            - name: FELIX_IPTABLESBACKEND
-              value: "{{- or .Networking.Calico.IptablesBackend "Auto" }}"
-            # Controls the log level
-            - name: FELIX_LOGSEVERITYSCREEN
-              value: "{{- or .Networking.Calico.LogSeverityScreen "info" }}"
-            # Set to enable the experimental Prometheus metrics server
-            - name: FELIX_PROMETHEUSMETRICSENABLED
-              value: "{{- .Networking.Calico.PrometheusMetricsEnabled }}"
-            # TCP port that the Prometheus metrics server should bind to
-            - name: FELIX_PROMETHEUSMETRICSPORT
-              value: "{{- or .Networking.Calico.PrometheusMetricsPort "9091" }}"
-            # Enable Prometheus Go runtime metrics collection
-            - name: FELIX_PROMETHEUSGOMETRICSENABLED
-              value: "{{- .Networking.Calico.PrometheusGoMetricsEnabled }}"
-            # Enable Prometheus process metrics collection
-            - name: FELIX_PROMETHEUSPROCESSMETRICSENABLED
-              value: "{{- .Networking.Calico.PrometheusProcessMetricsEnabled }}"
-            # Enable WireGuard encryption for all on-the-wire pod-to-pod traffic
-            - name: FELIX_WIREGUARDENABLED
-              value: "{{ .Networking.Calico.WireguardEnabled }}"
-            # Enable support for HTTP forward proxy
-            {{ range $name, $value := ProxyEnv }}
-            - name: {{ $name }}
-              value: {{ $value }}
-            {{ end }}
-          securityContext:
-            privileged: true
-          resources:
-            requests:
-              cpu: {{ or .Networking.Calico.CPURequest "100m" }}
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                - /bin/calico-node
-                - -shutdown
-          livenessProbe:
-            exec:
-              command:
-              - /bin/calico-node
-              - -felix-live
-              {{- if eq .Networking.Calico.EncapsulationMode "ipip" }}
-              {{- if IsIPv6Only }}
-              - -bird6-live
-              {{- else }}
-              - -bird-live
-              {{- end }}
-              {{- end }}
-            periodSeconds: 10
-            initialDelaySeconds: 10
-            failureThreshold: 6
-            timeoutSeconds: 10
-          readinessProbe:
-            exec:
-              command:
-              - /bin/calico-node
-              - -felix-ready
-              {{- if eq .Networking.Calico.EncapsulationMode "ipip" }}
-              {{- if IsIPv6Only }}
-              - -bird6-ready
-              {{- else }}
-              - -bird-ready
-              {{- end }}
-              {{- end }}
-            periodSeconds: 10
-            timeoutSeconds: 10
-          {{- if .Networking.Calico.PrometheusMetricsEnabled }}
-          ports:
-          - containerPort: {{ or .Networking.Calico.PrometheusMetricsPort "9091" }}
-            name: metrics
-            protocol: TCP
-          {{- end }}
-          volumeMounts:
-            # For maintaining CNI plugin API credentials.
-            - mountPath: /host/etc/cni/net.d
-              name: cni-net-dir
-              readOnly: false
-            - mountPath: /lib/modules
-              name: lib-modules
-              readOnly: true
-            - mountPath: /run/xtables.lock
-              name: xtables-lock
-              readOnly: false
-            - mountPath: /var/run/calico
-              name: var-run-calico
-              readOnly: false
-            - mountPath: /var/lib/calico
-              name: var-lib-calico
-              readOnly: false
-            - name: policysync
-              mountPath: /var/run/nodeagent
-            # For eBPF mode, we need to be able to mount the BPF filesystem at /sys/fs/bpf so we mount in the
-            # parent directory.
-            - name: sysfs
-              mountPath: /sys/fs/
-              # Bidirectional means that, if we mount the BPF filesystem at /sys/fs/bpf it will propagate to the host.
-              # If the host is known to mount that filesystem already then Bidirectional can be omitted.
-              mountPropagation: Bidirectional
-            - name: cni-log-dir
-              mountPath: /var/log/calico/cni
-              readOnly: true
+      serviceAccountName: calico-node
+      terminationGracePeriodSeconds: 0
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
       volumes:
-        # Used by calico-node.
-        - name: lib-modules
-          hostPath:
-            path: /lib/modules
-        - name: var-run-calico
-          hostPath:
-            path: /var/run/calico
-        - name: var-lib-calico
-          hostPath:
-            path: /var/lib/calico
-        - name: xtables-lock
-          hostPath:
-            path: /run/xtables.lock
-            type: FileOrCreate
-        - name: sysfs
-          hostPath:
-            path: /sys/fs/
-            type: DirectoryOrCreate
-        # Used to install CNI.
-        - name: cni-bin-dir
-          hostPath:
-            path: /opt/cni/bin
-        - name: cni-net-dir
-          hostPath:
-            path: /etc/cni/net.d
-        # Used to access CNI logs.
-        - name: cni-log-dir
-          hostPath:
-            path: /var/log/calico/cni
-        # Mount in the directory for host-local IPAM allocations. This is
-        # used when upgrading from host-local to calico-ipam, and can be removed
-        # if not using the upgrade-ipam init container.
-        - name: host-local-net-dir
-          hostPath:
-            path: /var/lib/cni/networks
-        # Used to create per-pod Unix Domain Sockets
-        - name: policysync
-          hostPath:
-            type: DirectoryOrCreate
-            path: /var/run/nodeagent
+      - hostPath:
+          path: /lib/modules
+        name: lib-modules
+      - hostPath:
+          path: /var/run/calico
+        name: var-run-calico
+      - hostPath:
+          path: /var/lib/calico
+        name: var-lib-calico
+      - hostPath:
+          path: /run/xtables.lock
+          type: FileOrCreate
+        name: xtables-lock
+      - hostPath:
+          path: /sys/fs/
+          type: DirectoryOrCreate
+        name: sysfs
+      - hostPath:
+          path: /opt/cni/bin
+        name: cni-bin-dir
+      - hostPath:
+          path: /etc/cni/net.d
+        name: cni-net-dir
+      - hostPath:
+          path: /var/log/calico/cni
+        name: cni-log-dir
+      - hostPath:
+          path: /var/lib/cni/networks
+        name: host-local-net-dir
+      - hostPath:
+          path: /var/run/nodeagent
+          type: DirectoryOrCreate
+        name: policysync
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+    type: RollingUpdate
+
 ---
 
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: calico-node
   namespace: kube-system
 
 ---
-# Source: calico/templates/calico-kube-controllers.yaml
-# See https://github.com/projectcalico/kube-controllers
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    k8s-app: calico-kube-controllers
+    role.kubernetes.io/networking: "1"
   name: calico-kube-controllers
   namespace: kube-system
-  labels:
-    k8s-app: calico-kube-controllers
 spec:
-  # The controllers can only have a single active instance.
   replicas: 1
   selector:
     matchLabels:
@@ -4847,77 +4682,76 @@ spec:
     type: Recreate
   template:
     metadata:
-      name: calico-kube-controllers
-      namespace: kube-system
+      creationTimestamp: null
       labels:
         k8s-app: calico-kube-controllers
+        kops.k8s.io/managed-by: kops
+      name: calico-kube-controllers
+      namespace: kube-system
     spec:
+      containers:
+      - env:
+        - name: ENABLED_CONTROLLERS
+          value: node
+        - name: DATASTORE_TYPE
+          value: kubernetes
+        image: docker.io/calico/kube-controllers:v3.23.2
+        livenessProbe:
+          exec:
+            command:
+            - /usr/bin/check-status
+            - -l
+          failureThreshold: 6
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 10
+        name: calico-kube-controllers
+        readinessProbe:
+          exec:
+            command:
+            - /usr/bin/check-status
+            - -r
+          periodSeconds: 10
       nodeSelector:
         kubernetes.io/os: linux
-      tolerations:
-        # Mark the pod as a critical add-on for rescheduling.
-        - key: CriticalAddonsOnly
-          operator: Exists
-        - key: node-role.kubernetes.io/master
-          effect: NoSchedule
-        - key: node-role.kubernetes.io/control-plane
-          effect: NoSchedule
-      serviceAccountName: calico-kube-controllers
       priorityClassName: system-cluster-critical
-      containers:
-        - name: calico-kube-controllers
-          image: {{ or .Networking.Calico.Registry "docker.io" }}/calico/kube-controllers:{{ or .Networking.Calico.Version "v3.23.1" }}
-          env:
-            # Choose which controllers to run.
-            - name: ENABLED_CONTROLLERS
-              value: node
-            - name: DATASTORE_TYPE
-              value: kubernetes
-          livenessProbe:
-            exec:
-              command:
-              - /usr/bin/check-status
-              - -l
-            periodSeconds: 10
-            initialDelaySeconds: 10
-            failureThreshold: 6
-            timeoutSeconds: 10
-          readinessProbe:
-            exec:
-              command:
-              - /usr/bin/check-status
-              - -r
-            periodSeconds: 10
+      serviceAccountName: calico-kube-controllers
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
 
 ---
 
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    role.kubernetes.io/networking: "1"
   name: calico-kube-controllers
   namespace: kube-system
 
 ---
 
-# This manifest creates a Pod Disruption Budget for Controller to allow K8s Cluster Autoscaler to evict
-
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
+  creationTimestamp: null
+  labels:
+    addon.kops.k8s.io/name: networking.projectcalico.org
+    app.kubernetes.io/managed-by: kops
+    k8s-app: calico-kube-controllers
+    role.kubernetes.io/networking: "1"
   name: calico-kube-controllers
   namespace: kube-system
-  labels:
-    k8s-app: calico-kube-controllers
 spec:
   maxUnavailable: 1
   selector:
     matchLabels:
       k8s-app: calico-kube-controllers
-
----
-# Source: calico/templates/calico-etcd-secrets.yaml
-
----
-# Source: calico/templates/configure-canal.yaml
-
-
