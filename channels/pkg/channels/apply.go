@@ -17,76 +17,126 @@ limitations under the License.
 package channels
 
 import (
+	"context"
 	"fmt"
-	"os"
-	"os/exec"
-	"path"
-	"strings"
 
+	"go.uber.org/multierr"
+	"k8s.io/apimachinery/pkg/api/meta"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/klog/v2"
+	"k8s.io/kops/pkg/kubemanifest"
 )
 
-// Apply calls kubectl apply to apply the manifest.
-// We will likely in future change this to create things directly (or more likely embed this logic into kubectl itself)
-func Apply(data []byte) error {
-	// We copy the manifest to a temp file because it is likely e.g. an s3 URL, which kubectl can't read
-	tmpDir, err := os.MkdirTemp("", "channel")
+type Applier struct {
+	Client     dynamic.Interface
+	RESTMapper *restmapper.DeferredDiscoveryRESTMapper
+}
+
+// Apply applies the manifest to the cluster.
+func (p *Applier) Apply(ctx context.Context, manifest []byte) error {
+	objects, err := kubemanifest.LoadObjectsFrom(manifest)
 	if err != nil {
-		return fmt.Errorf("error creating temp dir: %v", err)
+		return fmt.Errorf("failed to parse objects: %w", err)
 	}
 
-	defer func() {
-		if err := os.RemoveAll(tmpDir); err != nil {
-			klog.Warningf("error deleting temp dir %q: %v", tmpDir, err)
+	objectsByGVK := make(map[schema.GroupVersionKind][]*kubemanifest.Object)
+	for _, object := range objects {
+		key := object.GetNamespace() + "/" + object.GetName()
+		gv, err := schema.ParseGroupVersion(object.APIVersion())
+		if err != nil || gv.Version == "" {
+			return fmt.Errorf("failed to parse apiVersion %q in object %s", object.APIVersion(), key)
 		}
-	}()
-
-	localManifestFile := path.Join(tmpDir, "manifest.yaml")
-	if err := os.WriteFile(localManifestFile, data, 0o600); err != nil {
-		return fmt.Errorf("error writing temp file: %v", err)
-	}
-	// First do an apply. This may fail when removing things from lists/arrays and required fields are not removed.
-	{
-		_, err := execKubectl("apply", "-f", localManifestFile, "--server-side", "--force-conflicts", "--field-manager=kops")
-		if err != nil {
-			klog.Errorf("failed to apply the manifest: %v", err)
+		kind := object.Kind()
+		if kind == "" {
+			return fmt.Errorf("failed to find kind in object %s", key)
 		}
 
+		gvk := gv.WithKind(kind)
+		objectsByGVK[gvk] = append(objectsByGVK[gvk], object)
 	}
 
-	// Replace will force ownership on all fields to kops. But on some k8s versions, this will fail on e.g trying to set clusterIP to "".
-	{
-		_, err := execKubectl("replace", "-f", localManifestFile, "--field-manager=kops")
-		if err != nil {
-			klog.Errorf("failed to replace manifest: %v", err)
+	var applyErrors error
+	for gvk := range objectsByGVK {
+		if err := p.applyObjectsOfKind(ctx, gvk, objectsByGVK[gvk]); err != nil {
+			applyErrors = multierr.Append(applyErrors, fmt.Errorf("failed to apply objects of kind %s: %w", gvk, err))
 		}
 	}
+	return applyErrors
+}
 
-	// Do a final replace to ensure resources are correctly apply. This should always succeed if the addon is updated as expected.
-	{
-		_, err := execKubectl("apply", "-f", localManifestFile, "--server-side", "--force-conflicts", "--field-manager=kops")
-		if err != nil {
-			return fmt.Errorf("failed to apply the manifest: %w", err)
-		}
+func (p *Applier) applyObjectsOfKind(ctx context.Context, gvk schema.GroupVersionKind, expectedObjects []*kubemanifest.Object) error {
+	klog.V(2).Infof("applying objects of kind: %v", gvk)
+
+	restMapping, err := p.RESTMapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return fmt.Errorf("unable to find resource for %s: %w", gvk, err)
+	}
+
+	if err := p.applyObjects(ctx, restMapping, expectedObjects); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func execKubectl(args ...string) (string, error) {
-	kubectlPath := "kubectl" // Assume in PATH
-	cmd := exec.Command(kubectlPath, args...)
-	env := os.Environ()
-	cmd.Env = env
+func (p *Applier) applyObjects(ctx context.Context, restMapping *meta.RESTMapping, expectedObjects []*kubemanifest.Object) error {
+	gvr := restMapping.Resource
 
-	human := strings.Join(cmd.Args, " ")
-	klog.V(2).Infof("Running command: %s", human)
-	output, err := cmd.CombinedOutput()
+	baseResource := p.Client.Resource(gvr)
+
+	actualObjects, err := baseResource.List(ctx, v1.ListOptions{})
 	if err != nil {
-		klog.Infof("error running %s", human)
-		klog.Info(string(output))
-		return string(output), fmt.Errorf("error running kubectl: %v", err)
+		return fmt.Errorf("error listing objects: %w", err)
 	}
 
-	return string(output), err
+	actualMap := make(map[string]unstructured.Unstructured)
+	for _, actualObject := range actualObjects.Items {
+		key := actualObject.GetNamespace() + "/" + actualObject.GetName()
+		actualMap[key] = actualObject
+	}
+
+	var merr error
+
+	for _, expectedObject := range expectedObjects {
+		name := expectedObject.GetName()
+		namespace := expectedObject.GetNamespace()
+		key := namespace + "/" + name
+
+		var resource dynamic.ResourceInterface
+		if restMapping.Scope.Name() == meta.RESTScopeNameNamespace {
+			if namespace == "" {
+				return fmt.Errorf("namespace not set for namespace-scoped object %q", key)
+			}
+			resource = p.Client.Resource(gvr).Namespace(namespace)
+		} else {
+			if namespace != "" {
+				return fmt.Errorf("namespace was set for cluster-scoped object %q", key)
+			}
+			resource = p.Client.Resource(gvr)
+		}
+
+		obj := expectedObject.ToUnstructured()
+
+		if actual, found := actualMap[key]; found {
+			klog.V(2).Infof("updating %s %s", gvr, key)
+			var opts v1.UpdateOptions
+			obj.SetResourceVersion(actual.GetResourceVersion())
+			if _, err := resource.Update(ctx, obj, opts); err != nil {
+				merr = multierr.Append(merr, fmt.Errorf("failed to create %s: %w", key, err))
+			}
+		} else {
+			klog.V(2).Infof("creating %s %s", gvr, key)
+			var opts v1.CreateOptions
+			if _, err := resource.Create(ctx, obj, opts); err != nil {
+				merr = multierr.Append(merr, fmt.Errorf("failed to create %s: %w", key, err))
+			}
+		}
+
+	}
+
+	return merr
 }

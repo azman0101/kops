@@ -1794,9 +1794,14 @@ func (in *EtcdManagerSpec) DeepCopyInto(out *EtcdManagerSpec) {
 		*out = make([]EnvVar, len(*in))
 		copy(*out, *in)
 	}
+	if in.BackupInterval != nil {
+		in, out := &in.BackupInterval, &out.BackupInterval
+		*out = new(v1.Duration)
+		**out = **in
+	}
 	if in.DiscoveryPollInterval != nil {
 		in, out := &in.DiscoveryPollInterval, &out.DiscoveryPollInterval
-		*out = new(string)
+		*out = new(v1.Duration)
 		**out = **in
 	}
 	if in.LogLevel != nil {
@@ -2543,6 +2548,11 @@ func (in *InstanceGroupSpec) DeepCopyInto(out *InstanceGroupSpec) {
 	if in.MaxInstanceLifetime != nil {
 		in, out := &in.MaxInstanceLifetime, &out.MaxInstanceLifetime
 		*out = new(v1.Duration)
+		**out = **in
+	}
+	if in.GCPProvisioningModel != nil {
+		in, out := &in.GCPProvisioningModel, &out.GCPProvisioningModel
+		*out = new(string)
 		**out = **in
 	}
 	return
