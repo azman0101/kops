@@ -720,9 +720,9 @@ type KubeSchedulerConfig struct {
 	// as outlined: https://kubernetes.io/docs/concepts/storage/storage-limits/
 	MaxPersistentVolumes *int32 `json:"maxPersistentVolumes,omitempty"`
 	// Qps sets the maximum qps to send to apiserver after the burst quota is exhausted
-	Qps *resource.Quantity `json:"qps,omitempty" configfile:"ClientConnection.QPS"`
+	Qps *resource.Quantity `json:"qps,omitempty" configfile:"ClientConnection.QPS" config:"clientConnection.qps,omitempty"`
 	// Burst sets the maximum qps to send to apiserver after the burst quota is exhausted
-	Burst int32 `json:"burst,omitempty" configfile:"ClientConnection.Burst"`
+	Burst int32 `json:"burst,omitempty" configfile:"ClientConnection.Burst" config:"clientConnection.burst,omitempty"`
 	// AuthenticationKubeconfig is the path to an Authentication Kubeconfig
 	AuthenticationKubeconfig string `json:"authenticationKubeconfig,omitempty" flag:"authentication-kubeconfig"`
 	// AuthorizationKubeconfig is the path to an Authorization Kubeconfig
@@ -807,6 +807,9 @@ type OpenstackRouter struct {
 // OpenstackNetwork defines the config for a network
 type OpenstackNetwork struct {
 	AvailabilityZoneHints []*string `json:"availabilityZoneHints,omitempty"`
+	IPv6SupportDisabled   *bool     `json:"ipv6SupportDisabled,omitempty"`
+	PublicNetworkNames    []*string `json:"publicNetworkNames,omitempty"`
+	InternalNetworkNames  []*string `json:"internalNetworkNames,omitempty"`
 }
 
 // OpenstackMetadata defines config for metadata service related settings

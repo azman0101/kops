@@ -66,7 +66,7 @@ func NewCmdDeleteCluster(f *util.Factory, out io.Writer) *cobra.Command {
 	options := &DeleteClusterOptions{}
 
 	cmd := &cobra.Command{
-		Use:               "cluster [CLUSTER]",
+		Use:               "cluster",
 		Short:             deleteClusterShort,
 		Long:              deleteClusterLong,
 		Example:           deleteClusterExample,
@@ -186,7 +186,7 @@ func RunDeleteCluster(ctx context.Context, f *util.Factory, out io.Writer, optio
 			}
 			return nil
 		}
-		clientset, err := f.Clientset()
+		clientset, err := f.KopsClient()
 		if err != nil {
 			return err
 		}

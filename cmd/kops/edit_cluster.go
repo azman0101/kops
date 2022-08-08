@@ -74,7 +74,7 @@ func NewCmdEditCluster(f *util.Factory, out io.Writer) *cobra.Command {
 	options := &EditClusterOptions{}
 
 	cmd := &cobra.Command{
-		Use:               "cluster [CLUSTER]",
+		Use:               "cluster",
 		Short:             i18n.T("Edit cluster."),
 		Long:              editClusterLong,
 		Example:           editClusterExample,
@@ -110,7 +110,7 @@ func RunEditCluster(ctx context.Context, f *util.Factory, out io.Writer, options
 		return err
 	}
 
-	clientset, err := f.Clientset()
+	clientset, err := f.KopsClient()
 	if err != nil {
 		return err
 	}

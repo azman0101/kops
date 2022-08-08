@@ -63,7 +63,7 @@ func NewCmdCreateSecretEncryptionConfig(f *util.Factory, out io.Writer) *cobra.C
 	options := &CreateSecretEncryptionConfigOptions{}
 
 	cmd := &cobra.Command{
-		Use:               "encryptionconfig [CLUSTER] -f FILENAME",
+		Use:               "encryptionconfig -f FILENAME",
 		Short:             createSecretEncryptionConfigShort,
 		Long:              createSecretEncryptionConfigLong,
 		Example:           createSecretEncryptionConfigExample,
@@ -84,13 +84,13 @@ func NewCmdCreateSecretEncryptionConfig(f *util.Factory, out io.Writer) *cobra.C
 	return cmd
 }
 
-func RunCreateSecretEncryptionConfig(ctx context.Context, f *util.Factory, out io.Writer, options *CreateSecretEncryptionConfigOptions) error {
+func RunCreateSecretEncryptionConfig(ctx context.Context, f commandutils.Factory, out io.Writer, options *CreateSecretEncryptionConfigOptions) error {
 	cluster, err := GetCluster(ctx, f, options.ClusterName)
 	if err != nil {
 		return err
 	}
 
-	clientset, err := f.Clientset()
+	clientset, err := f.KopsClient()
 	if err != nil {
 		return err
 	}

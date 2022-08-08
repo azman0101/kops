@@ -52,7 +52,7 @@ func NewCmdCreateSSHPublicKey(f *util.Factory, out io.Writer) *cobra.Command {
 	options := &CreateSSHPublicKeyOptions{}
 
 	cmd := &cobra.Command{
-		Use:               "sshpublickey [CLUSTER]",
+		Use:               "sshpublickey",
 		Short:             createSSHPublicKeyShort,
 		Long:              createSSHPublicKeyLong,
 		Example:           createSSHPublicKeyExample,
@@ -86,7 +86,7 @@ func RunCreateSSHPublicKey(ctx context.Context, f *util.Factory, out io.Writer, 
 		return err
 	}
 
-	clientset, err := f.Clientset()
+	clientset, err := f.KopsClient()
 	if err != nil {
 		return err
 	}

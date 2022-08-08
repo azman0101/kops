@@ -166,7 +166,7 @@ func NewCmdRollingUpdateCluster(f *util.Factory, out io.Writer) *cobra.Command {
 	options.InitDefaults()
 
 	cmd := &cobra.Command{
-		Use:               "cluster [CLUSTER]",
+		Use:               "cluster",
 		Short:             rollingupdateShort,
 		Long:              rollingupdateLong,
 		Example:           rollingupdateExample,
@@ -218,7 +218,7 @@ func NewCmdRollingUpdateCluster(f *util.Factory, out io.Writer) *cobra.Command {
 }
 
 func RunRollingUpdateCluster(ctx context.Context, f *util.Factory, out io.Writer, options *RollingUpdateOptions) error {
-	clientset, err := f.Clientset()
+	clientset, err := f.KopsClient()
 	if err != nil {
 		return err
 	}

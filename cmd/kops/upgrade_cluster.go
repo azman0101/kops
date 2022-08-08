@@ -66,7 +66,7 @@ func NewCmdUpgradeCluster(f *util.Factory, out io.Writer) *cobra.Command {
 	options := &UpgradeClusterOptions{}
 
 	cmd := &cobra.Command{
-		Use:               "cluster [CLUSTER]",
+		Use:               "cluster",
 		Short:             upgradeClusterShort,
 		Long:              upgradeClusterLong,
 		Example:           upgradeClusterExample,
@@ -103,7 +103,7 @@ func RunUpgradeCluster(ctx context.Context, f *util.Factory, out io.Writer, opti
 		return err
 	}
 
-	clientset, err := f.Clientset()
+	clientset, err := f.KopsClient()
 	if err != nil {
 		return err
 	}

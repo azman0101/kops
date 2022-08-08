@@ -6,7 +6,7 @@ spec:
   addons:
   - id: k8s-1.16
     manifest: kops-controller.addons.k8s.io/k8s-1.16.yaml
-    manifestHash: 35321bd0c6a5198b618f3bc43c24c0b4ac920412b21ce8030e2e7f0c492e36f0
+    manifestHash: 202e2426d275c15fd2ebb198551f5884b1fa52114ea9bd964c1dcdca793c02d2
     name: kops-controller.addons.k8s.io
     needsRollingUpdate: control-plane
     selector:
@@ -41,7 +41,7 @@ spec:
     version: 9.99.0
   - id: k8s-1.12
     manifest: dns-controller.addons.k8s.io/k8s-1.12.yaml
-    manifestHash: d834063a35175e89baed51161341a11b9351ab41385dcc1bea98a199410e6094
+    manifestHash: 3ae1dc15377ba8f0173348e238940c2a9d42dc073e980f3cf985620616182f77
     name: dns-controller.addons.k8s.io
     selector:
       k8s-addon: dns-controller.addons.k8s.io
@@ -55,7 +55,7 @@ spec:
     version: 9.99.0
   - id: k8s-1.22
     manifest: networking.projectcalico.org/k8s-1.22.yaml
-    manifestHash: 9e337fe40420c5145cd25224a03c69838f945237096820cbe9abfaaa09c8b55a
+    manifestHash: c0608fb886a1ad8b3db3be4c901b048f1e8f4e99b40f30d7cdaaf645b6e396a7
     name: networking.projectcalico.org
     selector:
       role.kubernetes.io/networking: "1"
@@ -69,7 +69,7 @@ spec:
     version: 9.99.0
   - id: k8s-1.17
     manifest: aws-ebs-csi-driver.addons.k8s.io/k8s-1.17.yaml
-    manifestHash: 97b59907e1d2a06001bb591d976ae86c97da2ae50eadd510f3911c9aebd7fc1a
+    manifestHash: 853e9f4d87a245ea71d91f89d38b23b295b7c7375df57c0094697093dbc89d00
     name: aws-ebs-csi-driver.addons.k8s.io
     selector:
       k8s-addon: aws-ebs-csi-driver.addons.k8s.io

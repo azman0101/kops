@@ -798,6 +798,13 @@ func TestMixedInstancesSpotASG(t *testing.T) {
 		runTestCloudformation(t)
 }
 
+// TestAdditionalObjects runs the test on a configuration that includes additional objects
+func TestAdditionalObjects(t *testing.T) {
+	newIntegrationTest("additionalobjects.example.com", "additionalobjects").
+		withAddons(dnsControllerAddon, awsEBSCSIAddon, leaderElectionAddon).
+		runTestTerraformAWS(t)
+}
+
 // TestContainerd runs the test on a containerd configuration
 func TestContainerd(t *testing.T) {
 	newIntegrationTest("containerd.example.com", "containerd").
@@ -1040,7 +1047,7 @@ func (i *integrationTest) setupCluster(t *testing.T, inputYAML string, ctx conte
 		t.Fatalf("error getting cluster: %v", err)
 	}
 
-	clientSet, err := factory.Clientset()
+	clientSet, err := factory.KopsClient()
 	if err != nil {
 		t.Fatalf("error getting clientset: %v", err)
 	}

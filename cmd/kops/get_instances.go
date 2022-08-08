@@ -67,7 +67,7 @@ type renderableCloudInstance struct {
 
 func NewCmdGetInstances(f *util.Factory, out io.Writer, options *GetOptions) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "instances [CLUSTER]",
+		Use:               "instances",
 		Short:             getInstancesShort,
 		Example:           getInstancesExample,
 		Args:              rootCommand.clusterNameArgs(&options.ClusterName),
@@ -81,7 +81,7 @@ func NewCmdGetInstances(f *util.Factory, out io.Writer, options *GetOptions) *co
 }
 
 func RunGetInstances(ctx context.Context, f *util.Factory, out io.Writer, options *GetOptions) error {
-	clientset, err := f.Clientset()
+	clientset, err := f.KopsClient()
 	if err != nil {
 		return err
 	}

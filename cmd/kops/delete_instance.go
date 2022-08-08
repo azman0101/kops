@@ -153,7 +153,7 @@ func NewCmdDeleteInstance(f *util.Factory, out io.Writer) *cobra.Command {
 }
 
 func RunDeleteInstance(ctx context.Context, f *util.Factory, out io.Writer, options *DeleteInstanceOptions) error {
-	clientSet, err := f.Clientset()
+	clientSet, err := f.KopsClient()
 	if err != nil {
 		return err
 	}
@@ -217,6 +217,7 @@ func RunDeleteInstance(ctx context.Context, f *util.Factory, out io.Writer, opti
 	}
 
 	d := &instancegroups.RollingUpdateCluster{
+		Clientset:         clientSet,
 		Cluster:           cluster,
 		Ctx:               ctx,
 		MasterInterval:    0,

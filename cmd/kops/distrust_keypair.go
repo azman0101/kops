@@ -109,7 +109,7 @@ func NewCmdDistrustKeypair(f *util.Factory, out io.Writer) *cobra.Command {
 }
 
 func RunDistrustKeypair(ctx context.Context, f *util.Factory, out io.Writer, options *DistrustKeypairOptions) error {
-	clientset, err := f.Clientset()
+	clientset, err := f.KopsClient()
 	if err != nil {
 		return err
 	}
@@ -148,6 +148,8 @@ func distrustKeypair(out io.Writer, name string, keypairIDs []string, keyStore f
 	keyset, err := keyStore.FindKeyset(name)
 	if err != nil {
 		return err
+	} else if keyset == nil {
+		return fmt.Errorf("keyset not found")
 	}
 
 	if len(keypairIDs) == 0 {

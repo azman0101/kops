@@ -32,7 +32,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	"k8s.io/kops/cmd/kops/util"
 	"k8s.io/kops/pkg/apis/kops"
 	"k8s.io/kops/pkg/commands/commandutils"
 	"k8s.io/kops/pkg/dump"
@@ -71,12 +70,12 @@ func (o *ToolboxDumpOptions) InitDefaults() {
 	o.SSHUser = "ubuntu"
 }
 
-func NewCmdToolboxDump(f *util.Factory, out io.Writer) *cobra.Command {
+func NewCmdToolboxDump(f commandutils.Factory, out io.Writer) *cobra.Command {
 	options := &ToolboxDumpOptions{}
 	options.InitDefaults()
 
 	cmd := &cobra.Command{
-		Use:               "dump [CLUSTER]",
+		Use:               "dump",
 		Short:             toolboxDumpShort,
 		Long:              toolboxDumpLong,
 		Example:           toolboxDumpExample,
@@ -101,8 +100,8 @@ func NewCmdToolboxDump(f *util.Factory, out io.Writer) *cobra.Command {
 	return cmd
 }
 
-func RunToolboxDump(ctx context.Context, f *util.Factory, out io.Writer, options *ToolboxDumpOptions) error {
-	clientset, err := f.Clientset()
+func RunToolboxDump(ctx context.Context, f commandutils.Factory, out io.Writer, options *ToolboxDumpOptions) error {
+	clientset, err := f.KopsClient()
 	if err != nil {
 		return err
 	}

@@ -50,7 +50,7 @@ func NewCmdGetSSHPublicKeys(f *util.Factory, out io.Writer, getOptions *GetOptio
 		GetOptions: getOptions,
 	}
 	cmd := &cobra.Command{
-		Use:               "sshpublickeys [CLUSTER]",
+		Use:               "sshpublickeys",
 		Aliases:           []string{"sshpublickey", "ssh"},
 		Short:             getSSHPublicKeysShort,
 		Example:           getSSHPublicKeysExample,
@@ -70,7 +70,7 @@ type SSHKeyItem struct {
 }
 
 func RunGetSSHPublicKeys(ctx context.Context, f *util.Factory, out io.Writer, options *GetSSHPublicKeysOptions) error {
-	clientset, err := f.Clientset()
+	clientset, err := f.KopsClient()
 	if err != nil {
 		return err
 	}

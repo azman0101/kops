@@ -180,7 +180,7 @@ func NewCmdCreateCluster(f *util.Factory, out io.Writer) *cobra.Command {
 	encryptEtcdStorage := false
 
 	cmd := &cobra.Command{
-		Use:               "cluster [CLUSTER]",
+		Use:               "cluster",
 		Short:             createClusterShort,
 		Long:              createClusterLong,
 		Example:           createClusterExample,
@@ -488,7 +488,7 @@ func RunCreateCluster(ctx context.Context, f *util.Factory, out io.Writer, c *Cr
 		}
 	}
 
-	clientset, err := f.Clientset()
+	clientset, err := f.KopsClient()
 	if err != nil {
 		return err
 	}
