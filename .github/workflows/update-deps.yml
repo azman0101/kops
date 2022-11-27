@@ -28,7 +28,7 @@ jobs:
           echo "::set-output name=changes::$(git status --porcelain)"
       - name: Create PR
         if: ${{ steps.update_deps.outputs.changes != '' }}
-        uses: peter-evans/create-pull-request@671dc9c9e0c2d73f07fa45a3eb0220e1622f0c5f
+        uses: peter-evans/create-pull-request@331d02c7e2104af23ad5974d4d5cbc58a3e6dc77
         with:
           title: 'Update dependencies'
           commit-message: Update dependencies
