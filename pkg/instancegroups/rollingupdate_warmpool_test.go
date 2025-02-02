@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -69,6 +69,47 @@ func TestRollingWarmPoolBeforeJoinedNodes(t *testing.T) {
 	assert.NoError(t, err, "rolling update")
 
 	assert.Equal(t, 6, warmPoolBeforeJoinedNodesTest.numTerminations, "Number of terminations")
+}
+
+func TestRollingUpdateWarmPoolAMIUpdate(t *testing.T) {
+	ctx := context.TODO()
+	c, cloud := getTestSetup()
+	k8sClient := c.K8sClient
+	groups := make(map[string]*cloudinstances.CloudInstanceGroup)
+
+	// 1. Create instance group with initial AMI and warm pool configuration:
+	// - 3 active instances (0 needing update)
+	// - 3 warm pool instances (all needing update)
+	makeGroupWithWarmPool(groups, k8sClient, cloud, "node-ami", kops.InstanceGroupRoleNode, 3, 0, 3, 3)
+	group := groups["node-ami"]
+	group.InstanceGroup.Spec.Image = "ssm:/initial/ami-id"  // Set initial AMI
+
+
+    // Mock SSM parameter resolution
+    mockSSM := cloud.MockSSM.(*mockssm.MockSSM)
+    mockSSM.Parameters["/initial/ami-id"] = &ssmtypes.Parameter{
+        Value: aws.String("ami-initial"),
+    }
+	// 2. Verify initial state - only warm pool instances need updates
+	assert.Equal(t, 3, len(group.NeedUpdate), "initial outdated instances should only be warm pool nodes")
+
+    // 3. Update SSM parameter value without changing the spec
+    mockSSM.Parameters["/initial/ami-id"].Value = aws.String("ami-updated")
+
+	// 4. Verify both active and warm pool instances now require updates:
+	// - 3 previously up-to-date active instances now need update
+	// - 3 existing warm pool instances still need update
+	assert.Equal(t, 6, len(group.NeedUpdate), "all instances (active + warm pool) should need update after AMI change")
+
+	// 5. Execute rolling update process to replace outdated instances
+	err := c.RollingUpdate(ctx, groups, &kops.InstanceGroupList{})
+	assert.NoError(t, err)
+
+	// 6. Verify AWS Auto Scaling Group launch template was updated with new AMI
+	// This ensures new instances will be launched with the updated image
+	mockASG := cloud.MockAutoscaling.(*mockautoscaling.MockAutoscaling)
+	asg := mockASG.Groups["node-ami"]
+	assert.Equal(t, "ami-updated", asg.LaunchTemplate.ImageId, "ASG launch template should reflect new AMI")
 }
 
 type countingValidator struct {
